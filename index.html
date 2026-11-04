@@ -492,6 +492,8 @@ textarea.input { resize: vertical; min-height: 80px; line-height: 1.45; }
   transition: background .15s, border-color .15s;
 }
 .dropzone:hover, .dropzone.over { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.xl-drop { padding: 22px 16px; }
+.xl-card .list-row .btn { text-decoration: none; }
 .dropzone strong { color: var(--text); display: block; font-size: 15px; margin-bottom: 4px; }
 .group-title { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 6px 4px -8px; }
 .list { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -603,13 +605,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg>
         Library
       </button>
-      <button class="nav-item" data-view="import">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
-        Get Data
-      </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 3.7 · List builder</div>
+    <div class="app-version" title="App version">Version 3.9 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -649,7 +647,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       <header class="toolbar">
         <h1>Library</h1>
         <div class="spacer"></div>
-        <button class="btn" id="wahaBtn" type="button">Get data from the web</button>
         <button class="btn primary" id="addPdfBtn" type="button">Add PDFs</button>
       </header>
       <div class="scroll">
@@ -664,59 +661,27 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
           </div>
           <div class="check problem hidden" id="importError"></div>
           <div id="docList" class="stack"></div>
+
+          <div class="card stack xl-card" id="xlCard">
+            <div>
+              <h2>Convert a PDF to Excel</h2>
+              <p class="hint" style="margin:0">Choose a faction PDF and get its datasheets, weapons, points, detachments, enhancements, stratagems and army rules as an Excel file. The PDF isn't added to your Library.</p>
+            </div>
+            <div class="dropzone xl-drop" id="xlDrop" role="button" tabindex="0">
+              <strong>Drop a faction PDF here</strong>
+              or click to choose a file
+            </div>
+            <div class="status-line hidden" id="xlStatus"><span class="spinner"></span><span></span></div>
+            <div class="check problem hidden" id="xlError"></div>
+            <div id="xlResults" class="list hidden"></div>
+          </div>
+
           <p class="hint">Your PDFs are read and stored only in this browser. Nothing is uploaded.</p>
         </div>
       </div>
       <input type="file" id="fileInput" accept="application/pdf,.pdf" multiple hidden>
+      <input type="file" id="xlInput" accept="application/pdf,.pdf" multiple hidden>
       <input type="file" id="wahaFileInput" accept=".csv,text/csv,text/plain" multiple hidden>
-    </section>
-
-    <!-- ================= GET DATA ================= -->
-    <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.7</span></header>
-      <div class="scroll">
-        <div class="content">
-
-          <div class="card stack">
-            <div>
-              <h2>Add a faction PDF</h2>
-              <p class="hint" style="margin:0">Choose a faction PDF (for example a Wahapedia faction page saved as PDF). The app turns it into clean datasheets, detachments, enhancements and stratagems with exact points — and you can export it as a small Excel file.</p>
-            </div>
-            <div><button class="btn primary large" id="addFactionPdf" type="button">Choose PDF…</button></div>
-          </div>
-
-          <div class="card stack">
-            <div>
-              <h2>Add from a web address</h2>
-              <p class="hint" style="margin:0">Paste a direct link to a rules PDF or web page. Some websites don't allow this — if so, save the page as a PDF and add it above instead.</p>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <input class="input" id="urlInput" type="url" inputmode="url" placeholder="https://…" style="flex:1 1 260px">
-              <button class="btn primary large" id="urlPull" type="button">Pull</button>
-            </div>
-            <div class="row">
-              <div class="field">
-                <label for="urlKind">What is it?</label>
-                <select class="select" id="urlKind" style="width:100%">
-                  <option value="auto">Work it out for me</option>
-                  <option value="core">Core Rules</option>
-                  <option value="faction">Faction rules</option>
-                  <option value="points">Points</option>
-                  <option value="updates">Updates (FAQ, Dataslate)</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="urlFaction">Faction <span class="hint">(optional)</span></label>
-                <input class="input" id="urlFaction" list="factionList" placeholder="Detected automatically">
-              </div>
-            </div>
-            <div class="status-line hidden" id="urlStatus"><span class="spinner"></span><span></span></div>
-            <div class="check problem hidden" id="urlError"></div>
-          </div>
-
-          <div id="webSources"></div>
-        </div>
-      </div>
     </section>
   </main>
 </div>
@@ -3500,7 +3465,77 @@ async function importFromUrl(rawUrl, kindChoice, factionInput, onStatus) {
   return "page";
 }
 
-/* ---------- Get Data page ---------- */
+/* ---------- Library: PDF → Excel converter ---------- */
+const xlFiles = [];   // converted files this session: { name, blob, url, summary }
+async function convertPdfsToExcel(files) {
+  const status = $("#xlStatus"), err = $("#xlError");
+  err.classList.add("hidden");
+  const problems = [];
+  for (const f of files) {
+    try {
+      setStatus("#xlStatus", `Reading ${f.name}…`);
+      const { title, pages } = await readPdf(f, (n, total) => setStatus("#xlStatus", `Reading ${f.name} — page ${n} of ${total}`));
+      if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
+      setStatus("#xlStatus", `Converting ${f.name} into datasheets and detachments…`);
+      await new Promise(r => setTimeout(r, 30));
+      const all = pages.flatMap(p => p.items);
+      const printed = parsePrintedFactionPdf(all), tall = parseFactionPdf(all);
+      const data = factionRichness(printed) >= factionRichness(tall) * 0.9 ? printed : tall;
+      if (data.datasheets.length < 2 && !data.detachments.length) throw new Error("no datasheets or detachments found. Excel conversion works with faction packs");
+      for (const ds of data.datasheets) tidyDatasheet(ds);
+      const faction = detectFactions(`${title} ${f.name.replace(/[_\-.]+/g, " ")}`)[0] || "";
+      const blob = buildXlsx(structuredToSheets(data, faction));
+      const name = `${(faction || f.name.replace(/\.pdf$/i, "")).replace(/[^\w\- ]+/g, "").trim() || "faction"} data.xlsx`;
+      const old = xlFiles.findIndex(x => x.name === name);
+      if (old >= 0) { URL.revokeObjectURL(xlFiles[old].url); xlFiles.splice(old, 1); }
+      xlFiles.unshift({ name, blob, url: URL.createObjectURL(blob), summary: `${data.datasheets.length} datasheets · ${data.detachments.length} detachments · ${data.armyRules.length} army rules · ${formatGB(blob.size)}` });
+    } catch (e) {
+      problems.push(`${f.name}: ${e.message || e}`);
+    }
+  }
+  setStatus("#xlStatus", null);
+  if (problems.length) { err.textContent = "Couldn't convert " + problems.join("; "); err.classList.remove("hidden"); }
+  renderExcelResults();
+  if (!problems.length) toast(files.length === 1 ? "Excel file ready" : `${files.length} Excel files ready`);
+}
+
+function renderExcelResults() {
+  const box = $("#xlResults");
+  box.classList.toggle("hidden", !xlFiles.length);
+  box.innerHTML = xlFiles.map((x, i) => `
+    <div class="list-row">
+      <div class="main"><div class="title">${esc(x.name)}</div><div class="meta">${esc(x.summary)}</div></div>
+      <a class="btn primary" href="${x.url}" download="${esc(x.name)}" data-xl-dl="${i}">Download Excel</a>
+    </div>`).join("");
+}
+
+function wireExcelConverter() {
+  const input = $("#xlInput"), drop = $("#xlDrop");
+  const pick = () => input.click();
+  drop.addEventListener("click", pick);
+  drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+  input.addEventListener("change", () => {
+    const files = [...input.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
+    input.value = "";
+    if (files.length) convertPdfsToExcel(files);
+  });
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => {
+    const files = [...(e.dataTransfer?.files || [])].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
+    if (files.length) convertPdfsToExcel(files);
+  });
+  // A normal link downloads on your own site; inside the Claude preview the file goes through its save prompt.
+  $("#xlResults").addEventListener("click", async e => {
+    const a = e.target.closest("[data-xl-dl]");
+    if (!a || !window.claude?.use) return;
+    e.preventDefault();
+    const x = xlFiles[+a.dataset.xlDl];
+    if (x) await downloadBlob(x.blob, x.name);
+  });
+}
+
+/* ---------- Get Data page (removed; web pulls stay available in code) ---------- */
 function renderImportPage() {
   const sources = state.docs.filter(d => d.sourceUrl).sort((a, b) => (b.pulledAt || 0) - (a.pulledAt || 0));
   $("#webSources").innerHTML = sources.length ? `<div class="group-title" style="margin-bottom:8px">Your web sources</div>
@@ -3722,13 +3757,12 @@ function renderAll() {
   renderChat();
   renderSaved();
   renderAIStatus();
-  renderImportPage();
   $("#factionList").innerHTML = [...new Set([...factionsInLibrary(), ...KNOWN_FACTIONS])].sort().map(f => `<option value="${esc(f)}">`).join("");
 }
 
 function showView(name) {
-  for (const v of ["rules", "lists", "library", "import"]) $("#view-" + v).classList.toggle("hidden", v !== name);
-  if (name === "import") renderImportPage();
+  if (!["rules", "lists", "library"].includes(name)) name = "library"; // the old Get Data page now lives in Library
+  for (const v of ["rules", "lists", "library"]) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
   $$(".nav-item").forEach(b => b.dataset.view === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   store.set("rf.view", name);
@@ -4673,7 +4707,7 @@ function renderListsPage() {
     <button class="btn primary" type="button" data-lb="generate" ${factions.length ? "" : "disabled"}>Generate list</button>`;
   const lists = [...state.lists].sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
   host.innerHTML = `
-    ${factions.length ? "" : `<div class="card"><h2>Add your faction first</h2><p>Lists are built from a converted faction PDF. Add one in Get Data, then come back here.</p><button class="btn primary" type="button" data-go="import">Open Get Data</button></div>`}
+    ${factions.length ? "" : `<div class="card"><h2>Add your faction first</h2><p>Lists are built from a converted faction PDF. Add one in Library, then come back here.</p><button class="btn primary" type="button" data-go="library">Open Library</button></div>`}
     ${lists.length ? `<div class="list">${lists.map(l => {
       if (l.version !== 2) return `<div class="list-row"><div class="main"><div class="title">${esc(l.title || "Saved list")}</div><div class="meta">Older list · ${l.points || ""} pts</div></div>
         <button class="btn plain" type="button" data-lb-copy-old="${esc(l.id)}">Copy</button><button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button></div>`;
@@ -4809,6 +4843,34 @@ function wargearOf(ds) {
     }
     for (const s of line.split(/(?<=\.)\s+|(?<![,:])\s+(?=(?:The|Any number of|All|For every|Up to|This unit|This model(?:[’']s)?|Each|If this unit)\s[^.]*?\bcan\b)/)) if (s.trim()) rules.push({ text: s.trim(), bullets: [] });
   }
+  // Squads whose composition names only one kind of model: find the Sergeant-equivalent
+  // from the stat-line names, or from options that name one model ("The Plague Champion's boltgun…").
+  const squadMax = Math.max(1, ...(ds.points || []).map(p => p.models || 1));
+  if (squadMax > 1 && groups.length === 1) {
+    const main = groups[0];
+    const leaders = [];
+    const add = name => {
+      const n = String(name || "").trim();
+      if (n && !groups.some(g => g.key === gearKey(n)) && !leaders.some(l => l.key === gearKey(n)) && gearKey(n) !== gearKey(ds.name)) leaders.push({ name: n, key: gearKey(n) });
+    };
+    const named = rules.map(r => r.text.match(/^The ((?:[A-Z][\w’'-]*\s?){1,6}?)(?:[’']s\b|\s+can\b|\s+is\b)/)?.[1]?.trim()).filter(Boolean);
+    const profileNames = [...new Set((ds.profiles || []).map(p => p.name).filter(Boolean))];
+    if (profileNames.length > 1) {
+      // The rank-and-file stat line is the one whose name sits inside another ("Intercessor" / "Intercessor Sergeant"),
+      // or the one no option names on its own.
+      const k = n => ` ${gearKey(n)} `;
+      const isLeader = n => named.some(x => gearKey(x) === gearKey(n)) || profileNames.some(o => o !== n && k(n).includes(k(o)));
+      const ranks = profileNames.filter(n => !isLeader(n));
+      if (main.fallback && ranks.length === 1) { main.name = ranks[0]; main.key = gearKey(ranks[0]); }
+      for (const n of profileNames) if (isLeader(n)) add(n);
+    }
+    for (const n of named) add(n);
+    for (const l of leaders.slice(0, 2)) {
+      groups.unshift({ name: l.name, key: l.key, min: 1, max: 1, defaults: [...main.defaults] });
+      // Take the leader out of the main count when the composition counted every model.
+      if (main.fallback || main.max >= squadMax) { main.min = Math.max(0, main.min - 1); main.max = Math.max(main.min, main.max - 1); }
+    }
+  }
   const mainGroup = groups.find(x => x.max > x.min) || groups[groups.length - 1];
   for (const r of rules) {
     let t = r.text;
@@ -4879,7 +4941,7 @@ function groupSizes(wg, size) {
   const fixed = wg.groups.filter(g => g.min === g.max && !g.fallback).reduce((s, g) => s + g.min, 0);
   let rest = Math.max(0, size - fixed);
   return Object.fromEntries(wg.groups.map(g => {
-    if (g.fallback) return [g.name, size];
+    if (g.fallback) return [g.name, Math.max(0, size - fixed)];
     if (g.min === g.max) return [g.name, g.min];
     const n = Math.max(g.min, Math.min(g.max, rest));
     rest -= n;
@@ -5833,14 +5895,13 @@ function wireEvents() {
   const input = $("#fileInput");
   const pick = () => input.click();
   $("#addPdfBtn").addEventListener("click", pick);
-  $("#wahaBtn").addEventListener("click", () => showView("import"));
-  wireImportPage();
   $("#wahaFileInput").addEventListener("change", async e => {
     const files = [...e.target.files];
     e.target.value = "";
     if (files.length) await handleWahapediaFiles(files);
   });
   $("#dropzone").addEventListener("click", pick);
+  wireExcelConverter();
   input.addEventListener("change", () => {
     const files = [...input.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
     input.value = "";
