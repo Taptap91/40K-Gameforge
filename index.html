@@ -601,7 +601,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 3.1 · List builder</div>
+    <div class="app-version" title="App version">Version 3.2 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -665,7 +665,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
     <!-- ================= GET DATA ================= -->
     <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.1</span></header>
+      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.2</span></header>
       <div class="scroll">
         <div class="content">
 
@@ -5166,7 +5166,8 @@ function lbLoadout(x, buffs) {
       if (!ps.length) return "";
       // Swap-in weapons show the most this squad size allows; default weapons show what's left after swaps.
       const type = ps[0].type, n = gr.counts[w] ?? 0, isDefault = gr.defaults.includes(w);
-      const room = isDefault ? Math.max(n, limits.get(w) ?? 0) : Math.max(n, gr.reach.get(w) ?? 0);
+      // X/Y: Y is the most models the datasheet lets carry this weapon (every model for default wargear).
+      const room = isDefault ? gr.N : Math.max(1, gr.reach.get(w) ?? 0);
       const canAdd = n < gr.N;
       const key = `${x.id}|${gr.name}|${w}`;
       const mine = buffs.filter(b => !b.type || b.type === type);
@@ -5301,6 +5302,8 @@ function lbListColumn(list, r) {
   };
   const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));
   for (const x of r.entries) groups[x.unit ? lbGroupOf(x.unit) : groups.length - 1].items.push(x);
+  // Alphabetical within each category, whenever a unit was added (copies keep their order).
+  for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
   const pct = Math.min(100, Math.round(r.total / list.points * 100));
   const enhCount = r.entries.reduce((n, x) => n + (x.enh ? 1 : 0) + (x.upg ? 1 : 0), 0);
   return `
