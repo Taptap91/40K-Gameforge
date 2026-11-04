@@ -213,10 +213,13 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-problems { background: rgba(255,69,58,.1); border: 1px solid rgba(255,69,58,.45); border-radius: 8px; padding: 8px 12px; color: var(--red); font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
 .fv-panel.lb-bad { box-shadow: inset 0 0 0 1px var(--red); }
 .lb-gerr { color: var(--red); font-size: 12px; margin: 0 0 6px; }
-.lb-sizes { flex-wrap: wrap; }
-.lb-sizes button { white-space: nowrap; }
-.lb-sizes button span { color: var(--text-2); font-size: 12px; margin-left: 4px; }
-.lb-sizes button[aria-pressed="true"] span { color: inherit; opacity: .8; }
+.lb-switch { position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); background: var(--control); border-radius: 999px; padding: 3px; min-width: min(100%, 300px); }
+.lb-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); transform: translateX(calc(var(--i) * 100%)); background: var(--accent); border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,.35); transition: transform .2s ease; }
+.lb-switch button { position: relative; z-index: 1; border: 0; background: transparent; color: var(--text-2); font-size: 13px; padding: 6px 14px; border-radius: 999px; white-space: nowrap; transition: color .2s; }
+.lb-switch button[aria-checked="true"] { color: #fff; font-weight: 600; }
+.lb-switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .lb-thumb, .lb-switch button { transition: none; } }
+@media (max-width: 760px) { .lb-switch { width: 100%; } .lb-switch button { padding: 6px 8px; font-size: 12.5px; } }
 .lb-warnicon { color: var(--red); font-size: 13px; margin-left: 6px; cursor: help; line-height: 1; }
 .lb-wtype { font-size: 12px; color: var(--text-2); margin: 10px 0 6px; }
 .lb-wtype:first-child, .lb-gerr + .lb-wtype { margin-top: 0; }
@@ -606,7 +609,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 3.4 · List builder</div>
+    <div class="app-version" title="App version">Version 3.5 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -670,7 +673,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
     <!-- ================= GET DATA ================= -->
     <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.4</span></header>
+      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.5</span></header>
       <div class="scroll">
         <div class="content">
 
@@ -5226,7 +5229,13 @@ function lbInspector(list, r, data) {
   const own = v.abilities.filter(a => !a.wargear), gear = v.abilities.filter(a => a.wargear);
   const kws = niceKeywords(ds.keywords), fkws = niceKeywords(ds.factionKeywords);
   const size = u.options.length > 1
-    ? `<div class="segmented lb-sizes" role="group" aria-label="Unit size">${u.options.map(o => `<button type="button" data-lb-setsize="${x.id}" data-v="${o.models}" aria-pressed="${o.models === x.models}"><b>${o.models}</b> model${o.models === 1 ? "" : "s"} <span>${o.points} pts</span></button>`).join("")}</div>`
+    ? (() => {
+        const i = Math.max(0, u.options.findIndex(o => o.models === x.models));
+        return `<div class="lb-switch" role="radiogroup" aria-label="Unit size" style="--n:${u.options.length};--i:${i}">
+          <span class="lb-thumb" aria-hidden="true"></span>
+          ${u.options.map((o, k) => `<button type="button" role="radio" aria-checked="${k === i}" data-lb-setsize="${x.id}" data-v="${o.models}" data-i="${k}">${o.models} Model${o.models === 1 ? "" : "s"} - ${o.points} pts</button>`).join("")}
+        </div>`;
+      })()
     : `<span class="lb-subtle">${x.models} model${x.models === 1 ? "" : "s"}</span>`;
 
   let attach = "";
@@ -5575,7 +5584,15 @@ function wireListBuilder() {
     const sz = t.closest("[data-lb-setsize]");
     if (sz) {
       const e = list.units.find(u => u.id === sz.dataset.lbSetsize);
-      if (e && e.models !== +sz.dataset.v) { e.models = +sz.dataset.v; saveList(list); renderListEditor(list); }
+      if (!e || e.models === +sz.dataset.v) return;
+      // Slide the switch to the chosen size, then update the unit once it has moved.
+      const sw = sz.closest(".lb-switch");
+      sw.style.setProperty("--i", sz.dataset.i);
+      sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-checked", String(b === sz)));
+      e.models = +sz.dataset.v;
+      saveList(list);
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setTimeout(() => renderListEditor(list), reduce ? 0 : 200);
       return;
     }
     const warnIcon = t.closest("[data-lb-warn]");
