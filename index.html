@@ -213,6 +213,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-problems { background: rgba(255,69,58,.1); border: 1px solid rgba(255,69,58,.45); border-radius: 8px; padding: 8px 12px; color: var(--red); font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
 .fv-panel.lb-bad { box-shadow: inset 0 0 0 1px var(--red); }
 .lb-gerr { color: var(--red); font-size: 12px; margin: 0 0 6px; }
+.lb-warnicon { color: var(--red); font-size: 13px; margin-left: 6px; cursor: help; line-height: 1; }
 .lb-wtype { font-size: 12px; color: var(--text-2); margin: 10px 0 6px; }
 .lb-wtype:first-child, .lb-gerr + .lb-wtype { margin-top: 0; }
 .lb-wkws { flex-basis: 100%; font-size: 12px; color: var(--text-2); font-weight: 400; }
@@ -601,7 +602,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 3.2 · List builder</div>
+    <div class="app-version" title="App version">Version 3.3 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -665,7 +666,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
     <!-- ================= GET DATA ================= -->
     <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.2</span></header>
+      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.3</span></header>
       <div class="scroll">
         <div class="content">
 
@@ -4875,7 +4876,7 @@ function loadoutIssues(gr, unitSize) {
     const taken = only.reduce((n, w) => n + (gr.counts[w] || 0), 0);
     const cap = optionMax(o, gr.N, unitSize);
     if (only.length > 1 && taken > cap) {
-      out.push({ type: type(only[0]), msg: `Only ${cap} model${cap === 1 ? "" : "s"} in total can take ${only.join(", ").replace(/, ([^,]*)$/, " or $1")} at this unit size (${taken} chosen).` });
+      out.push({ type: type(only[0]), ws: only.filter(w => gr.counts[w] > 0), msg: `Only ${cap} model${cap === 1 ? "" : "s"} in total can take ${only.join(", ").replace(/, ([^,]*)$/, " or $1")} at this unit size (${taken} chosen).` });
       for (const w of only) explained.add(w);
       for (const r of o.replaces) quietDefaults.add(r);
     }
@@ -4883,16 +4884,16 @@ function loadoutIssues(gr, unitSize) {
   for (const w of gr.reach.keys()) {
     if (gr.defaults.includes(w) || !(gr.counts[w] > 0) || explained.has(w)) continue;
     const max = gr.reach.get(w) ?? 0;
-    if (gr.counts[w] > max) { out.push({ type: type(w), msg: max ? `Only ${max} model${max === 1 ? "" : "s"} can take ${w} at this unit size.` : `${w} can't be taken by this model.` }); continue; }
+    if (gr.counts[w] > max) { out.push({ type: type(w), ws: [w], msg: max ? `Only ${max} model${max === 1 ? "" : "s"} can take ${w} at this unit size.` : `${w} can't be taken by this model.` }); continue; }
     if (left[w] > 0) {
       const opt = gr.options.find(o => o.choices.some(ch => ch.includes(w)));
       const ch = opt?.choices.find(c => c.includes(w)) || [];
       const repl = (opt?.replaces || []).filter(r => !ch.includes(r));
-      out.push({ type: type(w), msg: repl.length ? `${w} replaces ${repl.join(" and ")}, so uncheck ${repl.length > 1 ? "them" : "it"}${many ? " for that model" : ""}.` : `${w} can't be added alongside the other choices here.` });
+      out.push({ type: type(w), ws: [w, ...repl], msg: repl.length ? `${w} replaces ${repl.join(" and ")}, so uncheck ${repl.length > 1 ? "them" : "it"}${many ? " for that model" : ""}.` : `${w} can't be added alongside the other choices here.` });
     }
   }
-  for (const d of gr.defaults) if (gap[d] > 0 && !quietDefaults.has(d)) out.push({ type: type(d), msg: `${d} was removed without picking a weapon to replace it${many ? ` (${gap[d]} model${gap[d] === 1 ? "" : "s"})` : ""}.` });
-  if (!out.length) out.push({ type: "", msg: "This weapon combination isn't allowed by the datasheet's Wargear Options." });
+  for (const d of gr.defaults) if (gap[d] > 0 && !quietDefaults.has(d)) out.push({ type: type(d), ws: [d], msg: `${d} was removed without picking a weapon to replace it${many ? ` (${gap[d]} model${gap[d] === 1 ? "" : "s"})` : ""}.` });
+  if (!out.length) out.push({ type: "", ws: [], msg: "This weapon combination isn't allowed by the datasheet's Wargear Options." });
   return out;
 }
 
@@ -5160,7 +5161,9 @@ function lbLoadout(x, buffs) {
     const problems = (x.loadoutProblems || {})[gr.name] || [];
     const problem = problems.length > 0;
     const limits = weaponLimits(gr, x.models);
-    const warn = t => problems.filter(p => p.type === t).map(p => `<div class="lb-gerr">⚠︎ ${esc(p.msg)}</div>`).join("");
+    const icon = msgs => msgs.length ? `<span class="lb-warnicon" role="img" tabindex="0" title="${esc(msgs.join(" "))}" aria-label="${esc(msgs.join(" "))}" data-lb-warn="${esc(msgs.join(" "))}">⚠︎</span>` : "";
+    const weaponWarn = w => icon(problems.filter(p => (p.ws || []).includes(w)).map(p => p.msg));
+    const groupWarn = icon(problems.filter(p => !(p.ws || []).length).map(p => p.msg));
     const row = w => {
       const ps = profiles(w);
       if (!ps.length) return "";
@@ -5178,7 +5181,7 @@ function lbLoadout(x, buffs) {
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
       return `<div class="lb-wopt${n > 0 ? " on" : ""}">
         <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="${esc(w)}">
-        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}</span>
+        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
           ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</summary>
           ${lbWeaponGrid(ps, type, buffs, "profile")}</details>
         <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>` : ""}</div>
@@ -5186,9 +5189,9 @@ function lbLoadout(x, buffs) {
     };
     const all = [...gr.reach.keys()];
     const byType = t => all.filter(w => profiles(w)[0]?.type === t);
-    const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div>${warn(t)}<div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
-    return lbPanel(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>`,
-      warn("") + part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
+    const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div><div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
+    return lbPanel(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>${groupWarn}`,
+      part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
   }).join("");
 }
 
@@ -5565,6 +5568,8 @@ function wireListBuilder() {
       if (listUI.sel === id) listUI.sel = null;
       saveList(list); return renderListEditor(list);
     }
+    const warnIcon = t.closest("[data-lb-warn]");
+    if (warnIcon) { e.preventDefault(); return toast(warnIcon.dataset.lbWarn); }
     const step = t.closest("[data-lb-step]");
     if (step) return lbChangeWeapon(list, step.dataset, +step.dataset.lbStep);
     const pane = t.closest("[data-lb-pane]");
