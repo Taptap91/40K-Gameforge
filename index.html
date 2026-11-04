@@ -212,7 +212,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-attached.bad { border-color: var(--red); }
 .lb-problems { background: rgba(255,69,58,.1); border: 1px solid rgba(255,69,58,.45); border-radius: 8px; padding: 8px 12px; color: var(--red); font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
 .fv-panel.lb-bad { box-shadow: inset 0 0 0 1px var(--red); }
-.lb-gerr { color: var(--red); font-size: 12.5px; margin-bottom: 8px; }
+.lb-gerr { color: var(--red); font-size: 12px; margin: 0 0 6px; }
 .lb-wtype { font-size: 12px; color: var(--text-2); margin: 10px 0 6px; }
 .lb-wtype:first-child, .lb-gerr + .lb-wtype { margin-top: 0; }
 .lb-wkws { flex-basis: 100%; font-size: 12px; color: var(--text-2); font-weight: 400; }
@@ -601,7 +601,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 3.0 · List builder</div>
+    <div class="app-version" title="App version">Version 3.1 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -665,7 +665,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
     <!-- ================= GET DATA ================= -->
     <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.0</span></header>
+      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 3.1</span></header>
       <div class="scroll">
         <div class="content">
 
@@ -2155,6 +2155,7 @@ function openDataViewer(docId) {
       statsPanel(ds),
       weaponsPanel(ds, "Ranged"),
       weaponsPanel(ds, "Melee"),
+      (() => { const wo = ds.sections.find(sc => /^WARGEAR OPTIONS/.test(sc.heading)); return wo ? panel("Wargear Options", `<div class="fv-rich">${richHTML(wo.rich || wo.text)}</div>`) : ""; })(),
       own.length || v.ruleNames.length ? panel("Abilities", (v.ruleNames.length ? `<div class="fv-rules">${v.ruleNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + abilityList(own)) : "",
       gear.length ? panel("Wargear Abilities", abilityList(gear)) : "",
       ...v.extras.map(s => panel(titleCase(s.heading), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)),
@@ -4293,7 +4294,7 @@ function evaluateList(list, data = armyData(list.faction)) {
     x.loadoutProblems = {};
     for (const g of x.loadout) {
       const p = loadoutProblem(g, x.models);
-      if (p) { x.loadoutProblems[g.name] = p; x.problems.push(p); issues.push(`${x.unit.name} — ${p}`); }
+      if (p) { x.loadoutProblems[g.name] = loadoutIssues(g, x.models); x.problems.push(p); (x.loadoutText ||= []).push(p); issues.push(`${x.unit.name} — ${p}`); }
     }
   }
 
@@ -4822,9 +4823,10 @@ function loadoutOf(x) {
     for (const w of reach.keys()) {
       const base = g.defaults.includes(w) ? N : 0;
       let c = saved && w in saved.c ? saved.c[w] + (g.defaults.includes(w) ? N - saved.n : 0) : base;
-      counts[w] = Math.max(0, Math.min(reach.get(w), c));
+      counts[w] = Math.max(0, Math.min(N, c));
     }
-    return { name: g.name, N, defaults: g.defaults, options: opts, reach, counts, free: wg.free };
+    const types = new Map([...reach.keys()].map(w => [w, (x.unit.ds.weapons || []).find(v => weaponBase(v.name) === w)?.type || ""]));
+    return { name: g.name, N, defaults: g.defaults, options: opts, reach, counts, types, free: wg.free };
   }).filter(g => g.N > 0);
 }
 
@@ -4857,11 +4859,94 @@ function loadoutProblem(gr, unitSize) {
     return spread(0, cap);
   };
   if (solve(0)) return "";
-  const missing = gr.defaults.filter(w => gr.counts[w] < gr.N);
-  const extra = ws.filter(w => !gr.defaults.includes(w) && gr.counts[w] > 0);
-  if (missing.length && !extra.length) return `${gr.name}: ${missing.join(", ")} removed without taking a replacement.`;
-  if (extra.length && !missing.length) return `${gr.name}: ${extra.join(", ")} must replace a weapon, so untick the one it replaces.`;
-  return `${gr.name}: this weapon combination isn't allowed by the datasheet.`;
+  return `${gr.name}: ${loadoutIssues(gr, unitSize).map(i => i.msg).join(" ")}`;
+}
+
+/** Why a group's weapons aren't legal, each tied to the ranged or melee section it's about. */
+function loadoutIssues(gr, unitSize) {
+  const out = [];
+  const type = w => gr.types?.get(w) || "";
+  const { left, gap } = optionUsage(gr, unitSize);
+  const many = gr.N > 1;
+  const explained = new Set(), quietDefaults = new Set();
+  // Shared limits: "for every 5 models, 1 can take one of the following" covers all of those weapons together.
+  for (const o of gr.options) {
+    const only = [...new Set(o.choices.flat())].filter(w => !gr.defaults.includes(w) && gr.options.every(p => p === o || !p.choices.some(ch => ch.includes(w))));
+    const taken = only.reduce((n, w) => n + (gr.counts[w] || 0), 0);
+    const cap = optionMax(o, gr.N, unitSize);
+    if (only.length > 1 && taken > cap) {
+      out.push({ type: type(only[0]), msg: `Only ${cap} model${cap === 1 ? "" : "s"} in total can take ${only.join(", ").replace(/, ([^,]*)$/, " or $1")} at this unit size (${taken} chosen).` });
+      for (const w of only) explained.add(w);
+      for (const r of o.replaces) quietDefaults.add(r);
+    }
+  }
+  for (const w of gr.reach.keys()) {
+    if (gr.defaults.includes(w) || !(gr.counts[w] > 0) || explained.has(w)) continue;
+    const max = gr.reach.get(w) ?? 0;
+    if (gr.counts[w] > max) { out.push({ type: type(w), msg: max ? `Only ${max} model${max === 1 ? "" : "s"} can take ${w} at this unit size.` : `${w} can't be taken by this model.` }); continue; }
+    if (left[w] > 0) {
+      const opt = gr.options.find(o => o.choices.some(ch => ch.includes(w)));
+      const ch = opt?.choices.find(c => c.includes(w)) || [];
+      const repl = (opt?.replaces || []).filter(r => !ch.includes(r));
+      out.push({ type: type(w), msg: repl.length ? `${w} replaces ${repl.join(" and ")}, so uncheck ${repl.length > 1 ? "them" : "it"}${many ? " for that model" : ""}.` : `${w} can't be added alongside the other choices here.` });
+    }
+  }
+  for (const d of gr.defaults) if (gap[d] > 0 && !quietDefaults.has(d)) out.push({ type: type(d), msg: `${d} was removed without picking a weapon to replace it${many ? ` (${gap[d]} model${gap[d] === 1 ? "" : "s"})` : ""}.` });
+  if (!out.length) out.push({ type: "", msg: "This weapon combination isn't allowed by the datasheet's Wargear Options." });
+  return out;
+}
+
+/** Which weapons checking `w` should replace: the option whose replaced weapon (or other pick) is equipped, same type first. */
+function swapFor(gr, w) {
+  const opts = gr.options.filter(o => o.choices.some(ch => ch.includes(w)));
+  if (!opts.length) return null;
+  const t = gr.types?.get(w);
+  const info = o => {
+    const ci = o.choices.findIndex(ch => ch.includes(w));
+    const out = o.replaces.filter(r => !o.choices[ci].includes(r));
+    const others = o.choices.flatMap((ch, k) => (k === ci ? [] : ch)).filter(x => !gr.defaults.includes(x) && x !== w);
+    const busy = out.some(r => (gr.counts[r] ?? 0) > 0) || others.some(x => (gr.counts[x] ?? 0) > 0);
+    const score = (busy ? 2 : 0) + (out.some(r => gr.types?.get(r) === t) || others.some(x => gr.types?.get(x) === t) ? 1 : 0);
+    return { o, out, others, score };
+  };
+  return opts.map(info).sort((a, b) => b.score - a.score)[0];
+}
+
+/** Checking, unchecking and +/− on a weapon. Checking never checks anything else; it only unchecks what it replaces. */
+function setWeapon(gr, w, how) {
+  const c = { ...gr.counts };
+  const N = gr.N, isDefault = gr.defaults.includes(w);
+  const cur = c[w] ?? 0;
+  // Swap-ins that took this default weapon's place
+  const swapIns = () => gr.options.filter(o => o.replaces.includes(w)).flatMap(o => o.choices.filter(ch => !ch.includes(w)).flat()).filter(x => !gr.defaults.includes(x));
+  if (how === "on") {
+    if (isDefault) { c[w] = N; for (const x of swapIns()) c[x] = 0; return c; }
+    const s = swapFor(gr, w);
+    const add = N === 1 ? 1 : Math.max(1, cur ? 0 : 1);
+    c[w] = Math.min(N, cur + (cur ? 0 : add));
+    if (s) {
+      for (const r of s.out) c[r] = Math.max(0, (c[r] ?? 0) - add);
+      if (N === 1 || (!s.o.max.all && !s.o.max.per && s.o.max.n === 1)) for (const x of s.others) c[x] = 0;
+    }
+    return c;
+  }
+  if (how === "off") {
+    if (!isDefault && N > 1) { const s = swapFor(gr, w); for (const r of s?.out || []) if ((c[r] ?? 0) > 0) c[r] = Math.min(N, c[r] + cur); }
+    c[w] = 0;
+    return c;
+  }
+  // +1 / −1
+  if (how > 0) {
+    if (cur >= N) return c;
+    c[w] = cur + 1;
+    if (isDefault) { const x = swapIns().find(x => (c[x] ?? 0) > 0); if (x) c[x] -= 1; }
+    else { const s = swapFor(gr, w); for (const r of s?.out || []) if ((c[r] ?? 0) > 0) c[r] -= 1; }
+    return c;
+  }
+  if (cur <= 0) return c;
+  c[w] = cur - 1;
+  if (!isDefault) { const s = swapFor(gr, w); for (const r of s?.out || []) if ((c[r] ?? 0) > 0) c[r] = Math.min(N, c[r] + 1); }
+  return c;
 }
 
 /** Applies one option in the direction of `sign` so swaps happen automatically when a weapon is added or removed. */
@@ -4897,7 +4982,7 @@ function optionUsage(gr, unitSize) {
   }
   const replacedUse = {};
   for (const u of uses) u.o.choices.forEach((ch, ci) => { for (const r of removes(u.o, ch)) replacedUse[r] = (replacedUse[r] || 0) + u.byChoice[ci]; });
-  return { uses, replacedUse, removes };
+  return { uses, replacedUse, removes, left, gap };
 }
 
 /** The most models that can carry each weapon right now, given the rest of the loadout. */
@@ -5072,15 +5157,17 @@ function lbLoadout(x, buffs) {
   const profiles = base => ws.filter(w => weaponBase(w.name) === base);
   const open = listUI.openWeapons;
   return (x.loadout || []).map(gr => {
-    const problem = (x.loadoutProblems || {})[gr.name] || "";
+    const problems = (x.loadoutProblems || {})[gr.name] || [];
+    const problem = problems.length > 0;
     const limits = weaponLimits(gr, x.models);
+    const warn = t => problems.filter(p => p.type === t).map(p => `<div class="lb-gerr">⚠︎ ${esc(p.msg)}</div>`).join("");
     const row = w => {
       const ps = profiles(w);
       if (!ps.length) return "";
       // Swap-in weapons show the most this squad size allows; default weapons show what's left after swaps.
       const type = ps[0].type, n = gr.counts[w] ?? 0, isDefault = gr.defaults.includes(w);
       const room = isDefault ? Math.max(n, limits.get(w) ?? 0) : Math.max(n, gr.reach.get(w) ?? 0);
-      const canAdd = n < (limits.get(w) ?? 0);
+      const canAdd = n < gr.N;
       const key = `${x.id}|${gr.name}|${w}`;
       const mine = buffs.filter(b => !b.type || b.type === type);
       const own = [...new Set(ps.flatMap(p => keywordList(p.tags)))];
@@ -5089,7 +5176,7 @@ function lbLoadout(x, buffs) {
       const kw = [own.length ? esc(own.join(", ")) : "", ...extra.map(e => `<span class="lb-buffkw">${esc(e)}</span>`)].filter(Boolean).join('<span class="lb-sep">, </span>');
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
       return `<div class="lb-wopt${n > 0 ? " on" : ""}">
-        <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} ${!room || (!n && !canAdd && !isDefault) ? "disabled" : ""} aria-label="${esc(w)}">
+        <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="${esc(w)}">
         <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}</span>
           ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</summary>
           ${lbWeaponGrid(ps, type, buffs, "profile")}</details>
@@ -5098,9 +5185,9 @@ function lbLoadout(x, buffs) {
     };
     const all = [...gr.reach.keys()];
     const byType = t => all.filter(w => profiles(w)[0]?.type === t);
-    const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div><div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
+    const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div>${warn(t)}<div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
     return lbPanel(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>`,
-      (problem ? `<div class="lb-gerr">⚠︎ ${esc(problem)}</div>` : "") + part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
+      warn("") + part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
   }).join("");
 }
 
@@ -5157,8 +5244,9 @@ function lbInspector(list, r, data) {
     </div>
     ${attach}
     ${lbStats(ds)}
+    ${(() => { const wo = ds.sections.find(sc => /^WARGEAR OPTIONS/.test(sc.heading)); return wo ? lbPanel("Wargear Options", `<div class="fv-rich lb-wargear">${richHTML(wo.rich || wo.text)}</div>`) : ""; })()}
     ${buffNote}
-    ${x.problems?.length ? `<div class="lb-problems">${x.problems.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""}
+    ${(() => { const other = (x.problems || []).filter(p => !(x.loadoutText || []).includes(p)); return other.length ? `<div class="lb-problems">${other.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""; })()}
     ${lbLoadout(x, buffs)}
     ${enhHTML ? lbPanel("Enhancements &amp; Upgrades", enhHTML) : ""}
     ${own.length || v.ruleNames.length ? lbPanel("Abilities", (v.ruleNames.length ? `<div class="fv-rules">${v.ruleNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + lbAbilities(own)) : ""}
@@ -5296,17 +5384,7 @@ function lbChangeWeapon(list, d, how) {
   const x = evaluateList(list, data).entries.find(o => o.id === d.entry);
   const gr = x?.loadout?.find(g => g.name === d.group);
   if (!e || !gr) return;
-  const w = d.w;
-  let counts = gr.counts;
-  if (how === "off") {
-    if (gr.defaults.includes(w)) counts = { ...counts, [w]: 0 };
-    else for (let i = 0; i < 50 && counts[w] > 0; i++) { const next = stepWeapon({ ...gr, counts }, w, -1, x.models); if (next[w] === counts[w]) break; counts = next; }
-  } else if (how === "on") {
-    if (gr.defaults.includes(w)) {
-      // Tick a default back on for every model: undo the swaps that removed it.
-      for (let i = 0; i < 50 && counts[w] < gr.N; i++) { const next = stepWeapon({ ...gr, counts }, w, 1, x.models); if (next[w] === counts[w]) break; counts = next; }
-    } else counts = stepWeapon(gr, w, 1, x.models);
-  } else counts = stepWeapon(gr, w, how, x.models);
+  const counts = setWeapon(gr, d.w, how);
   e.load ||= {};
   e.load[gr.name] = { n: gr.N, c: counts };
   saveList(list);
