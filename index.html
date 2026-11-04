@@ -607,7 +607,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 4.3 · List builder</div>
+    <div class="app-version" title="App version">Version 4.4 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -2218,7 +2218,9 @@ function viewerDatasheet(ds) {
       .map(l => { const m = l.match(/^([^:]{2,80}):\s*(.*)$/); return m ? { name: m[1], text: m[2], rich: m[2], wargear: false } : null; }).filter(Boolean);
   }
   const fromSection = re => ds.sections.filter(s => re.test(s.heading)).flatMap(s => s.text.split(/\s*[,\n]\s*/)).map(t => t.trim()).filter(Boolean);
-  const ruleNames = [...(ds.coreAbilities || fromSection(/^CORE ABILIT/)), ...(ds.armyRuleNames || fromSection(/^ARMY RULES?$/))].filter(n => !/^(Leader|Support)$/i.test(n));
+  const coreNames = (ds.coreAbilities || fromSection(/^CORE ABILIT/)).filter(n => !/^(Leader|Support)$/i.test(n));
+  const factionNames = (ds.armyRuleNames || fromSection(/^(ARMY RULES?|FACTION ABILIT\w*)$/)).filter(n => !/^(Leader|Support)$/i.test(n));
+  const ruleNames = [...coreNames, ...factionNames];
   let leader = ds.leader;
   if (!leader) {
     leader = ds.sections.filter(s => /^(LEADER|SUPPORT|LED BY|SUPPORTED BY)$/.test(s.heading)).map(s => {
@@ -2228,7 +2230,7 @@ function viewerDatasheet(ds) {
   }
   const extras = ds.sections.filter(s => !/^(CORE ABILIT|ARMY RULES?|ABILITIES|WARGEAR ABILITIES|WARGEAR OPTIONS|UNIT COMPOSITION|LEADER|SUPPORT|LED BY|SUPPORTED BY|KEYWORDS|FACTION KEYWORDS|NOTES|STRATAGEMS|DETACHMENT ABILIT|ENHANCEMENTS?)/.test(s.heading))
     .filter(s => !normName(ds.name).startsWith(normName(s.heading)) && !/^\(?\s*([⌀\d][^)]*mm|Use model|Unique)\s*\)?$/i.test(s.text.trim()));
-  return { abilities, ruleNames, leader: leader || [], extras };
+  return { abilities, ruleNames, coreNames, factionNames, leader: leader || [], extras };
 }
 
 const DATASHEET_GROUPS = [
@@ -2290,7 +2292,8 @@ function openDataViewer(docId) {
       weaponsPanel(ds, "Ranged"),
       weaponsPanel(ds, "Melee"),
       wargearOptionsHTML(ds, panel),
-      own.length || v.ruleNames.length ? panel("Abilities", (v.ruleNames.length ? `<div class="fv-rules">${v.ruleNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + abilityList(own)) : "",
+      factionAbilitiesHTML(v.factionNames, d.armyRules, panel),
+      own.length || v.coreNames.length ? panel("Abilities", (v.coreNames.length ? `<div class="fv-rules">${v.coreNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + abilityList(own)) : "",
       gear.length ? panel("Wargear Abilities", abilityList(gear)) : "",
       ...v.extras.map(s => panel(titleCase(s.heading), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)),
       ...v.leader.filter(l => l.intro || l.units.length).map(l => {
@@ -4479,6 +4482,19 @@ function tidyDatasheet(ds) {
   return ds;
 }
 
+/** Faction abilities (army rules the unit has), each with its rules text from the faction's Army Rules when found. */
+function factionAbilitiesHTML(names, armyRules, panelFn) {
+  if (!names?.length) return "";
+  const key = n => normName(String(n).replace(/\(.*?\)/g, ""));
+  const body = names.map(n => {
+    const rule = (armyRules || []).find(r => key(r.name) === key(n)) || (armyRules || []).find(r => key(n).startsWith(key(r.name)) || key(r.name).startsWith(key(n)));
+    return `<div class="fv-ab"><div class="fv-ab-name">${esc(n)}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}</div></div>`;
+  }).join("");
+  return panelFn("Faction Abilities", body);
+}
+/** Army rules of a faction from the Library (for datasheets shown in the list builder). */
+const factionArmyRules = faction => state.docs.filter(d => d.structured && factionMatches(d.faction, faction)).flatMap(d => d.structured.armyRules || []);
+
 /** The datasheet's Wargear Options, laid out as one rule per paragraph with its choices as bullets. */
 function wargearOptionsHTML(ds, panelFn) {
   const wo = ds.sections.find(sc => /^WARGEAR OPTIONS/.test(sc.heading));
@@ -5256,16 +5272,21 @@ function setWeapon(gr, w, how) {
   const c = { ...gr.counts };
   const N = gr.N, isDefault = gr.defaults.includes(w);
   const cur = c[w] ?? 0;
-  // Swap-ins that took this default weapon's place
-  const swapIns = () => gr.options.filter(o => o.replaces.includes(w)).flatMap(o => o.choices.filter(ch => !ch.includes(w)).flat()).filter(x => !gr.defaults.includes(x));
+  const max = isDefault ? N : Math.max(1, gr.reach.get(w) ?? N);
+  // Weapons that can take default weapon r's place
+  const swapsOf = r => gr.options.filter(o => o.replaces.includes(r)).flatMap(o => o.choices.filter(ch => !ch.includes(r)).flat()).filter(x => !gr.defaults.includes(x));
+  const carried = r => (c[r] ?? 0) + [...new Set(swapsOf(r))].reduce((n, x) => n + (c[x] ?? 0), 0);
+  // Only when the default plus its replacements would be more than the models can carry, the default goes down.
+  const fitDefault = r => { const over = carried(r) - N; if (over > 0) c[r] = Math.max(0, (c[r] ?? 0) - over); };
+  // …and the other way round: re-adding a default trims a replacement only when there's no room.
+  const fitSwaps = r => { let over = carried(r) - N; for (const x of [...new Set(swapsOf(r))]) { if (over <= 0) break; const k = Math.min(over, c[x] ?? 0); c[x] = (c[x] ?? 0) - k; over -= k; } };
   if (how === "on") {
-    if (isDefault) { c[w] = N; for (const x of swapIns()) c[x] = 0; return c; }
+    if (isDefault) { c[w] = N; for (const x of swapsOf(w)) c[x] = 0; return c; }
     const s = swapFor(gr, w);
-    const add = N === 1 ? 1 : Math.max(1, cur ? 0 : 1);
-    c[w] = Math.min(N, cur + (cur ? 0 : add));
+    c[w] = Math.min(max, Math.max(cur, 1));
     if (s) {
-      for (const r of s.out) c[r] = Math.max(0, (c[r] ?? 0) - add);
       if (N === 1 || (!s.o.max.all && !s.o.max.per && s.o.max.n === 1)) for (const x of s.others) c[x] = 0;
+      for (const r of s.out) fitDefault(r);
     }
     return c;
   }
@@ -5276,10 +5297,10 @@ function setWeapon(gr, w, how) {
   }
   // +1 / −1
   if (how > 0) {
-    if (cur >= N) return c;
+    if (cur >= max) return c;
     c[w] = cur + 1;
-    if (isDefault) { const x = swapIns().find(x => (c[x] ?? 0) > 0); if (x) c[x] -= 1; }
-    else { const s = swapFor(gr, w); for (const r of s?.out || []) if ((c[r] ?? 0) > 0) c[r] -= 1; }
+    if (isDefault) fitSwaps(w);
+    else { const s = swapFor(gr, w); for (const r of s?.out || []) fitDefault(r); }
     return c;
   }
   if (cur <= 0) return c;
@@ -5529,7 +5550,7 @@ function lbLoadout(x, buffs) {
       const type = ps[0].type, n = gr.counts[w] ?? 0, isDefault = gr.defaults.includes(w);
       // X/Y: Y is the most models the datasheet lets carry this weapon (every model for default wargear).
       const room = isDefault ? gr.N : Math.max(1, gr.reach.get(w) ?? 0);
-      const canAdd = n < gr.N;
+      const canAdd = n < room;   // greyed out at the most the datasheet allows
       const key = `${x.id}|${gr.name}|${w}`;
       const mine = buffs.filter(b => !b.type || b.type === type);
       const own = [...new Set(ps.flatMap(p => keywordList(p.tags)))];
@@ -5617,7 +5638,8 @@ function lbInspector(list, r, data) {
     ${(() => { const other = (x.problems || []).filter(p => !(x.loadoutText || []).includes(p)); return other.length ? `<div class="lb-problems">${other.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""; })()}
     ${lbLoadout(x, buffs)}
     ${enhHTML ? lbPanel("Enhancements &amp; Upgrades", enhHTML) : ""}
-    ${own.length || v.ruleNames.length ? lbPanel("Abilities", (v.ruleNames.length ? `<div class="fv-rules">${v.ruleNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + lbAbilities(own)) : ""}
+    ${factionAbilitiesHTML(v.factionNames, factionArmyRules(list.faction), lbPanel)}
+    ${own.length || v.coreNames.length ? lbPanel("Abilities", (v.coreNames.length ? `<div class="fv-rules">${v.coreNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + lbAbilities(own)) : ""}
     ${gear.length ? lbPanel("Wargear Abilities", lbAbilities(gear)) : ""}
     ${v.extras.map(s => lbPanel(esc(titleCase(s.heading)), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)).join("")}
     ${v.leader.filter(l => l.intro || l.units.length).map(l => {
