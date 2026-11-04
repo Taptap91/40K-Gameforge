@@ -264,7 +264,9 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-wopt .lb-wkws { order: 2; }
 .lb-wopt details:not([open]) summary::after { transform: rotate(-90deg); }
 .lb-wtitle { font-weight: 700; font-size: 14px; }
-.lb-wopt .fv-weapons { padding-bottom: 6px; }
+.lb-wopt .fv-weapons { padding-bottom: 0; }
+.lb-wopt details[open] { padding-bottom: 20px; }
+.lb-wopt .fv-weapons:has(> .fv-wkw:last-child) { margin-bottom: -8px; }
 /* Right: add units */
 .lb-addhead { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 16px 0 10px; display: flex; flex-direction: column; gap: 8px; }
 .lb-addtitle { font-weight: 700; }
@@ -315,7 +317,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-name { font-size: 14px; font-weight: 700; padding-right: 12px; }
 .fv-val { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .fv-dim .fv-name { color: var(--text-2); }
-.fv-body { padding: 0 10px 16px; display: flex; flex-direction: column; gap: 6px; }
+.fv-body { padding: 0 10px 20px; display: flex; flex-direction: column; gap: 6px; }
 .fv-panel { background: var(--window); border-radius: 8px; padding: 10px 16px 12px; min-width: 0; }
 .fv-panel-head { font-size: 14px; color: var(--text-2); padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border-strong); }
 .fv-stats { display: grid; grid-template-columns: repeat(6, 60px); row-gap: 6px; padding: 4px 4px 2px; }
@@ -353,7 +355,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-sublist .fv-row > summary { grid-template-columns: 18px minmax(0, 45%) 1fr; padding: 10px 0 10px 2px; }
 .fv-sublist .fv-row > summary::before { color: var(--text); }
 .fv-sublist .fv-name { font-weight: 400; }
-.fv-sublist .fv-body { padding: 4px 4px 12px 20px; }
+.fv-sublist .fv-body { padding: 4px 4px 20px 20px; }
 .fv-empty { color: var(--text-2); text-align: center; padding: 40px 0; }
 @media (max-width: 720px) {
   .fv { padding: 18px 16px 0; }
@@ -363,7 +365,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-stats, .fv-stats.named { grid-template-columns: repeat(6, minmax(34px, 1fr)); }
   .fv-stats.named .model { grid-column: 1 / -1; padding-top: 6px; }
   .fv-stats.named > span:first-child { display: none; }
-  .fv-body { padding: 0 0 14px; }
+  .fv-body { padding: 0 0 20px; }
   .fv-tabs button { flex: 1 1 0; padding: 5px 4px; font-size: 12px; }
   .fv-panel { padding: 10px 12px 12px; }
   /* Weapons: name on its own line, values in equal columns beneath */
@@ -598,7 +600,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 2.8 · List builder</div>
+    <div class="app-version" title="App version">Version 2.9 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -662,7 +664,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
     <!-- ================= GET DATA ================= -->
     <section class="view hidden" id="view-import">
-      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 2.8</span></header>
+      <header class="toolbar"><h1>Get Data</h1><div class="spacer"></div><span class="app-version">Version 2.9</span></header>
       <div class="scroll">
         <div class="content">
 
@@ -4852,30 +4854,90 @@ function loadoutProblem(gr, unitSize) {
 }
 
 /** Applies one option in the direction of `sign` so swaps happen automatically when a weapon is added or removed. */
-function stepWeapon(gr, w, sign, unitSize) {
-  const c = { ...gr.counts };
-  const room = gr.reach.get(w) ?? 0;
-  if (sign > 0 && c[w] >= room) return c;
-  if (sign < 0 && c[w] <= 0) return c;
-  if (!gr.defaults.includes(w) && !gr.free) {
-    // Adding: take it in place of the weapon it replaces. Removing: give that weapon back.
-    for (const o of gr.options) {
-      const choice = o.choices.find(ch => ch.includes(w));
-      if (!choice) continue;
-      const out = sign > 0 ? o.replaces : choice.filter(x => x !== w);
-      const back = sign > 0 ? choice.filter(x => x !== w) : o.replaces;
-      if (out.every(r => (c[r] ?? 0) > 0)) {
-        for (const r of out) c[r] -= 1;
-        for (const r of back) c[r] = Math.min(gr.reach.get(r) ?? 0, (c[r] ?? 0) + 1);
-        c[w] += sign;
-        return c;
-      }
-    }
+/** Which swap options the current weapons use: each taken weapon is matched to an option that allows it. */
+function optionUsage(gr, unitSize) {
+  const left = {};
+  for (const w of gr.reach.keys()) left[w] = gr.defaults.includes(w) ? 0 : gr.counts[w] || 0;
+  const uses = gr.options.map(o => ({ o, cap: optionMax(o, gr.N, unitSize), total: 0, byChoice: o.choices.map(() => 0) }));
+  // Options with fewer alternatives claim weapons first, so shared weapons go where they fit best.
+  for (const u of [...uses].sort((a, b) => a.o.choices.length - b.o.choices.length)) {
+    u.o.choices.forEach((ch, ci) => {
+      const extra = ch.filter(w => !gr.defaults.includes(w));
+      if (!extra.length) return;
+      const k = Math.min(u.cap - u.total, ...extra.map(w => left[w] ?? 0));
+      if (k <= 0) return;
+      for (const w of extra) left[w] -= k;
+      u.total += k; u.byChoice[ci] += k;
+    });
   }
-  c[w] += sign;
-  return c;
+  const replacedUse = {};
+  for (const u of uses) for (const r of u.o.replaces) replacedUse[r] = (replacedUse[r] || 0) + u.total;
+  return { uses, replacedUse };
 }
 
+/** The most models that can carry each weapon right now, given the rest of the loadout. */
+function weaponLimits(gr, unitSize) {
+  const lim = new Map();
+  if (gr.free) { for (const w of gr.reach.keys()) lim.set(w, gr.N); return lim; }
+  const { uses, replacedUse } = optionUsage(gr, unitSize);
+  // A default weapon that was unticked leaves a free slot for its replacement.
+  const avail = r => (gr.counts[r] ?? 0) + Math.max(0, gr.N - (gr.counts[r] ?? 0) - (replacedUse[r] || 0));
+  for (const w of gr.reach.keys()) {
+    if (gr.defaults.includes(w)) { lim.set(w, Math.max(0, gr.N - (replacedUse[w] || 0))); continue; }
+    let room = gr.counts[w] || 0;
+    for (const u of uses) {
+      if (!u.o.choices.some(ch => ch.includes(w))) continue;
+      const free = Math.min(u.cap - u.total, ...u.o.replaces.map(avail));
+      if (free > 0) room += free;
+      // "One of the following" for a single pick: choosing this one swaps out the other.
+      else if (u.cap === 1 && u.total === 1 && !(gr.counts[w] > 0)) room += 1;
+    }
+    lim.set(w, Math.min(gr.N, room));
+  }
+  return lim;
+}
+
+/** Adds or removes one of a weapon, swapping out what it replaces (or the other pick) automatically. */
+function stepWeapon(gr, w, sign, unitSize) {
+  const c = { ...gr.counts };
+  const limit = weaponLimits(gr, unitSize).get(w) ?? 0;
+  if (sign > 0 && (c[w] ?? 0) >= limit) return c;
+  if (sign < 0 && (c[w] ?? 0) <= 0) return c;
+  if (gr.defaults.includes(w) || gr.free) { c[w] = (c[w] ?? 0) + sign; return c; }
+  const { uses, replacedUse } = optionUsage(gr, unitSize);
+  const deficit = r => Math.max(0, gr.N - (gr.counts[r] ?? 0) - (replacedUse[r] || 0));
+  const add = items => { for (const r of items) c[r] = Math.min(gr.N, (c[r] ?? 0) + 1); };
+  const take = items => { for (const r of items) c[r] = Math.max(0, (c[r] ?? 0) - 1); };
+  if (sign > 0) {
+    // 1. A free slot: take it in place of the weapon it replaces.
+    for (const u of uses) {
+      const choice = u.o.choices.find(ch => ch.includes(w));
+      if (!choice || u.total >= u.cap || !u.o.replaces.every(r => (c[r] ?? 0) > 0 || deficit(r) > 0)) continue;
+      take(u.o.replaces.filter(r => !deficit(r))); add(choice); return c;
+    }
+    // 2. A single pick that's already used: swap the other choice out for this one.
+    for (const u of uses) {
+      const ci = u.o.choices.findIndex(ch => ch.includes(w));
+      if (ci < 0 || u.cap !== 1) continue;
+      const other = u.byChoice.findIndex((n, k) => n > 0 && k !== ci);
+      if (other < 0) continue;
+      take(u.o.choices[other].filter(x => !gr.defaults.includes(x)));
+      add(u.o.choices[ci].filter(x => !gr.defaults.includes(x)));
+      return c;
+    }
+    return c;
+  }
+  // Removing: give back what it replaced.
+  for (const u of uses) {
+    const ci = u.o.choices.findIndex(ch => ch.includes(w));
+    if (ci < 0 || !u.byChoice[ci]) continue;
+    take(u.o.choices[ci]); add(u.o.replaces);
+    for (const r of u.o.choices[ci]) if (gr.defaults.includes(r)) c[r] = Math.min(gr.N, (c[r] ?? 0) + 1);
+    return c;
+  }
+  c[w] = Math.max(0, (c[w] ?? 0) - 1);
+  return c;
+}
 
 /** Unconditional "This unit's (ranged/melee) attacks have X." lines from a character's abilities. */
 function attackBuffs(abilities, source) {
@@ -4963,10 +5025,11 @@ function lbLoadout(x, buffs) {
   const open = listUI.openWeapons;
   return (x.loadout || []).map(gr => {
     const problem = (x.loadoutProblems || {})[gr.name] || "";
+    const limits = weaponLimits(gr, x.models);
     const row = w => {
       const ps = profiles(w);
       if (!ps.length) return "";
-      const type = ps[0].type, n = gr.counts[w] ?? 0, room = gr.reach.get(w) ?? 0;
+      const type = ps[0].type, n = gr.counts[w] ?? 0, room = Math.max(n, limits.get(w) ?? 0);
       const key = `${x.id}|${gr.name}|${w}`;
       const mine = buffs.filter(b => !b.type || b.type === type);
       const own = [...new Set(ps.flatMap(p => keywordList(p.tags)))];
@@ -4977,9 +5040,9 @@ function lbLoadout(x, buffs) {
       return `<div class="lb-wopt${n > 0 ? " on" : ""}">
         <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} ${!room ? "disabled" : ""} aria-label="${esc(w)}">
         <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}</span>
-          <span class="lb-wkws">${kw || '<span class="lb-subtle">No keywords</span>'}</span></summary>
+          ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</summary>
           ${lbWeaponGrid(ps, type, buffs, "profile")}</details>
-        <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${gr.N}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${n >= room ? "disabled" : ""} aria-label="One more">+</button>` : ""}</div>
+        <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${n >= (limits.get(w) ?? 0) ? "disabled" : ""} aria-label="One more">+</button>` : ""}</div>
       </div>`;
     };
     const all = [...gr.reach.keys()];
@@ -5186,9 +5249,9 @@ function lbChangeWeapon(list, d, how) {
   let counts = gr.counts;
   if (how === "off") {
     if (gr.defaults.includes(w)) counts = { ...counts, [w]: 0 };
-    else for (let i = 0; i < 50 && counts[w] > 0; i++) counts = stepWeapon({ ...gr, counts }, w, -1, x.models);
+    else for (let i = 0; i < 50 && counts[w] > 0; i++) { const next = stepWeapon({ ...gr, counts }, w, -1, x.models); if (next[w] === counts[w]) break; counts = next; }
   } else if (how === "on") {
-    if (gr.defaults.includes(w)) counts = { ...counts, [w]: gr.reach.get(w) };
+    if (gr.defaults.includes(w)) counts = { ...counts, [w]: weaponLimits(gr, x.models).get(w) };
     else counts = stepWeapon(gr, w, 1, x.models);
   } else counts = stepWeapon(gr, w, how, x.models);
   e.load ||= {};
