@@ -81,7 +81,9 @@ main { min-width: 0; background: var(--window); position: relative; }
   padding: 14px 22px; border-bottom: 1px solid var(--border);
   min-height: 56px;
 }
-.toolbar h1 { font-size: 17px; font-weight: 600; margin: 0; }
+.toolbar h1 { font-size: 17px; font-weight: 600; margin: 0; white-space: nowrap; }
+#view-rules .toolbar .select { min-width: 0; flex: 0 1 220px; }
+#view-rules .toolbar .btn { flex: none; }
 .spacer { flex: 1; }
 .scroll { flex: 1; overflow-y: auto; padding: 22px; }
 .content { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
@@ -336,6 +338,18 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-rules { display: flex; flex-wrap: wrap; gap: 6px 32px; font-size: 14px; color: var(--text-2); padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border-strong); }
 /* Abilities: name in its own column so it's easy to find, rules text aligned beside it. */
 .fv-panel { container-type: inline-size; }
+/* Any datasheet column too narrow for the full tables (phones, tablets in portrait) uses the compact tables:
+   stats in equal columns, and each weapon's name on its own line with its values in equal columns beneath. */
+@container (max-width: 540px) {
+  .fv-stats, .fv-stats.named { grid-template-columns: repeat(6, minmax(34px, 1fr)); width: auto; }
+  .fv-stats.named .model { grid-column: 1 / -1; padding-top: 6px; }
+  .fv-stats.named > span:first-child { display: none; }
+  .fv-weapons.ranged { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fv-weapons > span:empty { display: none; }
+  .fv-weapons > .fv-wh:first-child, .fv-weapons .fv-wname, .fv-weapons .fv-wkw { grid-column: 1 / -1; }
+  .fv-weapons .fv-wkl { display: none; }
+}
 .fv-ab { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); column-gap: 18px; row-gap: 4px; align-items: baseline; padding: 10px 0; }
 .fv-ab + .fv-ab { border-top: 1px solid var(--border); }
 .fv-ab:first-child { padding-top: 2px; }
@@ -494,8 +508,9 @@ textarea.input { resize: vertical; min-height: 80px; line-height: 1.45; }
 .list-row + .list-row { border-top: 1px solid var(--border); }
 .list-row .icon { width: 30px; height: 30px; border-radius: 7px; background: var(--control); display: grid; place-items: center; flex: none; color: var(--accent); }
 .list-row .icon svg { width: 16px; height: 16px; }
-.list-row .main { flex: 1; min-width: 0; }
-.list-row .title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-row { flex-wrap: wrap; }
+.list-row .main { flex: 1 1 260px; min-width: 0; }
+.list-row .title { font-weight: 500; overflow-wrap: anywhere; }
 .list-row .meta { font-size: 12px; color: var(--text-2); }
 .progress { height: 6px; background: var(--control); border-radius: 3px; overflow: hidden; margin-top: 8px; }
 .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
@@ -550,8 +565,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 }
 .toast.show { opacity: 1; }
 
-/* ---------- Phone layout ---------- */
-@media (max-width: 720px) {
+/* ---------- Phone and tablet layout: the menu moves to a bar along the bottom ----------
+   Below 1280px wide, and on touch screens up to 1400px (large tablets in landscape), the side menu becomes the bottom bar,
+   leaving the full width for the page (the Factions page keeps its two columns on tablets). */
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
   .sidebar {
     grid-row: 2; flex-direction: row; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -567,6 +584,13 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .toolbar, .scroll, .chat { padding-left: 16px; padding-right: 16px; }
   .composer { padding-left: 16px; padding-right: 16px; }
   .bubble { max-width: 92%; }
+}
+@media (min-width: 721px) and (max-width: 1279px), (min-width: 721px) and (pointer: coarse) and (max-width: 1400px) {
+  /* Tablets: a roomier bottom bar, with each item's icon beside its name. */
+  .sidebar { justify-content: center; gap: 6px; padding-left: 16px; padding-right: 16px; }
+  .nav-item, .ai-status { flex: 0 1 170px; flex-direction: row; gap: 8px; font-size: 13px; padding: 10px 8px; }
+  .toolbar, .scroll, .chat { padding-left: 24px; padding-right: 24px; }
+  .composer { padding-left: 24px; padding-right: 24px; }
 }
 
 .version-warn{position:sticky;top:0;z-index:50;padding:10px 16px;background:#7a2a1f;color:#fff;font-size:13px;text-align:center}
@@ -607,7 +631,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-item { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
 .fp-item:hover { border-color: var(--border-strong); background: var(--panel-2); }
 .fp-item.on { border-color: var(--accent); background: var(--accent-soft); }
-.fp-iname { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.fp-item { flex-wrap: wrap; row-gap: 4px; }
+.fp-iname { flex: 1 1 9em; min-width: 0; font-size: 14px; font-weight: 600; overflow-wrap: break-word; }
 .fp-imeta { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .fp-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
 .fp-head h2 { margin: 0; font-size: 22px; }
@@ -664,9 +689,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-colour input { width: 38px; height: 28px; padding: 0; border: 1px solid var(--border-strong); border-radius: 6px; background: none; }
 
 /* ---------- Factions: detachment rows ---------- */
-.fp-det { flex-direction: column; align-items: stretch; }
-.fp-irow { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.fp-det .fp-iname { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.fp-det { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+.fp-irow { display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; gap: 6px 10px; min-width: 0; }
+.fp-det .fp-iname { flex: 1 1 9em; overflow-wrap: break-word; }
 .fp-det .fp-dp { margin-left: auto; align-self: center; }
 .fp-det .fp-uq { flex: none; white-space: nowrap; }
 /* The Unique tag sits on the right, next to DP, as an outlined tag with a ◆ marker ("Unique" shows on hover).
