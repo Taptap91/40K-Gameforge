@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=6.2";
-import { wargearOf } from "./loadout.js?v=6.2";
-import { factionMatches } from "./search.js?v=6.2";
-import { coreAbilityRule } from "./rules-doc.js?v=6.2";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.2";
+import { esc, state, uid } from "./core.js?v=6.5";
+import { wargearOf } from "./loadout.js?v=6.5";
+import { factionMatches } from "./search.js?v=6.5";
+import { coreAbilityRule } from "./rules-doc.js?v=6.5";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.5";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -340,15 +340,29 @@ function statsHTML(ds) {
 }
 const abilitiesHTML = list => list.map(a => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(a.name))}</div><div class="fv-rich">${richHTML(a.rich || a.text)}</div></div>`).join("");
 
+/** A datasheet's weapons as tables: Ranged and Melee, or one "Weapons" table when a weapon has a ranged
+ *  and a melee profile under the same name (that weapon's two profiles then sit together). */
+function weaponPanelsHTML(ds) {
+  const ws = ds.weapons || [];
+  const ranged = ws.filter(w => w.type === "Ranged"), melee = ws.filter(w => w.type === "Melee");
+  const shared = ranged.some(r => melee.some(m => normName(m.name) === normName(r.name)));
+  if (!shared) return [["Ranged", ranged], ["Melee", melee]].filter(([, l]) => l.length).map(([t, l]) => panelHTML("", weaponGridHTML(l, t, []))).join("");
+  const order = [...new Set(ws.map(w => normName(w.name)))];
+  const sorted = [...ws].sort((a, b) => order.indexOf(normName(a.name)) - order.indexOf(normName(b.name)) || (a.type === "Ranged" ? -1 : 1));
+  return panelHTML("", weaponGridHTML(sorted, "Ranged", []));
+}
+
 /** Weapon rows with attached-character buffs worked in. */
-function weaponGridHTML(ws, type, buffs, withHead = true) {
-  const melee = type === "Melee";
+function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
+  // Ranged and melee profiles together (a weapon with both, under one name) use the ranged columns, with "Bs/Ws".
+  const mixed = new Set(ws.map(w => w.type)).size > 1;
+  const melee = type === "Melee" && !mixed;
   const keys = melee ? ["A", "skill", "S", "AP", "D"] : ["range", "A", "skill", "S", "AP", "D"];
-  const heads = melee ? ["A", "Ws", "S", "Ap", "D"] : ["Range", "A", "Bs", "S", "Ap", "D"];
-  const mine = buffs.filter(b => !b.type || b.type === type);
+  const heads = melee ? ["A", "Ws", "S", "Ap", "D"] : ["Range", "A", mixed ? "Bs/Ws" : "Bs", "S", "Ap", "D"];
+  const mine = buffs.filter(b => !b.type || b.type === type || mixed);
   const statKey = { A: "A", S: "S", D: "D", AP: "AP" };
   return `<div class="fv-weapons ${melee ? "melee" : "ranged"}">
-    ${withHead ? `<span class="fv-wh">${withHead === "profile" ? "Profile" : melee ? "Melee Weapons" : "Ranged Weapons"}</span>${heads.map(h => `<span class="fv-wh c">${h}</span>`).join("")}<span></span>` : ""}
+    ${withHead ? `<span class="fv-wh">${withHead === "profile" ? "Profile" : mixed ? "Weapons" : melee ? "Melee Weapons" : "Ranged Weapons"}</span>${heads.map(h => `<span class="fv-wh c">${h}</span>`).join("")}<span></span>` : ""}
     ${ws.map(w => {
       const vals = keys.map(k => {
         const b = mine.filter(b => b.stat && statKey[b.stat] === k);
@@ -360,11 +374,19 @@ function weaponGridHTML(ws, type, buffs, withHead = true) {
       const extra = mine.filter(b => b.keyword && !own.some(k => normName(k).startsWith(normName(b.keyword.split(" (")[0]))))
         .map(b => `<span class="lb-buffkw">${esc(b.keyword)} – ${esc(b.source)}</span>`);
       const statNotes = mine.filter(b => b.stat).map(b => `<span class="lb-buffkw">${b.delta > 0 ? "+" : ""}${b.delta} ${esc(b.stat)} – ${esc(b.source)}</span>`);
-      const kwHTML = [own.length ? esc(own.join(", ")) : "", ...extra, ...statNotes].filter(Boolean).join('<span class="lb-sep">, </span>');
-      return `<span class="fv-wname">${isProfileName(w.name) ? `<span class="fv-dash">–</span>` : ""}${esc(capWords(w.name.replace(/\s+non-?\s*$/i, "")))}</span>${vals.join("")}<span></span>
-        ${kwHTML ? `<span class="fv-wkl">Keywords</span><span class="fv-wkw">${kwHTML}</span>` : ""}`;
+      // Keywords as outlined tags under the weapon's name, lined up with it (no "Keywords" label).
+      const tags = [...own.map(k => `<span class="fv-kw">${esc(k)}</span>`), ...extra.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"')), ...statNotes.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"'))];
+      // Under a weapon's own bar (list building) its name is already shown, so a profile is labelled by what differs:
+      // "Standard" / "Supercharge", otherwise "Ranged" or "Melee".
+      let label = capWords(w.name.replace(/\s+non-?\s*$/i, "")), dash = isProfileName(w.name);
+      if (baseName) {
+        const rest = w.name.slice(0, baseName.length).toLowerCase() === baseName.toLowerCase() ? w.name.slice(baseName.length).replace(/^\s*[–—-]\s*/, "").trim() : "";
+        label = rest ? capWords(rest) : w.type; dash = false;
+      }
+      return `<span class="fv-wname">${dash ? `<span class="fv-dash">–</span>` : ""}${esc(label)}</span>${vals.join("")}<span></span>
+        ${tags.length ? `<span class="fv-wkw fv-kws">${tags.join("")}</span>` : ""}`;
     }).join("")}
   </div>`;
 }
 
-export { armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };
+export { weaponPanelsHTML, armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };

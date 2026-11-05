@@ -1,22 +1,27 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.2";
-import { structuredToLibrary } from "./datasheets.js?v=6.2";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.2";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.2";
-import { renderAll } from "./main.js?v=6.2";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=6.2";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.2";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.2";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.5";
+import { structuredToLibrary } from "./datasheets.js?v=6.5";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.5";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.5";
+import { renderAll } from "./main.js?v=6.5";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=6.5";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.5";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.5";
+import { applyPackRules, canonicalFaction, packFaction, packTheme } from "./pack-rules.js?v=6.5";
 
-async function importFiles(files, kind, faction) {
+/** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
+const PACK_MIN_DATASHEETS = 5;
+
+async function importFiles(files, pickedKind, faction) {
   const box = $("#importProgress"), errBox = $("#importError");
   box.classList.remove("hidden");
   errBox.classList.add("hidden");
   const errors = [];
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
+    let kind = pickedKind;
     try {
       if (isExcelFile(f)) { await importExcelFile(f, faction); continue; }
       const { title, pageCount, pages, bookIcons } = await readPdf(f, (n, total) => {
@@ -26,23 +31,9 @@ async function importFiles(files, kind, faction) {
       if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
       // Untagged faction PDFs are tagged from their title or file name ("Dark_Angels_Codex…" → Dark Angels).
       const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name);
-      // Core Rules and updates become numbered rule sections, saved through an Excel workbook like faction packs.
-      if (kind === "core" || kind === "updates") {
-        $("#importText").textContent = `Converting ${f.name} into rule sections…`;
-        await new Promise(r => setTimeout(r, 30));
-        const parsed = parseRulesPdf(pages.flatMap(p => p.items));
-        if (parsed.sections.length >= 3) {
-          const draft = { kind, title, edition, structured: parsed };
-          const back = rulesFromWorkbook(await readXlsx(await (await buildXlsx(rulesToSheets(draft))).arrayBuffer()));
-          await replaceRulesDoc({ id: uid(), title, kind, pageCount, importedAt: Date.now(), format: "structured", source: "excel", edition, structured: back.structured, chunks: sectionChunks(back.structured.sections) });
-          continue;
-        }
-      }
-      let docFaction = faction;
-      if (!docFaction && kind === "faction") docFaction = detectFactions(`${title} ${f.name.replace(/[_\-.]+/g, " ")}`)[0] || "";
       // Datasheet-style faction PDFs become compact structured records instead of raw page text.
       let structured = null;
-      if (kind !== "core") {
+      {
         $("#importText").textContent = `Converting ${f.name} into datasheets and detachments…`;
         await new Promise(r => setTimeout(r, 30));
         const all = dropPageFurniture(pages.flatMap(p => p.items));
@@ -54,19 +45,37 @@ async function importFiles(files, kind, faction) {
         // "[Name] Ability" rules (Custodes ka’tahs) are kept as parts of the army rule they belong to.
         data.armyRules = groupArmyRules(mergeArmyRules(data.armyRules, armyRulesFromLayout(all)));
         if (data.datasheets.length >= 2 || data.detachments.length >= 1) structured = data;
+        // Faction pack ruleset, rule 1: a PDF full of datasheets is a faction pack, whatever type was picked when it was added.
+        if (data.datasheets.length >= PACK_MIN_DATASHEETS) kind = "faction";
+        else if (kind === "core") structured = null;
       }
+      // Core Rules and updates become numbered rule sections, saved through an Excel workbook like faction packs.
+      if (kind === "core" || kind === "updates") {   // (a faction pack picked as one of these has already become "faction")
+        $("#importText").textContent = `Converting ${f.name} into rule sections…`;
+        await new Promise(r => setTimeout(r, 30));
+        const parsed = parseRulesPdf(pages.flatMap(p => p.items));
+        if (parsed.sections.length >= 3) {
+          const draft = { kind, title, edition, structured: parsed };
+          const back = rulesFromWorkbook(await readXlsx(await (await buildXlsx(rulesToSheets(draft))).arrayBuffer()));
+          await replaceRulesDoc({ id: uid(), title, kind, pageCount, importedAt: Date.now(), format: "structured", source: "excel", edition, structured: back.structured, chunks: sectionChunks(back.structured.sections) });
+          continue;
+        }
+      }
+      let docFaction = faction;
+      if (!docFaction && (kind === "faction" || structured)) docFaction = detectFactions(`${title} ${f.name.replace(/[_\-.]+/g, " ")}`)[0] || "";
+      docFaction = canonicalFaction(docFaction) || docFaction;   // "DA", "Dark Angels Faction Pack" → Dark Angels
       let doc;
       if (structured) {
         // The PDF becomes an Excel workbook, and the faction is built from that workbook (the PDF isn't kept).
         $("#importText").textContent = `Creating the Excel file for ${f.name}…`;
         const xlsx = await buildXlsx(structuredToSheets(structured, docFaction));
         const fromExcel = structuredFromWorkbook(await readXlsx(await xlsx.arrayBuffer()));
-        delete fromExcel.faction;
+        delete fromExcel.faction; delete fromExcel.theme;
         const lib = structuredToLibrary(fromExcel, docFaction);
-        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), edition, format: "structured", source: "excel", structured: fromExcel, chunks: lib.chunks, points: lib.points };
-        // The faction's icon from the PDF's "Books" table (the image beside the faction's own name).
-        const icon = (bookIcons || []).find(b => docFaction && factionMatches(b.name, docFaction));
-        if (icon) doc.icon = icon.image;
+        doc = { id: uid(), title, kind: kind === "points" ? "points" : "faction", faction: docFaction, pageCount, importedAt: Date.now(), edition, format: "structured", source: "excel", structured: fromExcel, chunks: lib.chunks, points: lib.points };
+        // Faction pack ruleset, rules 2–4: the faction's official name, symbol and colours, decided by the pack itself.
+        await applyPackRules(doc, { bookIcons, fileName: f.name, typed: faction });
+        if (doc.faction !== docFaction) { const again = structuredToLibrary(fromExcel, doc.faction); doc.chunks = again.chunks; doc.points = again.points; }
       } else {
         const points = kind === "core" ? [] : extractPoints(pages).map(p => docFaction ? { ...p, section: docFaction } : p);
         doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), edition, chunks: chunkPages(pages), points };
@@ -100,11 +109,16 @@ async function importExcelFile(f, faction) {
     return replaceRulesDoc({ id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) }, f.name);
   }
   const data = structuredFromWorkbook(book);
-  const docFaction = faction || data.faction || detectFactions(f.name.replace(/[_\-.]+/g, " "))[0] || "";
-  delete data.faction;
+  // Faction pack ruleset, rules 2 and 7: the same faction name, symbol and colours as the PDF the workbook came from.
+  const docFaction = packFaction({ datasheets: data.datasheets, title: data.faction, fileName: f.name, typed: faction });
+  const theme = data.theme; delete data.faction; delete data.theme;
   const title = f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
   const lib = structuredToLibrary(data, docFaction);
   const doc = { id: uid(), title, kind: "faction", faction: docFaction, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", structured: data, chunks: lib.chunks, points: lib.points };
+  if (theme?.icon) doc.icon = theme.icon;
+  const worked = await packTheme(docFaction, doc.icon);
+  // A faction that isn't built in and has no coloured symbol keeps the colours its workbook was made with.
+  doc.theme = { rules: 1, ...(worked.from === "name" && theme?.c1 ? { c1: theme.c1, c2: theme.c2 || worked.c2, from: "workbook" } : worked) };
   await replaceFaction(doc, f.name);
 }
 

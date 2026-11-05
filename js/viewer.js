@@ -1,9 +1,9 @@
 /* RulesForge · viewer.js
  * Library → View: the faction viewer (datasheets, detachments, army rules).
  */
-import { $, $$, esc, openSheet, state } from "./core.js?v=6.2";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.2";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.2";
+import { $, $$, esc, openSheet, state } from "./core.js?v=6.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=6.5";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.5";
 
 function openDataViewer(docId) {
   const doc = state.docs.find(d => d.id === docId);
@@ -20,7 +20,7 @@ function openDataViewer(docId) {
     const ws = ds.weapons.filter(w => w.type === type);
     return ws.length ? panelHTML("", weaponGridHTML(ws, type, [])) : "";
   };
-  const datasheetHTML = ds => [statsHTML(ds), weaponsPanel(ds, "Ranged"), weaponsPanel(ds, "Melee"), wargearOptionsHTML(ds), datasheetDetailsHTML(ds, d.armyRules, { siblings: d.datasheets })].join("");
+  const datasheetHTML = ds => [statsHTML(ds), weaponPanelsHTML(ds), wargearOptionsHTML(ds), datasheetDetailsHTML(ds, d.armyRules, { siblings: d.datasheets })].join("");
 
   // Datasheets, grouped by role, alphabetical within each group
   const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));

@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=6.2";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.2";
-import { rulesToSheets } from "./rules-doc.js?v=6.2";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.2";
+import { formatGB, toast } from "./core.js?v=6.5";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.5";
+import { rulesToSheets } from "./rules-doc.js?v=6.5";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.5";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -79,7 +79,7 @@ async function buildXlsx(sheets) {
 
 /** Lays structured faction data out as spreadsheet tables: a readable Datasheets sheet first,
  *  then one table per kind of data. The app rebuilds the faction from these tables. */
-function structuredToSheets(data, faction) {
+function structuredToSheets(data, faction, theme = null) {
   const YES = v => (v ? "Yes" : "");
   const lines = arr => (arr || []).join("\n");
   const rich = (r, t) => (r && stripRich(r) !== r ? r : "");   // keep formatting only where it adds bold text
@@ -133,7 +133,10 @@ function structuredToSheets(data, faction) {
     { name: "Army rules", columns: [W("Rule", 32), W("Special move", 10), W("Part of", 24), W("Type", 18), W("Rules", 100), W("Formatted", 20)],
       rows: data.armyRules.map(r => [r.name, YES(r.special), r.partOf || "", r.kind || "", r.text, rich(r.rich)]) },
     { name: "About", columns: [W("Field", 20), W("Value", 90)],
-      rows: [["Faction", faction || ""], ["Created", new Date().toLocaleString()], ["Made with", "RulesForge"],
+      rows: [["Faction", faction || ""],
+        // The faction's theme (pack ruleset, rule 7), so the faction looks the same when this file is added.
+        ...(theme?.c1 ? [["Colours", `${theme.c1}, ${theme.c2}`]] : []), ...(theme?.icon && theme.icon.length < 32000 ? [["Symbol", theme.icon]] : []),
+        ["Created", new Date().toLocaleString()], ["Made with", "RulesForge"],
         ["Datasheets", data.datasheets.length], ["Detachments", data.detachments.length], ["Army rules", data.armyRules.length],
         ["Editing", "RulesForge builds the faction from these sheets. Fix a value (points, a weapon, a keyword, a Unique keyword) and add this file in Library to use your version. Lists in a cell are one item per line. Leave Formatted cells alone unless you also change the matching text."]] },
   ];
@@ -266,7 +269,9 @@ function structuredFromWorkbook(book) {
   const armyRules = sheet("Army rules").filter(r => r.rule).map(r => ({ name: r.rule, special: /^(yes|true|y|1)$/i.test(r["special move"] || ""), text: r.rules || "", rich: richOr(r.formatted, r.rules || ""),
     ...(r["part of"] ? { partOf: r["part of"], kind: r.type || "" } : {}) }));
   const about = Object.fromEntries(sheet("About").map(r => [String(r.field || "").toLowerCase(), r.value]));
-  return { datasheets, detachments, armyRules, faction: about.faction || "" };
+  const [c1, c2] = String(about.colours || "").match(/#[0-9a-f]{6}/gi) || [];
+  const icon = /^data:image\//.test(about.symbol || "") ? about.symbol : "";
+  return { datasheets, detachments, armyRules, faction: about.faction || "", theme: c1 || icon ? { c1, c2, icon } : null };
 }
 
 async function downloadBlob(blob, fileName) {
@@ -293,7 +298,7 @@ async function downloadBlob(blob, fileName) {
 async function exportDocToExcel(doc) {
   // Built fresh from the stored data: rules documents (Core Rules, updates) or faction data.
   const rules = !doc.structured.datasheets;
-  const blob = await buildXlsx(rules ? rulesToSheets(doc) : structuredToSheets(doc.structured, doc.faction));
+  const blob = await buildXlsx(rules ? rulesToSheets(doc) : structuredToSheets(doc.structured, doc.faction, { ...(doc.theme || {}), icon: doc.icon }));
   const saved = await downloadBlob(blob, `${(rules ? doc.title : doc.faction || doc.title).replace(/[^\w\- ]+/g, "").trim() || "rules"} data.xlsx`);
   if (saved) toast(`Excel file saved (${formatGB(blob.size)})`);
 }

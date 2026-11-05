@@ -1,11 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.2";
-import { armyData } from "./army.js?v=6.2";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.2";
-import { factionMatches } from "./search.js?v=6.2";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.2";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.5";
+import { armyData } from "./army.js?v=6.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=6.5";
+import { factionMatches } from "./search.js?v=6.5";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=6.5";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.5";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -28,26 +29,26 @@ function factionContent(f) {
 
 /* ---------- Faction buttons: colours and symbol ---------- */
 
-/* Each faction's colours (first, second). Factions not listed get colours worked out from their name. */
-const FACTION_COLOURS = {
-  "adepta sororitas": ["#b3262d", "#e6e1d3"], "adeptus custodes": ["#d4a72c", "#8e1f2a"], "adeptus mechanicus": ["#b0302a", "#b9bcc0"],
-  "astra militarum": ["#6b7a3a", "#b58a4c"], "black templars": ["#e9e6df", "#b3121b"], "blood angels": ["#b3121b", "#d4a72c"],
-  "dark angels": ["#1f6b3a", "#cdb67a"], "deathwatch": ["#9aa3ad", "#2e2e33"], "grey knights": ["#a9b4bf", "#3b6fb6"],
-  "imperial agents": ["#8a8f96", "#b3262d"], "imperial knights": ["#2f5fa8", "#d4a72c"], "space marines": ["#2f5fb8", "#d4a72c"],
-  "space wolves": ["#7f9bb3", "#d4a72c"], "chaos daemons": ["#a3202a", "#7a3fb0"], "chaos knights": ["#7a1f1f", "#9aa0a6"],
-  "chaos space marines": ["#9e1c1c", "#c9a227"], "death guard": ["#9aa83f", "#b08d57"], "emperor s children": ["#c0399a", "#d9b84a"],
-  "thousand sons": ["#2f6fc0", "#d4a72c"], "world eaters": ["#c0201f", "#b08d57"], "aeldari": ["#1f8a78", "#d9b84a"],
-  "drukhari": ["#6b3a8c", "#2fa88a"], "genestealer cults": ["#6a4a9c", "#c9a227"], "leagues of votann": ["#c9732f", "#6b7d8c"],
-  "necrons": ["#36c45a", "#9aa0a6"], "orks": ["#4f9a2f", "#d9b84a"], "t au empire": ["#d99a4e", "#3f7fbf"], "tyranids": ["#7d3fb0", "#d8cfb4"],
-};
-const hslHex = (h, s, l) => { s /= 100; l /= 100; const f = n => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, "0"); }; return `#${f(0)}${f(8)}${f(4)}`; };
+/* Default colours and symbols come from the faction pack ruleset (pack-rules.js), so they match on every device. */
 function factionStyle(f) {
   const saved = store.get("rf.facStyle", {})[f] || {};
-  let def = FACTION_COLOURS[normName(f)];
-  if (!def) { let h = 0; for (const ch of f) h = (h * 31 + ch.charCodeAt(0)) % 360; def = [hslHex(h, 60, 52), hslHex((h + 45) % 360, 55, 60)]; }
-  // The symbol: one you chose, else the icon read from the faction's PDF ("Books" table).
-  const pdfIcon = factionDocs(f).sort((a, b) => b.importedAt - a.importedAt).find(d => d.icon)?.icon || "";
-  return { c1: saved.c1 || def[0], c2: saved.c2 || def[1], img: saved.img || pdfIcon, own: !!saved.img, pdfIcon, def };
+  const docs = factionDocs(f).sort((a, b) => b.importedAt - a.importedAt);
+  const def = defaultColours(f, docs.find(d => d.theme)?.theme);
+  // The symbol: one you chose (this browser only), else the icon read from the faction's PDF ("Books" table).
+  // Order: your own image (this browser), the app's faction kit image, then the icon from the faction's PDF.
+  const kit = kitSymbol(f), pdfIcon = docs.find(d => d.icon)?.icon || "", base = kit || pdfIcon;
+  return { c1: saved.c1 || def[0], c2: saved.c2 || def[1], img: saved.img || base, own: !!saved.img, pdfIcon: base, kit: !!kit, def };
+}
+/** Accent colours for keywords, checkboxes and selected weapons: the faction's (default) or the app's own. */
+const useFactionAccents = () => store.get("rf.accent", "faction") !== "app";
+const luminance = hex => { const v = (parseInt(String(hex).slice(1), 16) || 0), ch = n => { const c = ((v >> n) & 255) / 255; return c <= .04 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; }; return .2126 * ch(16) + .7152 * ch(8) + .0722 * ch(0); };
+function applyAccent(el, f) {
+  if (!el) return;
+  const on = useFactionAccents() && f;
+  el.classList.toggle("acc-faction", !!on);
+  // A very dark main colour (Black Templars, Chaos Space Marines) would hide checkboxes and tags, so the trim colour is used.
+  if (on) { const st = factionStyle(f), [a, b] = luminance(st.c1) < 0.06 ? [st.c2, st.c1] : [st.c1, st.c2]; el.style.setProperty("--acc", a); el.style.setProperty("--acc2", b); }
+  else { el.style.removeProperty("--acc"); el.style.removeProperty("--acc2"); }
 }
 function saveFactionStyle(f, patch) {
   const all = store.get("rf.facStyle", {});
@@ -61,10 +62,11 @@ function factionButton(f, on) {
     <span class="fp-fac-name">${esc(f)}</span>
     ${st.img ? `<span class="fp-fac-sym" aria-hidden="true"><img src="${esc(st.img)}" alt=""></span>` : ""}</button>`;
 }
+const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
   const html = names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
-    <button type="button" class="btn plain fp-style" data-fp-style title="Choose this faction's symbol, banner image and colours">Symbol, banner &amp; colours</button>` : "";
+    <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : "";
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
   if (tools.dataset.key !== key) { tools.dataset.key = key; tools.innerHTML = html; }
@@ -90,18 +92,22 @@ function openStyleSheet(f) {
   const draw = () => {
     const st = factionStyle(f);
     const d = openSheet(`
-      <div class="sheet-head"><h2>${esc(f)}: symbol, banner and colours</h2><p>Shown on the faction's button when it's selected. The symbol comes from the faction's PDF (the icon beside its name in the Books table), or you can choose your own image (PNG, JPG, SVG or WebP); it's kept only in this browser.</p></div>
+      <div class="sheet-head"><h2>${esc(f)}: symbol, banner and colours</h2><p>Shown on the faction's button when it's selected. The symbol comes from the faction's PDF (the icon beside its name in the Books table), or you can choose your own image (PNG, JPG, SVG or WebP); Your own image, banner and colours are kept only in this browser; everyone who adds the same faction pack starts from the same symbol and colours.</p></div>
       <div class="sheet-body fp-stylebody">
         <div class="fp-stylepreview">${factionButton(f, true)}</div>
         <div class="field"><label>Symbol</label><div class="fp-stylerow">
           <button class="btn" type="button" id="fsPick">${st.img ? "Change image…" : "Choose image…"}</button>
-          ${st.own ? `<button class="btn plain" type="button" id="fsNoImg">${st.pdfIcon ? "Use the PDF's icon" : "Remove image"}</button>` : `<span class="lb-subtle">${st.pdfIcon ? "Using the icon from the faction's PDF." : "No icon was found in this faction's PDF. Add the PDF again to look for one, or choose an image."}</span>`}
+          ${st.own ? `<button class="btn plain" type="button" id="fsNoImg">${st.kit ? "Use the app's symbol" : st.pdfIcon ? "Use the PDF's icon" : "Remove image"}</button>` : `<span class="lb-subtle">${st.kit ? "Using the app's symbol for this faction." : st.pdfIcon ? "Using the icon from the faction's PDF." : "No icon was found in this faction's PDF. Add the PDF again to look for one, or choose an image."}</span>`}
           <input type="file" id="fsFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden></div></div>
         <div class="field"><label>Banner image</label><div class="fp-stylerow">
           <button class="btn" type="button" id="fsArt">${newestDoc(f)?.banner ? "Change banner image…" : "Choose banner image…"}</button>
           ${newestDoc(f)?.banner ? `<button class="btn plain" type="button" id="fsNoArt">Remove banner image</button>` : ""}
           <input type="file" id="fsArtFile" accept="image/png,image/jpeg,image/webp" hidden></div>
           <span class="hint">A wide picture works best (about 1600 × 300). It fills the right side of the banner and fades into the faction's colours behind the name.</span></div>
+        <div class="field"><label>Accent colours</label><div class="fp-stylerow" role="radiogroup">
+          <label class="fp-colour"><input type="radio" name="fsAcc" value="faction" ${useFactionAccents() ? "checked" : ""}> Faction colours</label>
+          <label class="fp-colour"><input type="radio" name="fsAcc" value="app" ${useFactionAccents() ? "" : "checked"}> App default colours</label></div>
+          <span class="hint">Used for weapon keywords, checkboxes and selected weapons, here and in list building (every faction).</span></div>
         <div class="fp-stylerow">
           <label class="fp-colour">First colour <input type="color" id="fsC1" value="${st.c1}"></label>
           <label class="fp-colour">Second colour <input type="color" id="fsC2" value="${st.c2}"></label>
@@ -128,6 +134,7 @@ function openStyleSheet(f) {
       try { await DB.put("docs", doc); } catch { toast("That image is too large to keep. Try a smaller one."); }
       repaint(); draw();
     };
+    d.querySelectorAll("input[name=fsAcc]").forEach(i => i.onchange = () => { store.set("rf.accent", i.value); repaint(); });
     $("#fsArt").onclick = () => $("#fsArtFile").click();
     if ($("#fsNoArt")) $("#fsNoArt").onclick = () => setArt(null);
     $("#fsArtFile").onchange = async e => {
@@ -175,6 +182,7 @@ function renderFactionsPage() {
       <div class="fp-right" id="fpRight">${rightHTML(c)}</div>
     </div>`;
   host.classList.add("fp-has-wide");
+  applyAccent(host, fUI.faction);
   applyFilter();
 }
 
@@ -237,10 +245,10 @@ function rightHTML(c) {
   if (!ds) return "";
   const u = c.priced.get(normName(ds.name));
   const opts = u?.options || ds.points || [];
-  const weapons = type => { const ws = (ds.weapons || []).filter(w => w.type === type); return ws.length ? panelHTML("", weaponGridHTML(ws, type, [])) : ""; };
+
   return `${back}<div class="fp-head"><h2>${esc(ds.name)}</h2>
       <div class="fp-sub">${opts.map(o => `${o.models} model${o.models === 1 ? "" : "s"} – ${o.points} pts`).join(" · ") || "No points listed"}${u?.pointsFrom ? ` · points from ${esc(u.pointsFrom)}` : ""}</div></div>
-    ${statsHTML(ds)}${weapons("Ranged")}${weapons("Melee")}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
+    ${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
 }
 
 function applyFilter() {
@@ -288,4 +296,4 @@ function wireFactionsPage() {
   }, true);
 }
 
-export { renderFactionsPage, wireFactionsPage };
+export { applyAccent, factionStyle, renderFactionsPage, wireFactionsPage };

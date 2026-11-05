@@ -1,11 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=6.2";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=6.2";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=6.2";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=6.2";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=6.2";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=6.5";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=6.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=6.5";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=6.5";
+import { applyAccent, factionStyle } from "./factions.js?v=6.5";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=6.5";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -15,6 +16,7 @@ function renderListsPage() {
   const host = $("#listsHost"), tools = $("#listsToolbar"), title = $("#listsTitle");
   if (!host) return;
   $("#view-lists").classList.remove("lb-editing");
+  applyAccent($("#view-lists"), null);
   if (listUI.mode === "edit") {
     const list = state.lists.find(l => l.id === listUI.id);
     if (list?.version === 2) return renderListEditor(list);
@@ -107,21 +109,25 @@ function lbLoadout(x, buffs) {
       const own = [...new Set(ps.flatMap(p => keywordList(p.tags)))];
       const extra = [...mine.filter(b => b.keyword && !own.some(k => normName(k).startsWith(normName(b.keyword.split(" (")[0])))).map(b => `${b.keyword} – ${b.source}`),
         ...mine.filter(b => b.stat).map(b => `${b.delta > 0 ? "+" : ""}${b.delta} ${b.stat} – ${b.source}`)];
-      const kw = [own.length ? esc(own.join(", ")) : "", ...extra.map(e => `<span class="lb-buffkw">${esc(e)}</span>`)].filter(Boolean).join('<span class="lb-sep">, </span>');
+      // Keywords as outlined tags under the name (bonuses from attached characters in their own colour).
+      const kw = [...own.map(k => `<span class="fv-kw">${esc(k)}</span>`), ...extra.map(e => `<span class="fv-kw lb-buffkw">${esc(e)}</span>`)].join("");
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
-      return `<div class="lb-wopt lb-split${n > 0 ? " on" : ""}" data-split title="Left half: show or hide details · Right half: equip or unequip">
+      return `<div class="lb-wopt lb-split${n > 0 ? " on" : ""}${gr.N > 1 ? " stepper" : ""}" data-split title="Left half: show or hide details · Right half: equip or unequip">
         <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="Equip ${esc(w)}">
-        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-arrow" aria-hidden="true"></span><span class="lb-whead"><span class="lb-wtitle">${esc(capWords(w))}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
-          ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</span></summary>
-          ${weaponGridHTML(ps, type, buffs, "profile")}</details>
+        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-arrow" aria-hidden="true"></span><span class="lb-whead"><span class="lb-wtitle">${esc(capWords(w))}${ps.length > 1 ? `<span class="lb-subtle lb-pcount">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
+          ${kw ? `<span class="lb-wkws fv-kws">${kw}</span>` : ""}</span></summary>
+          ${weaponGridHTML(ps, type, buffs, "profile", w)}</details>
         <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>` : ""}</div>
       </div>`;
     };
     const all = [...gr.reach.keys()];
     const byType = t => all.filter(w => profiles(w)[0]?.type === t);
     const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div><div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
-    return panelHTML(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>${groupWarn}`,
-      part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
+    // A weapon with a ranged and a melee profile under the same name: one "Weapons" list instead of two.
+    const shared = all.some(w => new Set(profiles(w).map(p => p.type)).size > 1);
+    const body = shared ? `<div class="lb-wtype">Weapons</div><div class="lb-wopts">${[...byType("Ranged"), ...byType("Melee")].map(row).join("")}</div>`
+      : part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons");
+    return panelHTML(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>${groupWarn}`, body, problem ? "lb-bad" : "");
   }).join("");
 }
 
@@ -286,6 +292,7 @@ function lbAtMax(u, r) {
 
 function lbGroupOf(u) { return DATASHEET_GROUPS.findIndex(([, test]) => test(u.kws)); }
 
+const PENCIL_SVG = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M11.3 1.3a1.5 1.5 0 0 1 2.1 0l1.3 1.3a1.5 1.5 0 0 1 0 2.1l-8.6 8.6a1 1 0 0 1-.46.26l-3.4.9a.6.6 0 0 1-.74-.74l.9-3.4a1 1 0 0 1 .26-.46l8.64-8.56Zm-.6 2.3-7.1 7.1-.5 1.9 1.9-.5 7.1-7.1-1.4-1.4Zm1.5-1.4-.6.6 1.4 1.4.6-.6-1.4-1.4Z"/></svg>`;
 const TRASH_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4a1 1 0 0 1 1 1V3h3a.75.75 0 0 1 0 1.5h-.6l-.7 9.1A1.5 1.5 0 0 1 11.2 15H4.8a1.5 1.5 0 0 1-1.5-1.4L2.6 4.5H2A.75.75 0 0 1 2 3h3v-.5a1 1 0 0 1 1-1Zm-1.9 3 .7 9h6.4l.7-9H4.1Zm2.15 1.75a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Zm3.5 0a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Z"/></svg>`;
 
 function lbListColumn(list, r) {
@@ -316,18 +323,25 @@ function lbListColumn(list, r) {
   for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
   const pct = Math.min(100, Math.round(r.total / list.points * 100));
   const enhCount = r.enhCount;
+  const st = factionStyle(list.faction);
+  // Each chosen detachment on its own line, in the faction's colours, right above the units.
+  const dets = `<div class="lb-detbox" style="--c1:${st.c1};--c2:${st.c2}">
+      ${list.detachments.map(d => { const dd = r.dets.find(x => x.name === d);
+        return `<div class="lb-detline"><span class="lb-detname">${esc(d)}</span>${dd?.unique ? `<span class="lb-detuq" title="Unique: ${esc(dd.unique)}">◆ ${esc(dd.unique)}</span>` : ""}${dd ? `<span class="lb-detdp">${dd.dp} DP</span>` : ""}</div>`; }).join("")
+        || `<div class="lb-subtle">No detachment chosen</div>`}
+      <button class="btn lb-detbtn" type="button" data-lb="detachments">${list.detachments.length ? "Change Detachments" : "Choose Detachments"}</button>
+    </div>`;
   return `
     <div class="lb-listhead">
-      <div class="lb-namebar"><h2>${esc(list.name)}</h2><button class="btn plain" type="button" data-lb-rename="${list.id}">Rename</button></div>
+      <div class="lb-actions"><button class="btn" type="button" data-lb="copy">Copy as text</button><button class="btn danger" type="button" data-lb-delete="${list.id}">Delete list</button></div>
+      <div class="lb-namebar"><h2>${esc(list.name)}</h2><button class="lb-pencil" type="button" data-lb-rename="${list.id}" title="Rename list" aria-label="Rename list">${PENCIL_SVG}</button></div>
       <div class="lb-meta">${esc(list.faction)} · ${r.rules.name}</div>
       <div class="lb-pts"><b class="${r.left < 0 ? "over" : ""}">${r.total.toLocaleString()}</b> / ${list.points.toLocaleString()} pts · ${r.entries.length} unit${r.entries.length === 1 ? "" : "s"}</div>
       <div class="lb-bar"><span class="${r.left < 0 ? "over" : ""}" style="width:${pct}%"></span></div>
       <div class="lb-meta">${r.dpUsed} of ${r.rules.dp} DP · ${enhCount} of ${r.rules.enh} enhancements</div>
-      <div class="lb-dets">${list.detachments.map(d => { const dd = r.dets.find(x => x.name === d); return `<span class="lb-chip">${esc(d)}${dd?.unique ? ` · Unique: ${esc(dd.unique)}` : ""}</span>`; }).join("") || `<span class="lb-subtle">No detachment chosen</span>`}
-        <button class="btn plain" type="button" data-lb="detachments">Change</button></div>
       ${r.issues.length ? `<div class="lb-issues">${r.issues.map(i => `<div>⚠︎ ${esc(i)}</div>`).join("")}</div>` : `<div class="lb-ok">✓ Legal for ${r.rules.name}</div>`}
       ${list.generated?.notes?.length ? `<details class="more"><summary>Why this list</summary><ul class="lb-notes">${list.generated.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></details>` : ""}
-      <div class="lb-actions"><button class="btn" type="button" data-lb="copy">Copy as text</button><button class="btn danger" type="button" data-lb-delete="${list.id}">Delete list</button></div>
+      ${dets}
     </div>
     ${groups.filter(g => g.items.length).map(g => `<div class="lb-grp"><div class="lb-grp-title">${esc(g.title)} · ${g.items.length}</div>${g.items.map(card).join("")}</div>`).join("") || `<div class="lb-empty">No units yet.<br>Add them from the list on the right.</div>`}`;
 }
@@ -342,7 +356,7 @@ function lbAddColumn(list, r, data) {
       ${g.items.sort((a, b) => a.name.localeCompare(b.name)).map(u => {
         const n = r.entries.filter(e => e.key === u.key).length, max = unitMax(u, r.rules), full = lbAtMax(u, r);
         return `<button type="button" class="lb-addrow${full ? " full" : ""}" data-lb-addunit="${esc(u.key)}" data-name="${esc(normName(u.name))}" ${full ? 'disabled aria-disabled="true"' : ""}>
-          <span class="lb-plus">+</span><span class="lb-aname">${esc(u.name)}<span class="lb-subtle">${n ? `${n} in list · ` : ""}max ${max}${u.transport ? " (6 transports total)" : ""}</span></span>
+          <span class="lb-plus">+</span><span class="lb-aname">${esc(u.name)}<span class="lb-subtle">${n ? `${n} in list · ` : ""}max ${max}</span></span>
           <span class="lb-ccost">${u.options[0].points}</span></button>`;
       }).join("")}</details>`).join("")}`;
 }
@@ -359,6 +373,7 @@ function renderListEditor(list) {
   if (!r.entries.some(e => e.id === listUI.sel)) listUI.sel = r.entries[0]?.id || null;
   const view = $("#view-lists");
   view.classList.add("lb-editing");
+  applyAccent(view, list.faction);
   $("#listsTitle").innerHTML = `<button class="btn plain lb-back" type="button" data-lb="home">‹ Lists</button>`;
   $("#listsToolbar").innerHTML = `
     <div class="segmented lb-panes" role="tablist">
