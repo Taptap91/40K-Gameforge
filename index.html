@@ -99,6 +99,16 @@
 <dialog id="sheet"></dialog>
 <div class="toast" id="toast"></div>
 
+<script>
+/* If the app's scripts fail to start (usually because some files on the site are from an older version), say so. */
+setTimeout(function () {
+  if (window.rfStarted) return;
+  var bar = document.createElement("div");
+  bar.className = "version-warn";
+  bar.textContent = "RulesForge couldn't start: some files on the site are missing or from an older version. Upload every file from the latest version to GitHub, wait a minute, then reload.";
+  document.body.prepend(bar);
+}, 5000);
+</script>
 <script type="module" src="js/main.js?v=5.3"></script>
 </body>
 </html>
