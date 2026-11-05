@@ -22,11 +22,16 @@
  *  Rule 8  The app's own faction kit (the "factions" folder beside index.html) comes first: factions.json gives each
  *          faction's colours, and an image named after the faction (dark-angels.png, tau-empire.svg …) is its symbol.
  *          Any size or format works: the image is trimmed of empty edges and scaled to fit the symbol box.
+ *  Rule 9  Symbol sizes. Banner: as tall as the banner allows, 5px from the top and 5px above the coloured bottom line
+ *          (101px tall on desktop, 82px on phones); width follows the image's shape, up to 30px more than that height
+ *          (131px / 112px), and a wider image is scaled down to fit. Every symbol is centred in that slot, so their centres line up.
+ *          Button: fitted inside 30 × 28.
+ *  Rule 10 A symbol that's entirely black or dark grey is redrawn in near-white so it shows on the dark app.
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=6.5";
-import { normName } from "./text.js?v=6.5";
+import { KNOWN_FACTIONS } from "./core.js?v=6.6";
+import { normName } from "./text.js?v=6.6";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";
@@ -80,7 +85,23 @@ function canonicalFaction(raw) {
 /* ---------- Rule 8: the app's faction kit (factions/factions.json and one image per faction) ---------- */
 const KIT = { images: {}, listed: {}, tried: new Set(), onImages: null };
 
-/** Loads an image file and returns it trimmed of empty (see-through) edges and scaled to fit 128 × 128, as a PNG. */
+/** Rule 10: a symbol drawn only in black or dark grey (like a black SVG) would vanish on the app's dark background,
+ *  so it's redrawn in near-white, keeping its shape and soft edges. Coloured symbols are left as they are. */
+const LIGHT = [236, 233, 228];
+function lightenDarkSymbol(g, w, h) {
+  const img = g.getImageData(0, 0, w, h), px = img.data;
+  let solid = 0, dark = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 128) continue;
+    solid++;
+    const max = Math.max(px[i], px[i + 1], px[i + 2]), min = Math.min(px[i], px[i + 1], px[i + 2]);
+    if (max < 70 && max - min < 30) dark++;
+  }
+  if (!solid || dark / solid < 0.9) return;
+  for (let i = 0; i < px.length; i += 4) [px[i], px[i + 1], px[i + 2]] = LIGHT;
+  g.putImageData(img, 0, 0);
+}
+/** Loads an image file and returns it trimmed of empty (see-through) edges and scaled to fit 256 × 256, as a PNG. */
 async function fitImage(url) {
   const img = new Image();
   img.src = url;
@@ -94,9 +115,10 @@ async function fitImage(url) {
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   if (x1 < 0) { x0 = 0; y0 = 0; x1 = c.width - 1; y1 = c.height - 1; }
-  const cw = x1 - x0 + 1, ch = y1 - y0 + 1, s = Math.min(1, 128 / Math.max(cw, ch));
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1, s = Math.min(1, 256 / Math.max(cw, ch));   // sharp at the banner's full height on high-resolution screens
   const out = document.createElement("canvas"); out.width = Math.max(1, Math.round(cw * s)); out.height = Math.max(1, Math.round(ch * s));
-  const o = out.getContext("2d"); o.imageSmoothingQuality = "high"; o.drawImage(c, x0, y0, cw, ch, 0, 0, out.width, out.height);
+  const o = out.getContext("2d", { willReadFrequently: true }); o.imageSmoothingQuality = "high"; o.drawImage(c, x0, y0, cw, ch, 0, 0, out.width, out.height);
+  lightenDarkSymbol(o, out.width, out.height);
   return out.toDataURL("image/png");
 }
 /** The first image that exists for a faction: the file named in factions.json, then its name in each image type. */

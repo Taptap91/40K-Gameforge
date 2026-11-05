@@ -713,7 +713,12 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
     var(--art) right center / cover no-repeat, #111;
 }
 .fp-banner::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--c1); opacity: .6; }
-.fp-banner-mark { position: absolute; right: 30px; top: 50%; height: 56px; width: 56px; object-fit: contain; transform: translateY(-50%); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c1) 60%, transparent)); }
+/* Banner symbol (faction pack ruleset, rule 9): as tall as the banner allows, 5px from the top and 5px above the coloured
+   bottom line. It sits in a slot 30px wider than it is tall, centred in that slot, so every symbol's centre lines up
+   whatever its shape; a wide image can use the full slot width. */
+.fp-banner { --mark-gap: 5px; --mark-w: 131px; }   /* 101px tall on desktop + 30px */
+.fp-banner:has(> .fp-banner-mark) { padding-right: calc(30px + var(--mark-w) + 20px); }
+.fp-banner-mark { position: absolute; right: 30px; top: var(--mark-gap); bottom: calc(var(--mark-gap) + 2px); height: calc(100% - 2 * var(--mark-gap) - 2px); width: var(--mark-w); object-fit: contain; object-position: center; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c1) 60%, transparent)); }
 .fp-banner-text { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .fp-banner-kicker { font: 700 11px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--c1) 55%, var(--text)); }
 .fp-banner-name { font: 700 30px/1.05 Georgia, "Iowan Old Style", "Palatino Linotype", serif; letter-spacing: .01em; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.55); overflow-wrap: anywhere; }
@@ -724,7 +729,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-banner.has-art { min-height: 96px; padding-right: 16px; }
   .fp-banner-name { font-size: 24px; }
   .fp-banner-counts { font-size: 12px; }
-  .fp-banner-mark { height: 44px; width: 44px; right: 16px; }
+  .fp-banner { --mark-w: 112px; }   /* 82px tall on phones + 30px */
+  .fp-banner:has(> .fp-banner-mark) { padding-right: calc(16px + var(--mark-w) + 12px); }
+  .fp-banner-mark { right: 16px; }
 }
 
 /* Parts of an army rule ("[Name] Ability" rules) shown under it on datasheets. */

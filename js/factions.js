@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.5";
-import { armyData } from "./army.js?v=6.5";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=6.5";
-import { factionMatches } from "./search.js?v=6.5";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=6.5";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.5";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.6";
+import { armyData } from "./army.js?v=6.6";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=6.6";
+import { factionMatches } from "./search.js?v=6.6";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=6.6";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.6";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -72,7 +72,16 @@ function renderFactionBar(names) {
   if (tools.dataset.key !== key) { tools.dataset.key = key; tools.innerHTML = html; }
   else for (const b of tools.querySelectorAll(".fp-fac")) { const on = b.dataset.fac === fUI.faction; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
   const row = tools.querySelector(".fp-facs"), on = row?.querySelector(".fp-fac.on");
-  if (on && (on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth || on.offsetLeft < row.scrollLeft)) row.scrollLeft = on.offsetLeft - 12;
+  // Scrolls the row so the selected button is fully in view (measured against the row itself, so it never ends up under the
+  // title or the gear). The button grows as it's selected, so it's checked again once that finishes.
+  const reveal = () => {
+    const btn = row?.querySelector(".fp-fac.on");
+    if (!btn) return;
+    const r = row.getBoundingClientRect(), b = btn.getBoundingClientRect();
+    if (b.left < r.left + 8) row.scrollBy({ left: b.left - (r.left + 8), behavior: "smooth" });
+    else if (b.right > r.right - 8) row.scrollBy({ left: b.right - (r.right - 8), behavior: "smooth" });
+  };
+  if (on) { reveal(); clearTimeout(row._reveal); row._reveal = setTimeout(reveal, 480); }
 }
 
 /* ---------- The faction banner (full width, above both columns, always in view) ---------- */

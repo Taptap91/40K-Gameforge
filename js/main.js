@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=6.5";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=6.5";
-import { exportDocToExcel } from "./excel.js?v=6.5";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=6.5";
-import * as core from "./core.js?v=6.5";
-import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=6.5";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=6.5";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=6.5";
-import { buildIndex } from "./search.js?v=6.5";
-import { openDataViewer } from "./viewer.js?v=6.5";
-import { fixApostrophes } from "./text.js?v=6.5";
-import { groupArmyRules } from "./faction-parser.js?v=6.5";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme } from "./pack-rules.js?v=6.5";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=6.6";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=6.6";
+import { exportDocToExcel } from "./excel.js?v=6.6";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=6.6";
+import * as core from "./core.js?v=6.6";
+import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=6.6";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=6.6";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=6.6";
+import { buildIndex } from "./search.js?v=6.6";
+import { openDataViewer } from "./viewer.js?v=6.6";
+import { fixApostrophes } from "./text.js?v=6.6";
+import { groupArmyRules } from "./faction-parser.js?v=6.6";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme } from "./pack-rules.js?v=6.6";
 
 function renderAll() {
   renderScope();

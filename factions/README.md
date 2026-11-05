@@ -9,9 +9,15 @@ Put one image per faction in this folder, named exactly as in the table below. O
 `dark-angels.png`, `dark-angels.svg`, `dark-angels.webp` and `dark-angels.jpg` all work.
 
 - **Any size and format.** PNG, SVG, WebP, JPG, GIF and AVIF all work. The app trims empty, see-through edges and scales
-  the image to fit the symbol box: 30 × 28 on the button and 56 × 56 on the banner.
-- **Best results:** a roughly square image with a see-through background (PNG, SVG or WebP), at least 128 × 128 pixels.
+  the image to fit:
+  - **Banner:** as tall as the banner allows, 5px from the top and 5px above the coloured bottom line (101px tall on
+    desktop, 82px on phones). The width follows the image's shape, up to 30px more than the height (131px / 112px);
+    a wider image is scaled down to fit that width. Every symbol is centred in the same spot, whatever its shape.
+  - **Button:** inside 30 × 28.
+- **Best results:** a roughly square image with a see-through background (PNG, SVG or WebP), at least 256 pixels tall.
   JPG has no see-through background, so its background colour shows as a box.
+- **Black symbols:** a symbol drawn only in black or dark grey (a plain black SVG, say) is shown in near-white
+  automatically, so it doesn't vanish on the app's dark background. Coloured images are left as they are.
 - **Keep files small** (under about 300 KB each) so the app loads quickly.
 - **Use artwork you own or have the rights to.**
 - **No image for a faction?** The app falls back to the icon in that faction's PDF, if the user uploads one.
