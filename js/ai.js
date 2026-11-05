@@ -1,8 +1,8 @@
 /* RulesForge · ai.js
  * The on-device AI model (Chrome's built-in model or WebLLM) and its setup sheet.
  */
-import { $, confirmSheet, esc, formatGB, openSheet, state, store, toast } from "./core.js?v=5.7";
-import { renderChat } from "./rules-chat.js?v=5.7";
+import { $, confirmSheet, esc, formatGB, openSheet, state, store, toast } from "./core.js?v=5.8";
+import { renderChat } from "./rules-chat.js?v=5.8";
 
 const WEBLLM_URL = "https://esm.run/@mlc-ai/web-llm";
 

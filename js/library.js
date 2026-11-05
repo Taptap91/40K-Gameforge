@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=5.7";
-import { structuredToLibrary } from "./datasheets.js?v=5.7";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=5.7";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, mergeArmyRules } from "./faction-parser.js?v=5.7";
-import { renderAll } from "./main.js?v=5.7";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=5.7";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=5.7";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=5.7";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=5.8";
+import { structuredToLibrary } from "./datasheets.js?v=5.8";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=5.8";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, mergeArmyRules } from "./faction-parser.js?v=5.8";
+import { renderAll } from "./main.js?v=5.8";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=5.8";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=5.8";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=5.8";
 
 async function importFiles(files, kind, faction) {
   const box = $("#importProgress"), errBox = $("#importError");
@@ -119,7 +119,9 @@ async function replaceRulesDoc(doc, label = doc.title) {
 /** Stores converted faction data, replacing any earlier data for the same faction so the newest import is the one used. */
 async function replaceFaction(doc, label = doc.title) {
   const same = state.docs.filter(d => d.structured?.datasheets && doc.faction && factionMatches(d.faction, doc.faction));
-  if (!doc.icon) { const old = same.find(d => d.icon); if (old) doc.icon = old.icon; }   // an edited Excel file keeps the PDF's icon
+  // Adding the faction again keeps the PDF's icon (when the new file has none) and your banner image.
+  if (!doc.icon) { const old = same.find(d => d.icon); if (old) doc.icon = old.icon; }
+  if (!doc.banner) { const old = same.find(d => d.banner); if (old) doc.banner = old.banner; }
   await DB.put("docs", doc);
   state.docs.push(doc);
   for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
