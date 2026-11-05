@@ -619,22 +619,19 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .fp-facs { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; padding: 8px 10px; margin: 0 -2px; scrollbar-width: thin; }
 .fp-fac {
-  position: relative; flex: none; min-width: 184px; height: 40px; padding: 0 16px 0 54px;
-  display: flex; align-items: center; overflow: hidden; text-align: left; white-space: nowrap;
+  position: relative; flex: none; min-width: 184px; height: 40px; padding: 0 20px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
   border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel);
   color: var(--text-2); font: 600 14px/1 var(--font); cursor: pointer;
   transition: color .2s, background-color .2s, box-shadow .3s;
 }
 .fp-fac:hover { color: var(--text); background: var(--panel-2); }
+/* With a symbol: the name keeps 20px on its left and is centred in the space before the symbol,
+   which sits 20px in from the right edge (it fades in when the faction is selected). */
+.fp-fac.has-sym { padding: 0 64px 0 20px; min-width: 210px; }
 .fp-fac-name { position: relative; }
-/* The symbol sits in its own 46px strip at the left, so it never runs under the name. */
-.fp-fac-sym {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 46px; display: grid; place-items: center; opacity: 0;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--c1) 30%, transparent), transparent);
-  -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent); mask-image: linear-gradient(90deg, #000 55%, transparent);
-}
-.fp-fac-sym img { max-width: 32px; max-height: 30px; object-fit: contain; }
-.fp-fac-mono { font: 700 17px/1 Georgia, "Iowan Old Style", "Palatino Linotype", serif; letter-spacing: .02em; color: var(--c1); }
+.fp-fac-sym { position: absolute; right: 20px; top: 0; bottom: 0; width: 30px; display: grid; place-items: center; opacity: 0; }
+.fp-fac-sym img { max-width: 30px; max-height: 28px; object-fit: contain; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c1) 45%, transparent)); }
 .fp-fac.on {
   color: var(--text);
   border-color: transparent;
@@ -655,8 +652,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-det { flex-direction: column; align-items: stretch; gap: 7px; }
 .fp-irow { display: flex; align-items: baseline; gap: 12px; }
 .fp-dp { flex: none; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; padding: 1px 7px; border: 1px solid var(--border-strong); border-radius: 999px; }
-.fp-uq { display: flex; align-items: baseline; gap: 7px; font: 700 12px/1.3 Georgia, "Iowan Old Style", "Palatino Linotype", serif; color: #d6bf86; }
-.fp-uq-k { font: 700 10px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.fp-uq { display: flex; align-items: baseline; gap: 7px; font: 700 10px/1.3 var(--font); letter-spacing: .08em; }
+.fp-uq-k { text-transform: uppercase; color: var(--text-3); }
+/* The tag itself: same type as "UNIQUE", in a grey halfway between that label and the detachment name. */
+.fp-uq-v { color: color-mix(in srgb, var(--text-3) 50%, var(--text)); }
 .fv-link { all: unset; cursor: pointer; color: var(--accent); }
 .fv-link:hover, .fv-link:focus-visible { text-decoration: underline; }
 .lb-none { padding: 2px 2px 4px; }

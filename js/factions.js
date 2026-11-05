@@ -1,11 +1,11 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, esc, openSheet, state, store, toast } from "./core.js?v=5.6";
-import { armyData } from "./army.js?v=5.6";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.6";
-import { factionMatches } from "./search.js?v=5.6";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.6";
+import { $, esc, openSheet, state, store, toast } from "./core.js?v=5.7";
+import { armyData } from "./army.js?v=5.7";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.7";
+import { factionMatches } from "./search.js?v=5.7";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.7";
 
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -43,7 +43,9 @@ function factionStyle(f) {
   const saved = store.get("rf.facStyle", {})[f] || {};
   let def = FACTION_COLOURS[normName(f)];
   if (!def) { let h = 0; for (const ch of f) h = (h * 31 + ch.charCodeAt(0)) % 360; def = [hslHex(h, 60, 52), hslHex((h + 45) % 360, 55, 60)]; }
-  return { c1: saved.c1 || def[0], c2: saved.c2 || def[1], img: saved.img || "", def };
+  // The symbol: one you chose, else the icon read from the faction's PDF ("Books" table).
+  const pdfIcon = factionDocs(f).sort((a, b) => b.importedAt - a.importedAt).find(d => d.icon)?.icon || "";
+  return { c1: saved.c1 || def[0], c2: saved.c2 || def[1], img: saved.img || pdfIcon, own: !!saved.img, pdfIcon, def };
 }
 function saveFactionStyle(f, patch) {
   const all = store.get("rf.facStyle", {});
@@ -51,12 +53,11 @@ function saveFactionStyle(f, patch) {
   for (const k of Object.keys(all[f])) if (all[f][k] == null || all[f][k] === "") delete all[f][k];
   store.set("rf.facStyle", all);
 }
-const monogram = f => f.replace(/[^A-Za-z ]/g, " ").split(/\s+/).filter(w => w && !/^(of|the)$/i.test(w)).map(w => w[0].toUpperCase()).join("").slice(0, 2);
 function factionButton(f, on) {
   const st = factionStyle(f);
-  return `<button type="button" class="fp-fac${on ? " on" : ""}" data-fac="${esc(f)}" aria-pressed="${on}" style="--c1:${st.c1};--c2:${st.c2}">
-    <span class="fp-fac-sym" aria-hidden="true">${st.img ? `<img src="${esc(st.img)}" alt="">` : `<span class="fp-fac-mono">${esc(monogram(f))}</span>`}</span>
-    <span class="fp-fac-name">${esc(f)}</span></button>`;
+  return `<button type="button" class="fp-fac${on ? " on" : ""}${st.img ? " has-sym" : ""}" data-fac="${esc(f)}" aria-pressed="${on}" style="--c1:${st.c1};--c2:${st.c2}">
+    <span class="fp-fac-name">${esc(f)}</span>
+    ${st.img ? `<span class="fp-fac-sym" aria-hidden="true"><img src="${esc(st.img)}" alt=""></span>` : ""}</button>`;
 }
 function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
@@ -75,12 +76,12 @@ function openStyleSheet(f) {
   const draw = () => {
     const st = factionStyle(f);
     const d = openSheet(`
-      <div class="sheet-head"><h2>${esc(f)}: symbol and colours</h2><p>Shown on the faction's button when it's selected. The symbol is an image you choose (PNG, JPG, SVG or WebP); it's kept only in this browser.</p></div>
+      <div class="sheet-head"><h2>${esc(f)}: symbol and colours</h2><p>Shown on the faction's button when it's selected. The symbol comes from the faction's PDF (the icon beside its name in the Books table), or you can choose your own image (PNG, JPG, SVG or WebP); it's kept only in this browser.</p></div>
       <div class="sheet-body fp-stylebody">
         <div class="fp-stylepreview">${factionButton(f, true)}</div>
         <div class="field"><label>Symbol</label><div class="fp-stylerow">
           <button class="btn" type="button" id="fsPick">${st.img ? "Change image…" : "Choose image…"}</button>
-          ${st.img ? `<button class="btn plain" type="button" id="fsNoImg">Remove image</button>` : `<span class="lb-subtle">Until then, the faction's initials are shown.</span>`}
+          ${st.own ? `<button class="btn plain" type="button" id="fsNoImg">${st.pdfIcon ? "Use the PDF's icon" : "Remove image"}</button>` : `<span class="lb-subtle">${st.pdfIcon ? "Using the icon from the faction's PDF." : "No icon was found in this faction's PDF. Add the PDF again to look for one, or choose an image."}</span>`}
           <input type="file" id="fsFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden></div></div>
         <div class="fp-stylerow">
           <label class="fp-colour">First colour <input type="color" id="fsC1" value="${st.c1}"></label>

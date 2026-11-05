@@ -1,7 +1,7 @@
 /* RulesForge · pdf-reader.js
  * Reads a PDF's text with positions, using pdf.js (loaded only when a PDF is added).
  */
-import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=5.6";
+import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=5.7";
 
 const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
@@ -53,7 +53,7 @@ async function readPdf(file, onPage) {
     pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
   }
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-  const pages = [];
+  const pages = [], bookIcons = [];
   const fontInfo = new Map();   // font id → { b: bold, i: italic }, looked up once per font
   let offset = 0;   // pages are laid end to end, so layouts that cross page breaks still line up
   for (let n = 1; n <= pdf.numPages; n++) {
@@ -107,6 +107,10 @@ async function readPdf(file, onPage) {
       if (item.hasEOL) text += "\n";
       lastY = y;
     }
+    // The "Books" table on a faction's first pages has a small icon beside each book's name; keep those icons.
+    if (n <= 3 && items.some(i => /^books$/i.test(i.t))) {
+      try { bookIcons.push(...await bookTableIcons(page, items, pageHeight)); } catch {}
+    }
     const cleaned = normalize(text.split("\n").map(l => scrubWeb(l)).filter(l => !isWebFurniture(l)).join("\n"));
     if (cleaned) pages.push({ number: n, text: cleaned, items });
     offset += pageHeight + 20;
@@ -117,7 +121,66 @@ async function readPdf(file, onPage) {
     const meta = await pdf.getMetadata();
     if (meta?.info?.Title?.trim()) title = meta.info.Title.trim();
   } catch {}
-  return { title, pageCount: pdf.numPages, pages };
+  return { title, pageCount: pdf.numPages, pages, bookIcons };
+}
+
+/** Small images in a page's "Books" table, each paired with the name printed to its right: [{ name, image }]. */
+async function bookTableIcons(page, items, pageHeight) {
+  const ops = await page.getOperatorList(), OPS = pdfjs.OPS;
+  const books = items.find(i => /^books$/i.test(i.t));
+  const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  let m = [1, 0, 0, 1, 0, 0];
+  const stack = [], found = [];
+  for (let k = 0; k < ops.fnArray.length; k++) {
+    const fn = ops.fnArray[k], args = ops.argsArray[k];
+    if (fn === OPS.save) stack.push(m);
+    else if (fn === OPS.restore) m = stack.pop() || [1, 0, 0, 1, 0, 0];
+    else if (fn === OPS.transform) m = mul(m, args);
+    else if (fn === OPS.paintImageXObject) {
+      const w = Math.hypot(m[0], m[1]), h = Math.hypot(m[2], m[3]);
+      const left = Math.min(m[4], m[4] + m[0]), top = pageHeight - Math.max(m[5], m[5] + m[3]);
+      // Icon-sized (not photos or page backgrounds) and below the "Books" heading.
+      if (w > 4 && w < 40 && h > 4 && h < 40 && top > books.py - 4) found.push({ id: args[0], left, right: left + w, mid: top + h / 2 });
+    }
+  }
+  const out = [];
+  for (const ic of found) {
+    // The book's name: the nearest text to the right of the icon, on the same row.
+    const name = items.filter(i => i.x >= ic.right - 1 && i.x - ic.right < 30 && Math.abs((i.py - i.s * 0.35) - ic.mid) < 8)
+      .sort((a, b) => a.x - b.x)[0];
+    if (!name || out.some(o => o.name === name.t)) continue;
+    const img = await new Promise(res => {
+      const objs = ic.id.startsWith("g_") ? page.commonObjs : page.objs;
+      try { objs.has(ic.id) ? res(objs.get(ic.id)) : objs.get(ic.id, res); } catch { res(null); }
+      setTimeout(() => res(null), 3000);
+    });
+    const image = img && iconToPng(img);
+    if (image) out.push({ name: name.t, image });
+  }
+  return out;
+}
+
+/** A decoded PDF image as a 96px PNG (scaled up smoothly; transparency kept). */
+function iconToPng(img) {
+  const w = img.width || img.bitmap?.width, h = img.height || img.bitmap?.height;
+  if (!w || !h) return "";
+  const src = document.createElement("canvas");
+  src.width = w; src.height = h;
+  const sc = src.getContext("2d");
+  if (img.bitmap) sc.drawImage(img.bitmap, 0, 0);
+  else if (img.data) {
+    const px = sc.createImageData(w, h), d = img.data, o = px.data, n = w * h;
+    if (d.length >= n * 4) o.set(d.subarray ? d.subarray(0, n * 4) : d.slice(0, n * 4));
+    else if (d.length >= n * 3) for (let i = 0; i < n; i++) { o[i * 4] = d[i * 3]; o[i * 4 + 1] = d[i * 3 + 1]; o[i * 4 + 2] = d[i * 3 + 2]; o[i * 4 + 3] = 255; }
+    else return "";
+    sc.putImageData(px, 0, 0);
+  } else return "";
+  const k = 96 / Math.max(w, h), out = document.createElement("canvas");
+  out.width = Math.round(w * k); out.height = Math.round(h * k);
+  const oc = out.getContext("2d");
+  oc.imageSmoothingEnabled = true; oc.imageSmoothingQuality = "high";
+  oc.drawImage(src, 0, 0, out.width, out.height);
+  return out.toDataURL("image/png");
 }
 
 export { chunkPages, mostCommonSize, readingLines, readPdf };

@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=5.6";
+import { esc } from "./core.js?v=5.7";
 
 function normalize(raw) {
   return raw
@@ -20,9 +20,12 @@ function normalize(raw) {
 const letterCount = s => (s.match(/[A-Za-z]/g) || []).length;
 const isUpperText = s => letterCount(s) >= 2 && s === s.toUpperCase();
 const isStatValue = s => /^(\d+["+]?|-|\d+\+|N\/A|\*|D\d+(\+\d+)?|\d*D\d+(\+\d+)?)$/i.test(s);
-const cleanGlyphs = s => s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim();
+/** Rejoins apostrophes a PDF split off ("NURGLE ’ S GIFT" → "NURGLE’S GIFT", "Nurgle ’ S" → "Nurgle’s"). */
+const fixApostrophes = s => String(s ?? "").replace(/(\p{L})(?:\s+(['’])\s*|(['’])\s+)(s|t|re|ve|ll|d|m)(?![\p{L}])/giu,
+  (m, a, q1, q2, suf) => a + (q1 || q2) + (a === a.toUpperCase() && a !== a.toLowerCase() ? suf : suf.toLowerCase()));
+const cleanGlyphs = s => fixApostrophes(s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim());
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"]);
-const titleCase = s => s === s.toUpperCase()
+const titleCase = s => (s = fixApostrophes(s)) === s.toUpperCase()
   ? s.toLowerCase().replace(/(^|[\s\-([])(\w+)/g, (m, a, w, i) => a + (i > 0 && a === " " && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
       .replace(/(\w['’])([a-z])([a-z]{2,})/g, (m, a, b, c) => a + b.toUpperCase() + c)
   : s;
@@ -60,7 +63,7 @@ function itemize(lines) {
 const stripRich = s => String(s || "").replace(/\*\*/g, "");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
 /** Keywords printed in capitals ("DEATH GUARD INFANTRY model only") shown with capital first letters ("Death Guard Infantry"). */
 const KEEP_CAPS = new Set(["CP", "OC", "AP", "WS", "BS", "HQ", "VP", "DP", "FNP", "OK", "II", "III", "IV", "AM", "PM"]);
-const softenCaps = s => String(s ?? "").replace(/(?<![\w’'])[A-Z][A-Z’'-]+(?:(?:\s+|\s*\/\s*)[A-Z][A-Z’'-]+)*(?![\w’'])/g,
+const softenCaps = s => fixApostrophes(s).replace(/(?<![\w’'])[A-Z][A-Z’'-]+(?:(?:\s+|\s*\/\s*)[A-Z][A-Z’'-]+)*(?![\w’'])/g,
   m => (!/\s|\//.test(m) && KEEP_CAPS.has(m)) ? m : m.split(/(\s*\/\s*)/).map(p => /^\s*\/\s*$/.test(p) ? p : titleCase(p).replace(/\b(Cp|Oc|Ap|Ws|Bs|Hq|Vp|Dp|Fnp)\b/g, w => w.toUpperCase())).join(""));
 
 /** Weapon names with capital first letters: "Plague knife – strike" → "Plague Knife – Strike". */
@@ -140,4 +143,4 @@ function scrubWeb(s) {
 /** True for a line that is only website furniture: a page counter ("12/92") or a web page's "Show History" button. */
 const isWebFurniture = s => /^(\d+\s*\/\s*\d+|show history|show|hide)$/i.test(String(s || "").trim());
 
-export { scrubWeb, isWebFurniture, capWords, cleanGlyphs, softenCaps, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };
+export { fixApostrophes, scrubWeb, isWebFurniture, capWords, cleanGlyphs, softenCaps, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };
