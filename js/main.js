@@ -1,17 +1,18 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=5.9";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=5.9";
-import { exportDocToExcel } from "./excel.js?v=5.9";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=5.9";
-import * as core from "./core.js?v=5.9";
-import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=5.9";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=5.9";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=5.9";
-import { buildIndex } from "./search.js?v=5.9";
-import { openDataViewer } from "./viewer.js?v=5.9";
-import { fixApostrophes } from "./text.js?v=5.9";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=6.0";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=6.0";
+import { exportDocToExcel } from "./excel.js?v=6.0";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=6.0";
+import * as core from "./core.js?v=6.0";
+import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=6.0";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=6.0";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=6.0";
+import { buildIndex } from "./search.js?v=6.0";
+import { openDataViewer } from "./viewer.js?v=6.0";
+import { fixApostrophes } from "./text.js?v=6.0";
+import { groupArmyRules } from "./faction-parser.js?v=6.0";
 
 function renderAll() {
   renderScope();
@@ -132,6 +133,8 @@ function showView(name) {
       [...(st.datasheets || []), ...(st.armyRules || []), ...(st.detachments || [])].forEach(fix);
       for (const det of st.detachments || []) [...(det.rules || []), ...(det.enhancements || []), ...(det.stratagems || [])].forEach(fix);
       for (const ds of st.datasheets || []) (ds.abilities || []).forEach(fix);
+      // Factions added before "[Name] Ability" rules were grouped under their army rule.
+      if (st.armyRules) st.armyRules = groupArmyRules(st.armyRules);
     }
     state.lists = await DB.all("lists");
   } catch (err) {

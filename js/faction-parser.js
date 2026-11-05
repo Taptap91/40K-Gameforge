@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=5.9";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=5.9";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=5.9";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=6.0";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.0";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.0";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -254,6 +254,29 @@ function mergeArmyRules(found, fromLayout) {
   const key = n => normName(String(n).replace(/\(.*?\)/g, ""));
   const have = new Set(found.map(r => key(r.name)));
   return [...found, ...fromLayout.filter(r => !have.has(key(r.name)))];
+}
+
+/** Rules headed "[Name] Ability" (Conservai: "KA’TAH ABILITY") belong to the earlier army rule whose name has that
+ *  name in it (Martial Ka’tah). They're kept as parts of it, so the army rules list stays short. Safe to run again. */
+function groupArmyRules(rules) {
+  const out = (rules || []).map(r => ({ ...r }));
+  out.forEach((r, i) => {
+    if (r.partOf || r.special) return;
+    const first = stripRich(r.text || "").split("\n")[0].trim();
+    const m = first.match(/^(.{2,40}?)\s+abilit(?:y|ies)$/i);
+    if (!m) return;
+    const want = " " + normName(m[1]) + " ";
+    const parent = out.slice(0, i).reverse().find(p => !p.partOf && !p.special && (" " + normName(p.name) + " ").includes(want));
+    if (!parent) return;
+    r.partOf = parent.name;
+    r.kind = titleCase(first.toUpperCase());
+    r.text = (r.text || "").split("\n").slice(1).join("\n").trim();
+    if (r.rich) {
+      const [f, ...rest] = r.rich.split("\n");
+      r.rich = ((f.match(/\*\*/g) || []).length % 2 ? "**" : "") + rest.join("\n");
+    }
+  });
+  return out;
 }
 
 /** Drops browser print headers and footers (date, page title, web address, "2/39") that repeat at the top or bottom of most pages. */
@@ -914,4 +937,4 @@ function parsePrintedFactionPdf(allItems) {
   return result;
 }
 
-export { armyRulesFromLayout, dropPageFurniture, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
+export { armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };

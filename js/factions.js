@@ -1,11 +1,11 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=5.9";
-import { armyData } from "./army.js?v=5.9";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.9";
-import { factionMatches } from "./search.js?v=5.9";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.9";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.0";
+import { armyData } from "./army.js?v=6.0";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.0";
+import { factionMatches } from "./search.js?v=6.0";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.0";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -22,7 +22,8 @@ function factionContent(f) {
   const datasheets = docs.flatMap(d => d.structured.datasheets || []).filter(ds => add("u", ds)).map(tidyDatasheet);
   // Points as the list builder uses them (the newest Munitorum Field Manual wins over the pack).
   const priced = new Map(armyData(f).units.map(u => [u.key, u]));
-  return { armyRules, detachments, datasheets, priced };
+  // The list shows each army rule once; "[Name] Ability" rules appear inside the rule they belong to.
+  return { armyRules, topRules: armyRules.filter(r => !r.partOf), detachments, datasheets, priced };
 }
 
 /* ---------- Faction buttons: colours and symbol ---------- */
@@ -73,7 +74,7 @@ function renderFactionBar(names) {
   if (btns.length) {
     const sym = btns.some(b => b.classList.contains("has-sym"));
     const name = Math.max(...btns.map(b => b.querySelector(".fp-fac-name").offsetWidth));
-    if (name) tools.querySelector(".fp-facs").style.setProperty("--facw", `${Math.ceil(name + 20 + (sym ? 72 : 20))}px`);
+    if (name) tools.querySelector(".fp-facs").style.setProperty("--facw", `${Math.ceil(name + 20 + (sym ? 62 : 20))}px`);
   }
   const row = tools.querySelector(".fp-facs"), on = row?.querySelector(".fp-fac.on");
   if (on && (on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth || on.offsetLeft < row.scrollLeft)) row.scrollLeft = on.offsetLeft - 12;
@@ -83,7 +84,7 @@ function renderFactionBar(names) {
 const newestDoc = f => factionDocs(f).sort((a, b) => b.importedAt - a.importedAt)[0];
 function bannerHTML(f, c) {
   const st = factionStyle(f), art = newestDoc(f)?.banner || "";
-  const counts = [[c.armyRules.length, "Army Rule"], [c.detachments.length, "Detachment"], [c.datasheets.length, "Datasheet"]]
+  const counts = [[c.topRules.length, "Army Rule"], [c.detachments.length, "Detachment"], [c.datasheets.length, "Datasheet"]]
     .filter(([n]) => n).map(([n, w]) => `<span><b>${n}</b> ${w}${n === 1 ? "" : "s"}</span>`).join("");
   return `<div class="fp-banner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
     ${!art && st.img ? `<img class="fp-banner-mark" src="${esc(st.img)}" alt="">` : ""}
@@ -175,7 +176,7 @@ function renderFactionsPage() {
   if (!names.some(n => n === fUI.faction)) fUI.faction = names[0];
   renderFactionBar(names);
   const c = factionContent(fUI.faction);
-  if (!fUI.sel) fUI.sel = c.armyRules[0] ? { t: "army", k: normName(c.armyRules[0].name) } : c.detachments[0] ? { t: "det", k: normName(c.detachments[0].name) } : null;
+  if (!fUI.sel) fUI.sel = c.topRules[0] ? { t: "army", k: normName(c.topRules[0].name) } : c.detachments[0] ? { t: "det", k: normName(c.detachments[0].name) } : null;
   host.innerHTML = `${bannerHTML(fUI.faction, c)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
       <div class="fp-left">${leftHTML(c)}</div>
       <div class="fp-right" id="fpRight">${rightHTML(c)}</div>
@@ -203,7 +204,8 @@ function leftHTML(c) {
   };
   const pts = ds => { const u = c.priced.get(normName(ds.name)); const o = u?.options || ds.points || []; return o.length ? `${Math.min(...o.map(p => p.points))} pts` : ""; };
   return `<input class="input fp-filter" id="fpFilter" placeholder="Filter by name…" value="${esc(fUI.filter)}">
-    ${group("army", "Army Rules", c.armyRules.map(r => item("army", normName(r.name), r.name, r.special ? "Special move" : "")))}
+    ${group("army", "Army Rules", c.topRules.map(r => { const ps = armyRuleParts(r, c.armyRules);
+      return item("army", normName(r.name), r.name, r.special ? "Special move" : ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : ""); }))}
     ${group("det", "Detachments", c.detachments.map(detItem))}
     ${groups.map(g => group(g.title, g.title, g.items.sort((a, b) => a.name.localeCompare(b.name)).map(ds => item("unit", normName(ds.name), ds.name, pts(ds))))).join("")}
     <div class="fp-none" hidden>Nothing matches that name.</div>`;
@@ -216,8 +218,10 @@ function rightHTML(c) {
   if (s.t === "army") {
     const r = c.armyRules.find(x => normName(x.name) === s.k);
     if (!r) return "";
-    return `${back}<div class="fp-head"><h2>${esc(softenCaps(r.name))}</h2><div class="fp-sub">Army Rule${r.special ? " · Special move" : ""} · ${esc(fUI.faction)}</div></div>
-      ${panelHTML("", `<div class="fv-rich fv-army fp-text">${richHTML(r.rich || r.text)}</div>`)}`;
+    const ps = armyRuleParts(r, c.armyRules);
+    return `${back}<div class="fp-head"><h2>${esc(softenCaps(r.name))}</h2><div class="fp-sub">Army Rule${r.special ? " · Special move" : ""}${ps.length ? ` · ${ps.length} ${esc(pluralKind(ps[0].kind, ps.length))}` : ""} · ${esc(fUI.faction)}</div></div>
+      ${panelHTML("", `<div class="fv-rich fv-army fp-text">${richHTML(r.rich || r.text)}</div>`)}
+      ${ps.length ? panelHTML(esc(pluralKind(ps[0].kind, ps.length)), ps.map(p => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(p.name))}</div><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("")) : ""}`;
   }
   if (s.t === "det") {
     const d = c.detachments.find(x => normName(x.name) === s.k);

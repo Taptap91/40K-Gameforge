@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=5.9";
-import { wargearOf } from "./loadout.js?v=5.9";
-import { factionMatches } from "./search.js?v=5.9";
-import { coreAbilityRule } from "./rules-doc.js?v=5.9";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=5.9";
+import { esc, state, uid } from "./core.js?v=6.0";
+import { wargearOf } from "./loadout.js?v=6.0";
+import { factionMatches } from "./search.js?v=6.0";
+import { coreAbilityRule } from "./rules-doc.js?v=6.0";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.0";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -150,7 +150,9 @@ function structuredToLibrary(data, faction) {
     for (const s of d.stratagems) chunks.push({ page: chunks.length + 1, text: `${s.name.toUpperCase()} — ${s.cp} stratagem (${d.name} detachment)\n${s.text}`, cite: `${s.name} stratagem` });
     for (const e of d.enhancements) if (e.points != null) points.push({ id: uid(), name: e.name, models: 0, points: e.points, enh: true, section: faction, page: 0, detachment: d.name });
   }
-  for (const r of data.armyRules) chunks.push({ page: chunks.length + 1, text: `${r.name.toUpperCase()} — army rule\n${r.text}`, cite: `${r.name} (army rule)` });
+  for (const r of data.armyRules) chunks.push({ page: chunks.length + 1,
+    text: `${r.name.toUpperCase()} — ${r.partOf ? `${r.kind || "ability"}, part of the ${r.partOf} army rule` : "army rule"}\n${r.text}`,
+    cite: r.partOf ? `${r.name} (${r.partOf})` : `${r.name} (army rule)` });
   return { chunks, points };
 }
 
@@ -215,12 +217,20 @@ function tidyDatasheet(ds) {
 }
 
 /** Faction abilities (army rules the unit has), each with its rules text from the faction's Army Rules when found. */
+/** The rules grouped under an army rule (its "[Name] Ability" parts), in the order printed. */
+const armyRuleParts = (rule, all) => (all || []).filter(r => r.partOf && normName(r.partOf) === normName(rule.name));
+/** "Ka’tah Ability" → "Ka’tah Abilities". */
+const pluralKind = (kind, n) => n === 1 ? kind : String(kind || "Ability").replace(/y$/i, "ies");
+
 function factionAbilitiesHTML(names, armyRules) {
   if (!names?.length) return "";
   const key = n => normName(String(n).replace(/\(.*?\)/g, ""));
+  const tops = (armyRules || []).filter(r => !r.partOf);
   const body = names.map(n => {
-    const rule = (armyRules || []).find(r => key(r.name) === key(n)) || (armyRules || []).find(r => key(n).startsWith(key(r.name)) || key(r.name).startsWith(key(n)));
-    return `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}</div></div>`;
+    const rule = tops.find(r => key(r.name) === key(n)) || tops.find(r => key(n).startsWith(key(r.name)) || key(r.name).startsWith(key(n)));
+    const parts = rule ? armyRuleParts(rule, armyRules) : [];
+    return `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}
+      ${parts.map(p => `<div class="fv-part"><div class="fv-part-name">${esc(softenCaps(p.name))}${p.kind ? `<span class="fv-ab-ref">${esc(p.kind)}</span>` : ""}</div>${richHTML(p.rich || p.text)}</div>`).join("")}</div></div>`;
   }).join("");
   return panelHTML("Faction Abilities", body, "fv-army");
 }
@@ -357,4 +367,4 @@ function weaponGridHTML(ws, type, buffs, withHead = true) {
   </div>`;
 }
 
-export { attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };
+export { armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };

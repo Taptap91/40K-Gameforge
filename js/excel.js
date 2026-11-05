@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=5.9";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=5.9";
-import { rulesToSheets } from "./rules-doc.js?v=5.9";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=5.9";
+import { formatGB, toast } from "./core.js?v=6.0";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.0";
+import { rulesToSheets } from "./rules-doc.js?v=6.0";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.0";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -130,8 +130,8 @@ function structuredToSheets(data, faction) {
       rows: data.detachments.flatMap(d => d.enhancements.map(e => [d.name, e.name, e.points ?? "", e.upgrade === true ? "Yes" : e.upgrade === false ? "No" : "", e.text, rich(e.rich)])) },
     { name: "Stratagems", columns: [W("Detachment", 30), W("Stratagem", 32), W("CP", 6), W("Category", 18), W("Rules", 90), W("Formatted", 20)],
       rows: data.detachments.flatMap(d => d.stratagems.map(s => [d.name, s.name, s.cp, s.category || "", s.text, rich(s.rich)])) },
-    { name: "Army rules", columns: [W("Rule", 32), W("Special move", 10), W("Rules", 100), W("Formatted", 20)],
-      rows: data.armyRules.map(r => [r.name, YES(r.special), r.text, rich(r.rich)]) },
+    { name: "Army rules", columns: [W("Rule", 32), W("Special move", 10), W("Part of", 24), W("Type", 18), W("Rules", 100), W("Formatted", 20)],
+      rows: data.armyRules.map(r => [r.name, YES(r.special), r.partOf || "", r.kind || "", r.text, rich(r.rich)]) },
     { name: "About", columns: [W("Field", 20), W("Value", 90)],
       rows: [["Faction", faction || ""], ["Created", new Date().toLocaleString()], ["Made with", "RulesForge"],
         ["Datasheets", data.datasheets.length], ["Detachments", data.detachments.length], ["Army rules", data.armyRules.length],
@@ -263,7 +263,8 @@ function structuredFromWorkbook(book) {
       fromExcel: true,
     };
   });
-  const armyRules = sheet("Army rules").filter(r => r.rule).map(r => ({ name: r.rule, special: /^(yes|true|y|1)$/i.test(r["special move"] || ""), text: r.rules || "", rich: richOr(r.formatted, r.rules || "") }));
+  const armyRules = sheet("Army rules").filter(r => r.rule).map(r => ({ name: r.rule, special: /^(yes|true|y|1)$/i.test(r["special move"] || ""), text: r.rules || "", rich: richOr(r.formatted, r.rules || ""),
+    ...(r["part of"] ? { partOf: r["part of"], kind: r.type || "" } : {}) }));
   const about = Object.fromEntries(sheet("About").map(r => [String(r.field || "").toLowerCase(), r.value]));
   return { datasheets, detachments, armyRules, faction: about.faction || "" };
 }

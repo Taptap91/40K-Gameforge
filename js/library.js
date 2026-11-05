@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=5.9";
-import { structuredToLibrary } from "./datasheets.js?v=5.9";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=5.9";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, mergeArmyRules } from "./faction-parser.js?v=5.9";
-import { renderAll } from "./main.js?v=5.9";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=5.9";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=5.9";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=5.9";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.0";
+import { structuredToLibrary } from "./datasheets.js?v=6.0";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.0";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.0";
+import { renderAll } from "./main.js?v=6.0";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=6.0";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.0";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.0";
 
 async function importFiles(files, kind, faction) {
   const box = $("#importProgress"), errBox = $("#importError");
@@ -51,7 +51,8 @@ async function importFiles(files, kind, faction) {
         // The letter/A4 reader keeps more detail (bold text, leaders, Unique tags), so it wins unless it clearly read less.
         const data = factionRichness(printed) >= factionRichness(tall) * 0.9 ? printed : tall;
         // The faction's "Army Rules" section is also read straight from the page layout, so no army rule is missed.
-        data.armyRules = mergeArmyRules(data.armyRules, armyRulesFromLayout(all));
+        // "[Name] Ability" rules (Custodes ka’tahs) are kept as parts of the army rule they belong to.
+        data.armyRules = groupArmyRules(mergeArmyRules(data.armyRules, armyRulesFromLayout(all)));
         if (data.datasheets.length >= 2 || data.detachments.length >= 1) structured = data;
       }
       let doc;
@@ -166,7 +167,7 @@ function docMeta(d) {
   const ed = editionLabel(d.edition);
   if (isRulesDoc(d)) return [`${d.structured.sections.length} rule sections`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed];
   return [d.faction, d.source === "wahapedia" ? `${d.pageCount} datasheets · Wahapedia${d.updated ? " " + d.updated.slice(0, 10) : ""}`
-    : d.structured?.datasheets ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.length} army rules${d.source === "excel" ? " · Excel" : ""}`
+    : d.structured?.datasheets ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.filter(r => !r.partOf).length} army rules${d.source === "excel" ? " · Excel" : ""}`
     : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : "", ed].filter(Boolean);
 }
 

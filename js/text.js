@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=5.9";
+import { esc } from "./core.js?v=6.0";
 
 function normalize(raw) {
   return raw
@@ -22,12 +22,14 @@ const isUpperText = s => letterCount(s) >= 2 && s === s.toUpperCase();
 const isStatValue = s => /^(\d+["+]?|-|\d+\+|N\/A|\*|D\d+(\+\d+)?|\d*D\d+(\+\d+)?)$/i.test(s);
 /** Rejoins apostrophes a PDF split off ("NURGLE ’ S GIFT" → "NURGLE’S GIFT", "Nurgle ’ S" → "Nurgle’s"). */
 const fixApostrophes = s => String(s ?? "").replace(/(\p{L})(?:\s+(['’])\s*|(['’])\s+)(s|t|re|ve|ll|d|m)(?![\p{L}])/giu,
-  (m, a, q1, q2, suf) => a + (q1 || q2) + (a === a.toUpperCase() && a !== a.toLowerCase() ? suf : suf.toLowerCase()));
+  (m, a, q1, q2, suf) => a + (q1 || q2) + (a === a.toUpperCase() && a !== a.toLowerCase() ? suf : suf.toLowerCase()))
+  // "Ka’Tah" → "Ka’tah" (a capital after an apostrophe only follows a one-letter start, as in N’Kari).
+  .replace(/(\p{L}{2,}['’])(\p{Lu})(\p{Ll}{2,})/gu, (m, a, b, c) => a + b.toLowerCase() + c);
 const cleanGlyphs = s => fixApostrophes(s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim());
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"]);
 const titleCase = s => (s = fixApostrophes(s)) === s.toUpperCase()
   ? s.toLowerCase().replace(/(^|[\s\-([])(\w+)/g, (m, a, w, i) => a + (i > 0 && a === " " && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
-      .replace(/(\w['’])([a-z])([a-z]{2,})/g, (m, a, b, c) => a + b.toUpperCase() + c)
+      .replace(/(?<![\w'’])(\w['’])([a-z])([a-z]{2,})/g, (m, a, b, c) => a + b.toUpperCase() + c)   // N’Kari, O’Brien
   : s;
 /** Keyword lists: "INFANTRY; CHARACTER" → "INFANTRY, CHARACTER" (always capitals). */
 const upperKeywords = s => String(s || "").split(/[;,]/).map(k => k.trim()).filter(Boolean).join(", ").toUpperCase();

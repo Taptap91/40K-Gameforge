@@ -1,9 +1,9 @@
 /* RulesForge · viewer.js
  * Library → View: the faction viewer (datasheets, detachments, army rules).
  */
-import { $, $$, esc, openSheet, state } from "./core.js?v=5.9";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.9";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.9";
+import { $, $$, esc, openSheet, state } from "./core.js?v=6.0";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.0";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.0";
 
 function openDataViewer(docId) {
   const doc = state.docs.find(d => d.id === docId);
@@ -52,9 +52,13 @@ function openDataViewer(docId) {
   }).join("")}</div></div>`;
 
   // Army rules: main rules first, special move rules after
-  const main = d.armyRules.filter(r => !r.special), moves = d.armyRules.filter(r => r.special).sort((a, b) => a.name.localeCompare(b.name));
+  // Rules that are part of another ("[Name] Ability") are shown inside it rather than as rules of their own.
+  const tops = d.armyRules.filter(r => !r.partOf);
+  const main = tops.filter(r => !r.special), moves = tops.filter(r => r.special).sort((a, b) => a.name.localeCompare(b.name));
+  const partsHTML = r => { const ps = armyRuleParts(r, d.armyRules); return ps.length ? panel(pluralKind(ps[0].kind, ps.length),
+    ps.map(p => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(p.name))}</div><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("")) : ""; };
   const armyPane = `<div class="fv-group"><div class="fv-group-title">Army Rules</div><div class="fv-list">${[
-    ...main.map(r => row(r.name, "", panel("", `<div class="fv-rich fv-army">${richHTML(r.rich || r.text)}</div>`))),
+    ...main.map(r => { const ps = armyRuleParts(r, d.armyRules); return row(r.name, ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : "", panel("", `<div class="fv-rich fv-army">${richHTML(r.rich || r.text)}</div>`) + partsHTML(r)); }),
     ...moves.map(r => row(r.name, "Special Move Rule", panel("", `<div class="fv-rich fv-army">${richHTML(r.rich || r.text)}</div>`), { dim: true })),
   ].join("")}</div></div>`;
 
@@ -64,7 +68,7 @@ function openDataViewer(docId) {
       <div class="fv-head">
         <div>
           <div class="fv-title">${esc(name)}</div>
-          <div class="fv-meta">${count(d.datasheets.length, "Datasheet", "Datasheets")}<i>•</i>${count(d.detachments.length, "Detachment", "Detachments")}<i>•</i>${count(d.armyRules.length, "Army Rule", "Army Rules")}</div>
+          <div class="fv-meta">${count(d.datasheets.length, "Datasheet", "Datasheets")}<i>•</i>${count(d.detachments.length, "Detachment", "Detachments")}<i>•</i>${count(tops.length, "Army Rule", "Army Rules")}</div>
         </div>
         <button class="fv-close" type="button" data-close aria-label="Close">✕</button>
       </div>
@@ -72,7 +76,7 @@ function openDataViewer(docId) {
       <div class="segmented fv-tabs" id="viewerTabs">
         <button type="button" data-tab="ds" aria-pressed="true">Datasheets (${d.datasheets.length})</button>
         <button type="button" data-tab="det" aria-pressed="false">Detachments (${d.detachments.length})</button>
-        <button type="button" data-tab="army" aria-pressed="false">Army Rules (${d.armyRules.length})</button>
+        <button type="button" data-tab="army" aria-pressed="false">Army Rules (${tops.length})</button>
       </div>
       <div class="fv-scroll">
         <div data-pane="ds">${dsPane}</div>
