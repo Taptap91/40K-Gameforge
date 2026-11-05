@@ -1,11 +1,11 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=5.8";
-import { armyData } from "./army.js?v=5.8";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.8";
-import { factionMatches } from "./search.js?v=5.8";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.8";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=5.9";
+import { armyData } from "./army.js?v=5.9";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.9";
+import { factionMatches } from "./search.js?v=5.9";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.9";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };

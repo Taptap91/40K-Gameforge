@@ -619,7 +619,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .fp-facs { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; padding: 8px 10px; margin: 0 -2px; scrollbar-width: thin; }
 .fp-fac {
-  position: relative; flex: none; width: var(--facw, auto); min-width: 184px; height: 70px; padding: 0 20px;
+  position: relative; flex: none; width: var(--facw, auto); min-width: 184px; height: 60px; padding: 0 20px;
   display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
   border-radius: 12px; border: 1px solid var(--border-strong); background: var(--panel);
   color: var(--text-2); font: 600 17px/1 var(--font); cursor: pointer;
@@ -627,10 +627,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 }
 .fp-fac:hover { color: var(--text); background: var(--panel-2); }
 /* Not selected: the name sits in the middle. Selected: the symbol fades in 20px from the right edge
-   (in a 40px box, 16px clear above and below it) and the name moves to the middle of the space left of it. */
+   (in a 40px box, 11px clear above and below it) and the name moves to the middle of the space left of it. */
 .fp-fac.on.has-sym { padding-right: 72px; }
 .fp-fac-name { position: relative; }
-.fp-fac-sym { position: absolute; right: 20px; top: 16px; bottom: 16px; width: 40px; display: grid; place-items: center; opacity: 0; transform: translateX(-12px); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
+.fp-fac-sym { position: absolute; right: 20px; top: 11px; bottom: 11px; width: 40px; display: grid; place-items: center; opacity: 0; transform: translateX(-12px); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
 .fp-fac-sym img { max-width: 40px; max-height: 38px; object-fit: contain; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c1) 45%, transparent)); }
 .fp-fac.on .fp-fac-sym { opacity: 1; transform: none; }
 .fp-fac.on {
@@ -692,8 +692,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-banner-counts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: rgba(255,255,255,.78); text-shadow: 0 1px 6px rgba(0,0,0,.5); }
 .fp-banner-counts b { color: #fff; }
 @media (max-width: 760px) {
-  .fp-fac { height: 60px; font-size: 16px; }
-  .fp-fac-sym { top: 11px; bottom: 11px; }
+  .fp-fac { font-size: 16px; }
   .fp-banner { min-height: 84px; padding: 14px 80px 14px 16px; }
   .fp-banner.has-art { min-height: 96px; padding-right: 16px; }
   .fp-banner-name { font-size: 24px; }
