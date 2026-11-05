@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=6.6";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.6";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.6";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=6.7";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.7";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.7";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -611,6 +611,35 @@ function factionRichness(d) {
     + d.armyRules.length * 0.5;
 }
 
+/** "CORE ABILITIES", "ARMY RULES" and "FACTION ABILITIES" are printed as labels on the left with their list on the right,
+ *  centred on the label, so a two-line list starts a little above its label. Reading top to bottom would hand that first
+ *  line to the label above ("Leader" + "Combat Doctrines"). Each list line is given to the label it sits beside instead. */
+const SIDE_LABEL = /^(CORE ABILIT\w*|ARMY RULES?|FACTION ABILIT\w*)$/;
+function sideLabelLists(sections) {
+  const lineY = l => l.items.reduce((sum, i) => sum + i.y, 0) / l.items.length;
+  const labels = sections.filter(s => SIDE_LABEL.test(s.heading) && s.y != null);
+  if (!labels.length) return;
+  // The list column starts to the right of the widest label; the labels' rows end at the next ordinary heading below them.
+  const listX = Math.max(...labels.map(s => s.right)) + 2;
+  const top = Math.min(...labels.map(s => s.y)) - 2 * labels[0].size;
+  const lastLabel = Math.max(...labels.map(s => s.y));
+  const next = sections.filter(s => !SIDE_LABEL.test(s.heading) && s.y != null && s.y > lastLabel && Math.abs(s.x - labels[0].x) < 40).sort((a, b) => a.y - b.y)[0];
+  const bottom = next ? next.y - 1 : lastLabel + 3 * labels[0].size;
+  const listLines = [];
+  for (const s of sections) s.lines = s.lines.filter(l => {
+    const y = lineY(l);
+    if (l.x >= listX && y > top && y < bottom) { listLines.push(l); return false; }
+    return true;
+  });
+  // Each label's centre is half a line below its top; a list line belongs to the label whose centre is nearest.
+  const centre = s => s.y + s.size / 2;
+  for (const l of listLines) {
+    const y = lineY(l) + (l.items[0]?.s || 0) / 2;
+    labels.slice().sort((a, b) => Math.abs(centre(a) - y) - Math.abs(centre(b) - y))[0].lines.push(l);
+  }
+  for (const s of labels) s.lines.sort((a, b) => lineY(a) - lineY(b));
+}
+
 function parsePrintedFactionPdf(allItems) {
   const result = { datasheets: [], detachments: [], armyRules: [] };
   const items = allItems
@@ -733,18 +762,24 @@ function parsePrintedFactionPdf(allItems) {
         const first = line.items[0];
         if (headingLike(first)) {
           const head = line.items.filter(i => headingLike(i));
-          cur = { heading: cleanGlyphs(head.map(i => i.t).join(" ")), lines: [], x: head[0].x };
+          cur = { heading: cleanGlyphs(head.map(i => i.t).join(" ")), lines: [], x: head[0].x, y: head[0].y,
+            right: Math.max(...head.map(i => i.x + (i.w || 0))), size: head[0].s };
           sections.push(cur);
           const rest = line.items.filter(i => !head.includes(i));
           if (rest.length) cur.lines.push({ ...line, items: rest, x: rest[0].x, text: lineRich(rest), plain: stripRich(lineRich(rest)) });
           continue;
         }
-        if (!cur) continue;
+        // Lines before the column's first heading are kept aside: one may be the first line of a label's list
+        // (printed just above "CORE ABILITIES"); sideLabelLists places it, and anything left is dropped as before.
+        if (!cur) { cur = { heading: "", lines: [], x: line.x, y: null }; sections.push(cur); }
         cur.lines.push(line);
       }
     };
     walk(L, weaponsEnd);
-    walk(R, a.header.y - 2);
+    // A label's list is centred on the label, so a three-line list starts above the stats row; read from a little higher.
+    walk(R, a.header.y - 2 - 1.6 * body);
+    sideLabelLists(sections);
+    for (let k = sections.length - 1; k >= 0; k--) if (!sections[k].heading) sections.splice(k, 1);
 
     const sec = re => sections.filter(s => re.test(s.heading));
     const plainLines = list => list.flatMap(s => s.lines.map(l => l.plain.trim())).filter(Boolean);

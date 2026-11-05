@@ -27,11 +27,15 @@
  *          (131px / 112px), and a wider image is scaled down to fit. Every symbol is centred in that slot, so their centres line up.
  *          Button: fitted inside 30 × 28.
  *  Rule 10 A symbol that's entirely black or dark grey is redrawn in near-white so it shows on the dark app.
+ *  Rule 11 Core Abilities vs Faction Abilities on each datasheet. The labels' lists are read beside their label (not
+ *          top to bottom), then every name is checked: one that matches the pack's own Army Rules is a faction ability,
+ *          one that matches the game's core abilities (Deep Strike, Leader, Scouts 6"...) is a core ability, and two
+ *          names run together ("Leader Combat Doctrines") are split. The same check runs for every faction.
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=6.6";
-import { normName } from "./text.js?v=6.6";
+import { KNOWN_FACTIONS } from "./core.js?v=6.7";
+import { normName } from "./text.js?v=6.7";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";
@@ -165,6 +169,35 @@ function kitSymbol(f) {
   return KIT.images[n] || "";
 }
 
+/* ---------- Rule 11: core abilities and faction abilities ---------- */
+/** The 11th edition Core Rules' unit abilities (section 24: Damaged, Deadly Demise, Deep Strike, Feel No Pain, Fights First,
+ *  Firing Deck, Hover, Infiltrators, Leader / Support, Lone Operative, Scouts, Stealth, Super-Heavy Walker), as printed on datasheets (with any number: "Scouts 6\"", "Deadly Demise D3", "Feel No Pain 5+"). */
+const CORE_ABILITY = /^(damaged( \d+(-\d+)?)?|deadly demise( d?\d+(\+\d+)?)?|deep strike|feel no pain( \d\+)?|fights first|firing deck( \d+)?|hover|infiltrators|leader|lone operative( \d+"?)?|scouts( \d+"?)?|stealth|super-heavy walker|support)$/i;
+const abilityKey = n => normName(String(n).replace(/\(.*?\)/g, ""));
+function sortDatasheetAbilities(data) {
+  const army = new Set((data.armyRules || []).filter(r => !r.partOf).map(r => abilityKey(r.name)));
+  const isArmy = n => army.has(abilityKey(n));
+  const isCore = n => CORE_ABILITY.test(String(n).trim());
+  // "Leader Combat Doctrines" → "Leader" + "Combat Doctrines": two names a line break ran together.
+  const split = n => {
+    if (isArmy(n) || isCore(n)) return [n];
+    const w = String(n).split(/\s+/);
+    for (let i = 1; i < w.length; i++) {
+      const a = w.slice(0, i).join(" "), b = w.slice(i).join(" ");
+      if ((isCore(a) || isArmy(a)) && (isCore(b) || isArmy(b))) return [a, b];
+    }
+    return [n];
+  };
+  for (const ds of data.datasheets || []) {
+    const core = [], fac = [], add = (list, n) => { if (!list.some(x => abilityKey(x) === abilityKey(n))) list.push(n); };
+    for (const n of [...(ds.coreAbilities || [])].flatMap(split)) (isArmy(n) ? add(fac, n) : add(core, n));
+    for (const n of [...(ds.armyRuleNames || [])].flatMap(split)) (isCore(n) && !isArmy(n) ? add(core, n) : add(fac, n));
+    ds.coreAbilities = core;
+    ds.armyRuleNames = fac;
+  }
+  return data;
+}
+
 /** A tidy name for a faction that isn't official (a new release): the title without "Codex", "Faction Pack" and so on. */
 const tidyName = raw => String(raw || "").replace(/[_]+/g, " ").replace(NOISE, " ").replace(/\s+/g, " ").trim()
   .replace(/\b\w/g, c => c.toUpperCase());
@@ -247,4 +280,4 @@ async function applyPackRules(doc, { bookIcons, fileName = "", typed = "" } = {}
   return doc;
 }
 
-export { loadFactionKit, kitSymbol, kitSlug, PACK_RULES_VERSION, FACTION_THEMES, canonicalFaction, packFaction, packIcon, packTheme, defaultColours, applyPackRules };
+export { sortDatasheetAbilities, loadFactionKit, kitSymbol, kitSlug, PACK_RULES_VERSION, FACTION_THEMES, canonicalFaction, packFaction, packIcon, packTheme, defaultColours, applyPackRules };

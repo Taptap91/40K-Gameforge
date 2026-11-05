@@ -2,10 +2,10 @@
  * Core Rules and rules updates (FAQs, errata, Balance Dataslates) as numbered rule sections,
  * their Excel workbook, which version is newest, and the rules currently in force.
  */
-import { state } from "./core.js?v=6.6";
-import { dropPageFurniture } from "./faction-parser.js?v=6.6";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.6";
-import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=6.6";
+import { state } from "./core.js?v=6.7";
+import { dropPageFurniture } from "./faction-parser.js?v=6.7";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.7";
+import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=6.7";
 
 const SECTION_NUM = /^\d{2}\.\d{2}(?:\.\d{2})?$/;
 /** Used until a Core Rules file says otherwise (Core Rules 25.03). */
@@ -273,7 +273,8 @@ const battleSizes = () => effectiveRules().battleSizes.slice().sort((a, b) => a.
 
 /** A core ability's rules text ("Deep Strike", "Deadly Demise 1", "Feel No Pain 5+"), if the Core Rules are loaded. */
 function coreAbilityRule(name) {
-  const key = normName(String(name).replace(/\[|\]/g, "").replace(/\s+(\d+\+?|D\d+|X)$/i, ""));
+  // The value after the name isn't part of it: "Scouts 6\"", "Feel No Pain 5+", "Deadly Demise D6+2", "Damaged 4".
+  const key = normName(String(name).replace(/\[|\]/g, "").replace(/\s+(d?\d+(\+\d+)?\+?"?|x)$/i, ""));
   if (!key) return null;
   const list = effectiveRules().sections.filter(s => /core abilit/i.test(s.chapter || ""));
   return list.find(s => normName(s.title.replace(/\[|\]/g, "").replace(/\s+X$/i, "")) === key)

@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=6.6";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=6.6";
-import { exportDocToExcel } from "./excel.js?v=6.6";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=6.6";
-import * as core from "./core.js?v=6.6";
-import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=6.6";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=6.6";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=6.6";
-import { buildIndex } from "./search.js?v=6.6";
-import { openDataViewer } from "./viewer.js?v=6.6";
-import { fixApostrophes } from "./text.js?v=6.6";
-import { groupArmyRules } from "./faction-parser.js?v=6.6";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme } from "./pack-rules.js?v=6.6";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=6.7";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=6.7";
+import { exportDocToExcel } from "./excel.js?v=6.7";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=6.7";
+import * as core from "./core.js?v=6.7";
+import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=6.7";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=6.7";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=6.7";
+import { buildIndex } from "./search.js?v=6.7";
+import { openDataViewer } from "./viewer.js?v=6.7";
+import { fixApostrophes } from "./text.js?v=6.7";
+import { groupArmyRules } from "./faction-parser.js?v=6.7";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=6.7";
 
 function renderAll() {
   renderScope();
@@ -136,6 +136,8 @@ function showView(name) {
       for (const ds of st.datasheets || []) (ds.abilities || []).forEach(fix);
       // Factions added before "[Name] Ability" rules were grouped under their army rule.
       if (st.armyRules) st.armyRules = groupArmyRules(st.armyRules);
+      // Core vs faction abilities checked against the pack's army rules (faction pack ruleset, rule 11).
+      if (st.datasheets) sortDatasheetAbilities(st);
     }
     // The app's faction kit (factions folder): colours now, symbols redrawn as soon as they've loaded.
     await loadFactionKit(() => renderAll());

@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=6.6";
-import { wargearOf } from "./loadout.js?v=6.6";
-import { factionMatches } from "./search.js?v=6.6";
-import { coreAbilityRule } from "./rules-doc.js?v=6.6";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.6";
+import { esc, state, uid } from "./core.js?v=6.7";
+import { wargearOf } from "./loadout.js?v=6.7";
+import { factionMatches } from "./search.js?v=6.7";
+import { coreAbilityRule } from "./rules-doc.js?v=6.7";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.7";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -229,18 +229,67 @@ function factionAbilitiesHTML(names, armyRules) {
   const body = names.map(n => {
     const rule = tops.find(r => key(r.name) === key(n)) || tops.find(r => key(n).startsWith(key(r.name)) || key(r.name).startsWith(key(n)));
     const parts = rule ? armyRuleParts(rule, armyRules) : [];
-    return `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}
-      ${parts.map(p => `<div class="fv-part"><div class="fv-part-name">${esc(softenCaps(p.name))}${p.kind ? `<span class="fv-ab-ref">${esc(p.kind)}</span>` : ""}</div>${richHTML(p.rich || p.text)}</div>`).join("")}</div></div>`;
+    // Each faction ability folds away (closed to start); its name is the heading you click to open it.
+    return `<details class="fv-ab fv-ab-fold"><summary class="fv-ab-name">${esc(softenCaps(n))}${parts.length ? `<span class="fv-ab-count">${parts.length} ${esc(pluralKind(parts[0].kind, parts.length))}</span>` : ""}</summary><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}
+      ${parts.map(p => `<div class="fv-part"><div class="fv-part-name">${esc(softenCaps(p.name))}${p.kind ? `<span class="fv-ab-ref">${esc(p.kind)}</span>` : ""}</div>${richHTML(p.rich || p.text)}</div>`).join("")}</div></details>`;
   }).join("");
   return panelHTML("Faction Abilities", body, "fv-army");
 }
 /** Core abilities, with their rules text from the Core Rules (or a newer update) when those are in the Library. */
+/** Core abilities as tags styled like weapon keywords (in the faction's colours); each opens its rules in a popup. */
 function coreAbilitiesHTML(names) {
   if (!names?.length) return "";
-  const withRule = names.map(n => ({ n, rule: coreAbilityRule(n) }));
-  if (!withRule.some(x => x.rule)) return panelHTML("Core Abilities", `<div class="fv-core">${names.map(n => `<span>${esc(softenCaps(n))}</span>`).join("")}</div>`);
-  return panelHTML("Core Abilities", withRule.map(({ n, rule }) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}${rule?.num ? `<span class="fv-ab-ref">${esc(rule.num)}</span>` : ""}</div>
-    <div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">Not found in your Core Rules.</span>`}</div></div>`).join(""));
+  return panelHTML("Core Abilities", `<div class="fv-kws fv-core-tags">${names.map(n =>
+    `<button type="button" class="fv-kw fv-kw-btn" data-core="${esc(n)}" aria-haspopup="dialog">${esc(softenCaps(n))}</button>`).join("")}</div>`);
+}
+
+/* ---------- The core ability popup ---------- */
+let abilityPop = null, popFrom = null;
+function closeAbilityPopup(refocus = false) {
+  if (!abilityPop) return;
+  abilityPop.remove(); abilityPop = null;
+  if (refocus && popFrom?.isConnected) popFrom.focus();
+  popFrom?.setAttribute("aria-expanded", "false"); popFrom = null;
+}
+function openAbilityPopup(btn) {
+  const same = popFrom === btn;
+  closeAbilityPopup();
+  if (same) return;                                   // clicking the open tag again closes it
+  const name = btn.dataset.core, rule = coreAbilityRule(name);
+  const pop = document.createElement("div");
+  pop.className = "ab-pop";
+  pop.setAttribute("role", "dialog");
+  pop.setAttribute("aria-label", softenCaps(name));
+  pop.tabIndex = -1;
+  pop.style.setProperty("--pop-acc", getComputedStyle(btn).borderColor);
+  pop.innerHTML = `<div class="ab-pop-head"><div class="ab-pop-titles"><div class="ab-pop-name">${esc(softenCaps(name))}</div>
+      <div class="ab-pop-ref">${rule ? `Core Rules ${esc(rule.num)}${normName(rule.title) !== normName(name) ? ` · ${esc(rule.title)}` : ""}` : "Core ability"}</div></div>
+      <button type="button" class="ab-pop-x" aria-label="Close">×</button></div>
+    <div class="ab-pop-body fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<p class="lb-subtle">Add the Core Rules in Library to see this ability's rules here.</p>`}</div>`;
+  document.body.append(pop);
+  abilityPop = pop; popFrom = btn; btn.setAttribute("aria-expanded", "true");
+  pop.querySelector(".ab-pop-x").onclick = () => closeAbilityPopup(true);
+  // Phones: a sheet from the bottom of the screen. Elsewhere: just below the tag (above it if there's no room below).
+  if (matchMedia("(max-width: 760px)").matches) pop.classList.add("ab-pop-sheet");
+  else {
+    const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8;
+    const left = Math.min(Math.max(12, r.left), innerWidth - w - 12);
+    const below = r.bottom + gap + h <= innerHeight - 12;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${below ? r.bottom + gap : Math.max(12, r.top - gap - h)}px`;
+  }
+  pop.focus({ preventScroll: true });
+}
+if (typeof document !== "undefined") {
+  document.addEventListener("click", e => {
+    const tag = e.target.closest?.("[data-core]");
+    if (tag) { e.preventDefault(); openAbilityPopup(tag); return; }
+    if (abilityPop && !abilityPop.contains(e.target)) closeAbilityPopup();   // a click outside the popup closes it
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && abilityPop) closeAbilityPopup(true); });
+  // The popup stays beside its tag, so scrolling the page or resizing the window closes it.
+  document.addEventListener("scroll", e => { if (abilityPop && !abilityPop.contains(e.target)) closeAbilityPopup(); }, true);
+  addEventListener("resize", () => closeAbilityPopup());
 }
 
 /** Army rules of a faction from the Library (for datasheets shown in the list builder). */

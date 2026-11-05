@@ -1,15 +1,15 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.6";
-import { structuredToLibrary } from "./datasheets.js?v=6.6";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.6";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.6";
-import { renderAll } from "./main.js?v=6.6";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=6.6";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.6";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.6";
-import { applyPackRules, canonicalFaction, packFaction, packTheme } from "./pack-rules.js?v=6.6";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.7";
+import { structuredToLibrary } from "./datasheets.js?v=6.7";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.7";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.7";
+import { renderAll } from "./main.js?v=6.7";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=6.7";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.7";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.7";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=6.7";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;
@@ -44,6 +44,7 @@ async function importFiles(files, pickedKind, faction) {
         // The faction's "Army Rules" section is also read straight from the page layout, so no army rule is missed.
         // "[Name] Ability" rules (Custodes ka’tahs) are kept as parts of the army rule they belong to.
         data.armyRules = groupArmyRules(mergeArmyRules(data.armyRules, armyRulesFromLayout(all)));
+        sortDatasheetAbilities(data);   // faction pack ruleset, rule 11
         if (data.datasheets.length >= 2 || data.detachments.length >= 1) structured = data;
         // Faction pack ruleset, rule 1: a PDF full of datasheets is a faction pack, whatever type was picked when it was added.
         if (data.datasheets.length >= PACK_MIN_DATASHEETS) kind = "faction";
@@ -108,7 +109,7 @@ async function importExcelFile(f, faction) {
     const title = rules.title || f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
     return replaceRulesDoc({ id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) }, f.name);
   }
-  const data = structuredFromWorkbook(book);
+  const data = sortDatasheetAbilities(structuredFromWorkbook(book));
   // Faction pack ruleset, rules 2 and 7: the same faction name, symbol and colours as the PDF the workbook came from.
   const docFaction = packFaction({ datasheets: data.datasheets, title: data.faction, fileName: f.name, typed: faction });
   const theme = data.theme; delete data.faction; delete data.theme;

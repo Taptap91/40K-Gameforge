@@ -737,6 +737,33 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* Parts of an army rule ("[Name] Ability" rules) shown under it on datasheets. */
 .fv-part { margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--border-strong); }
 .fv-part-name { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+/* Faction Abilities: each ability's name is a heading with its rules text beneath it, starting at the panel's left edge
+   (like Unit Composition or Leader), in a readable line length with more room between lines and paragraphs. */
+.fv-army .fv-ab { display: block; padding: 16px 0; }
+.fv-army .fv-ab:first-child { padding-top: 4px; }
+.fv-army .fv-ab:last-child { padding-bottom: 4px; }
+.fv-army .fv-ab > .fv-ab-name { font-size: 15px; margin-bottom: 8px; }
+.fv-army .fv-ab > .fv-rich { font-size: 13.5px; line-height: 1.65; max-width: 760px; }
+/* Folding: the name is a clickable heading with the same ▾ arrow as the Factions page groups; closed to start. */
+.fv-army .fv-ab-fold { padding: 12px 0; }
+.fv-army .fv-ab-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 8px; margin: 0; user-select: none; }
+.fv-army .fv-ab-fold > summary::-webkit-details-marker { display: none; }
+.fv-army .fv-ab-fold > summary::before { content: "▾"; flex: none; width: 14px; text-align: center; font-size: 14px; line-height: 1; color: var(--text-2); transition: transform .15s; }
+.fv-army .fv-ab-fold:not([open]) > summary::before { transform: rotate(-90deg); }
+.fv-army .fv-ab-fold > summary:hover, .fv-army .fv-ab-fold > summary:hover::before { color: var(--text); }
+.fv-army .fv-ab-fold > summary:focus-visible { outline: 2px solid var(--accent, #0a84ff); outline-offset: 3px; border-radius: 4px; }
+.fv-army .fv-ab-fold[open] > summary { margin-bottom: 8px; }
+.fv-army .fv-ab-fold > .fv-rich { padding-left: 22px; }
+.fv-ab-count { font-size: 12px; font-weight: 400; color: var(--text-3); }
+.fv-army .fv-rich p { margin: 0 0 10px; }
+.fv-army .fv-rich p:last-child { margin-bottom: 0; }
+.fv-army .fv-rich ul { margin: 2px 0 12px; padding-left: 22px; }
+.fv-army .fv-rich li { margin: 4px 0; }
+.fv-army .fv-part { margin-top: 20px; padding: 2px 0 2px 16px; }
+.fv-army .fv-part + .fv-part { margin-top: 16px; }
+.fv-army .fv-part-name { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; margin-bottom: 6px; }
+.fv-army .fv-part-name .fv-ab-ref { display: inline; margin: 0; font-size: 12px; }
+.fv-army .fv-part p { margin-bottom: 4px; }
 
 /* ---------- List builder: list header ---------- */
 .lb-pencil { all: unset; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--text-2); cursor: pointer; }
@@ -768,3 +795,29 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   --kw-b: color-mix(in srgb, color-mix(in srgb, var(--acc) 75%, #fff) 55%, transparent);
   --kw-t: color-mix(in srgb, var(--acc) 45%, var(--text));
 }
+
+/* Core abilities: tags styled like weapon keywords (same size, border and faction colours), each opening a popup. */
+.fv-core-tags { padding: 2px 0; }
+.fv-kw-btn { font: inherit; font-size: 11.5px; line-height: 1.5; background: transparent; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.fv-kw-btn:hover { background: color-mix(in srgb, var(--kw-b, var(--border-strong)) 22%, transparent); color: var(--text); }
+.fv-kw-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--kw-b, var(--border-strong)) 30%, transparent); color: var(--text); }
+.fv-kw-btn:focus-visible { outline: 2px solid var(--kw-b, var(--accent, #0a84ff)); outline-offset: 2px; }
+.ab-pop { position: fixed; z-index: 60; width: min(440px, calc(100vw - 24px)); max-height: min(60vh, 520px); overflow: auto;
+  background: var(--panel); border: 1px solid var(--border-strong); border-top: 2px solid var(--pop-acc, var(--border-strong)); border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3); padding: 14px 16px 16px; outline: none; animation: ab-pop-in .14s ease-out; }
+@keyframes ab-pop-in { from { opacity: 0; transform: translateY(-4px); } }
+.ab-pop-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.ab-pop-titles { flex: 1; min-width: 0; }
+.ab-pop-name { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.ab-pop-ref { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.ab-pop-x { flex: none; width: 28px; height: 28px; margin: -4px -6px 0 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer; }
+.ab-pop-x:hover { background: rgba(255,255,255,.08); color: var(--text); }
+.ab-pop-body { font-size: 13.5px; line-height: 1.65; }
+.ab-pop-body p { margin: 0 0 10px; }
+.ab-pop-body p:last-child { margin-bottom: 0; }
+.ab-pop-body ul { margin: 2px 0 12px; padding-left: 22px; }
+.ab-pop-body li { margin: 4px 0; }
+.ab-pop-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 70vh; border-radius: 16px 16px 0 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); animation: ab-sheet-in .18s ease-out; }
+@keyframes ab-sheet-in { from { transform: translateY(24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ab-pop, .ab-pop-sheet { animation: none; } }
