@@ -1,11 +1,11 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.0";
-import { armyData } from "./army.js?v=6.0";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.0";
-import { factionMatches } from "./search.js?v=6.0";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.0";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.1";
+import { armyData } from "./army.js?v=6.1";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.1";
+import { factionMatches } from "./search.js?v=6.1";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.1";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -198,9 +198,9 @@ function leftHTML(c) {
   // Detachments: name on the left, DP on the right, and the Unique tag on its own line below so it can't be read as part of the name.
   const detItem = d => {
     const k = normName(d.name), uq = detUnique(d), dp = parseInt(d.dp, 10);
-    return `<button type="button" class="fp-item fp-det${fUI.sel?.t === "det" && fUI.sel.k === k ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}">
-      <span class="fp-irow"><span class="fp-iname">${esc(softenCaps(d.name))}</span>${dp ? `<span class="fp-dp">${dp} DP</span>` : ""}</span>
-      ${uq ? `<span class="fp-uq"><span class="fp-uq-k">Unique</span><span class="fp-uq-v">${esc(uq)}</span></span>` : ""}</button>`;
+    // One line: name, then the Unique tag, then DP at the right edge.
+    return `<button type="button" class="fp-item fp-det${fUI.sel?.t === "det" && fUI.sel.k === k ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}" title="${esc(d.name)}${uq ? ` · Unique: ${esc(uq)}` : ""}">
+      <span class="fp-irow"><span class="fp-iname">${esc(softenCaps(d.name))}</span>${uq ? `<span class="fp-uq"><span class="fp-uq-k">Unique</span><span class="fp-uq-v">${esc(uq)}</span></span>` : ""}${dp ? `<span class="fp-dp">${dp} DP</span>` : ""}</span></button>`;
   };
   const pts = ds => { const u = c.priced.get(normName(ds.name)); const o = u?.options || ds.points || []; return o.length ? `${Math.min(...o.map(p => p.points))} pts` : ""; };
   return `<input class="input fp-filter" id="fpFilter" placeholder="Filter by name…" value="${esc(fUI.filter)}">

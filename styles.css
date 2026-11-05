@@ -583,7 +583,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-ab-ref { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
 /* Factions page: list on the left (30%), the selected item on the right (70%) */
 .fp-host { flex: 1; min-height: 0; }
-.fp-shell { display: grid; grid-template-columns: 30% 70%; height: 100%; min-height: 0; }
+.fp-shell { display: grid; grid-template-columns: calc(30% + 30px) minmax(0, 1fr); height: 100%; min-height: 0; }
 .fp-left, .fp-right { overflow-y: auto; min-height: 0; min-width: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .fp-left { border-right: 1px solid var(--border); background: var(--bg); padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 4px; }
 .fp-right { padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 8px; }
@@ -648,8 +648,19 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-colour input { width: 38px; height: 28px; padding: 0; border: 1px solid var(--border-strong); border-radius: 6px; background: none; }
 
 /* ---------- Factions: detachment rows ---------- */
-.fp-det { flex-direction: column; align-items: stretch; gap: 7px; }
-.fp-irow { display: flex; align-items: baseline; gap: 12px; }
+.fp-det { flex-direction: column; align-items: stretch; }
+.fp-irow { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.fp-det .fp-iname { flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+.fp-det .fp-dp { margin-left: auto; align-self: center; }
+.fp-det .fp-uq { flex: none; white-space: nowrap; }
+/* The Unique tag sits on the right, next to DP, as an outlined tag with a ◆ marker ("Unique" shows on hover).
+   Brightness against the detachment name (100%): DP text 75% with a 45% border; tag text and ◆ 65% with a 39% border. */
+.fp-det .fp-uq { margin-left: auto; align-self: center; padding: 2px 8px; border-radius: 999px; border: 1px solid #5f5f60; }
+.fp-det .fp-uq + .fp-dp { margin-left: 0; }
+.fp-det .fp-uq-k { display: none; }
+.fp-det .fp-uq-v { color: #9fa0a1; }
+.fp-det .fp-uq-v::before { content: "◆ "; color: #9fa0a1; }
+.fp-det .fp-dp { color: #b8b8b9; border-color: #6e6e6f; }
 .fp-dp { flex: none; font-size: 12px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; padding: 1px 7px; border: 1px solid var(--border-strong); border-radius: 999px; }
 .fp-uq { display: flex; align-items: baseline; gap: 7px; font: 700 10px/1.3 var(--font); letter-spacing: .08em; }
 .fp-uq-k { text-transform: uppercase; color: var(--text-3); }
