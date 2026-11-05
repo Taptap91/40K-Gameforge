@@ -619,18 +619,19 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .fp-facs { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; padding: 8px 10px; margin: 0 -2px; scrollbar-width: thin; }
 .fp-fac {
-  position: relative; flex: none; width: var(--facw, auto); min-width: 184px; height: 50px; padding: 0 20px;
+  position: relative; flex: none; height: 39px; padding: 0 20px;
   display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
-  border-radius: 12px; border: 1px solid var(--border-strong); background: var(--panel);
-  color: var(--text-2); font: 600 14px/1 var(--font); cursor: pointer;
-  transition: color .25s, background-color .25s, box-shadow .35s, padding .45s ease;
+  border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel);
+  color: var(--text-2); font: 600 12px/1 var(--font); cursor: pointer;
+  transition: color .25s, background-color .25s, box-shadow .35s, padding .45s ease, font-size .3s ease;
 }
 .fp-fac:hover { color: var(--text); background: var(--panel-2); }
-/* Not selected: the name sits in the middle. Selected: the symbol fades in 20px from the right edge
-   (in a 30px box, 11px clear above and below it) and the name moves to the middle of the space left of it. */
+/* Not selected: 12px name, the button only as wide as the name with 20px on each side.
+   Selected: 14px name, and the symbol fades in 20px from the right edge, 5px from the top and 6px from the bottom. */
+.fp-fac.on { font-size: 14px; }
 .fp-fac.on.has-sym { padding-right: 62px; }
 .fp-fac-name { position: relative; }
-.fp-fac-sym { position: absolute; right: 20px; top: 11px; bottom: 11px; width: 30px; display: grid; place-items: center; opacity: 0; transform: translateX(-12px); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
+.fp-fac-sym { position: absolute; right: 20px; top: 4px; height: 28px; width: 30px; display: grid; place-items: center; opacity: 0; transform: translateX(-12px); transition: opacity .45s ease, transform .45s ease; pointer-events: none; }
 .fp-fac-sym img { max-width: 30px; max-height: 28px; object-fit: contain; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c1) 45%, transparent)); }
 .fp-fac.on .fp-fac-sym { opacity: 1; transform: none; }
 .fp-fac.on {
@@ -674,7 +675,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-toolbar { flex-wrap: wrap; row-gap: 0; position: relative; }
   .fp-bar { flex-basis: 100%; }
   .fp-style { position: absolute; right: 8px; top: 6px; }
-  .fp-fac { min-width: 168px; }
 }
 
 /* ---------- Factions: banner (full width, above both columns) ---------- */

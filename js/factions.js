@@ -1,11 +1,11 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.1";
-import { armyData } from "./army.js?v=6.1";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.1";
-import { factionMatches } from "./search.js?v=6.1";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.1";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.2";
+import { armyData } from "./army.js?v=6.2";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind } from "./datasheets.js?v=6.2";
+import { factionMatches } from "./search.js?v=6.2";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.2";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -69,13 +69,6 @@ function renderFactionBar(names) {
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
   if (tools.dataset.key !== key) { tools.dataset.key = key; tools.innerHTML = html; }
   else for (const b of tools.querySelectorAll(".fp-fac")) { const on = b.dataset.fac === fUI.faction; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
-  // Every button is the same size: as wide as the longest name needs, with room for a symbol if any faction has one.
-  const btns = [...tools.querySelectorAll(".fp-facs .fp-fac")];
-  if (btns.length) {
-    const sym = btns.some(b => b.classList.contains("has-sym"));
-    const name = Math.max(...btns.map(b => b.querySelector(".fp-fac-name").offsetWidth));
-    if (name) tools.querySelector(".fp-facs").style.setProperty("--facw", `${Math.ceil(name + 20 + (sym ? 62 : 20))}px`);
-  }
   const row = tools.querySelector(".fp-facs"), on = row?.querySelector(".fp-fac.on");
   if (on && (on.offsetLeft + on.offsetWidth > row.scrollLeft + row.clientWidth || on.offsetLeft < row.scrollLeft)) row.scrollLeft = on.offsetLeft - 12;
 }

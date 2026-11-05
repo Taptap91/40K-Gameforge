@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.1";
-import { structuredToLibrary } from "./datasheets.js?v=6.1";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.1";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.1";
-import { renderAll } from "./main.js?v=6.1";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=6.1";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.1";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.1";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=6.2";
+import { structuredToLibrary } from "./datasheets.js?v=6.2";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=6.2";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=6.2";
+import { renderAll } from "./main.js?v=6.2";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=6.2";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=6.2";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=6.2";
 
 async function importFiles(files, kind, faction) {
   const box = $("#importProgress"), errBox = $("#importError");
