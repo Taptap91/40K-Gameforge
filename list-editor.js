@@ -1,0 +1,546 @@
+/* RulesForge · list-editor.js
+ * Army Lists pages: the lists home, the generate form and the three-column list editor.
+ */
+import { armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, POINT_SIZES, saveList, sizeRules, unitMax } from "./army.js?v=5.3";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=5.3";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.3";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=5.3";
+import { keywordList, normName, richHTML } from "./text.js?v=5.3";
+
+function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
+const isPhone = () => matchMedia("(max-width: 760px)").matches;
+const structuredFactions = () => [...new Set(state.docs.filter(d => d.structured && d.faction).map(d => d.faction))].sort();
+
+function renderListsPage() {
+  const host = $("#listsHost"), tools = $("#listsToolbar"), title = $("#listsTitle");
+  if (!host) return;
+  $("#view-lists").classList.remove("lb-editing");
+  if (listUI.mode === "edit") {
+    const list = state.lists.find(l => l.id === listUI.id);
+    if (list?.version === 2) return renderListEditor(list);
+    listUI.mode = "home";
+  }
+  if (listUI.mode === "generate") return renderGenerateForm();
+  title.textContent = "Army Lists";
+  const factions = structuredFactions();
+  tools.innerHTML = `<button class="btn" type="button" data-lb="create" ${factions.length ? "" : "disabled"}>Create list</button>
+    <button class="btn primary" type="button" data-lb="generate" ${factions.length ? "" : "disabled"}>Generate list</button>`;
+  const lists = [...state.lists].sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
+  host.innerHTML = `
+    ${factions.length ? "" : `<div class="card"><h2>Add your faction first</h2><p>Lists are built from a converted faction PDF. Add one in Library, then come back here.</p><button class="btn primary" type="button" data-go="library">Open Library</button></div>`}
+    ${lists.length ? `<div class="list">${lists.map(l => {
+      if (l.version !== 2) return `<div class="list-row"><div class="main"><div class="title">${esc(l.title || "Saved list")}</div><div class="meta">Older list · ${l.points || ""} pts</div></div>
+        <button class="btn plain" type="button" data-lb-copy-old="${esc(l.id)}">Copy</button><button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button></div>`;
+      const r = evaluateList(l);
+      return `<div class="list-row lb-listrow">
+        <button class="main lb-open" type="button" data-lb-open="${esc(l.id)}">
+          <div class="title">${esc(l.name)}</div>
+          <div class="meta">${esc(l.faction)} · ${r.total} / ${l.points} pts${l.detachments.length ? " · " + esc(l.detachments.join(", ")) : ""}${r.issues.length ? ` · <span class="lb-warn">${r.issues.length} to fix</span>` : ""}</div>
+        </button>
+        <button class="btn plain" type="button" data-lb-rename="${esc(l.id)}">Rename</button>
+        <button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button>
+      </div>`;
+    }).join("")}</div>` : factions.length ? `<div class="empty">No lists yet. Create one yourself, or let the app generate one from a description.</div>` : ""}`;
+}
+
+function renderGenerateForm() {
+  const g = listUI.gen ||= { faction: structuredFactions()[0] || "", points: store.get("rf.points", 2000), vibe: "", pick: true, chosen: [] };
+  $("#listsTitle").textContent = "Generate List";
+  $("#listsToolbar").innerHTML = `<button class="btn" type="button" data-lb="home">Cancel</button>`;
+  const data = armyData(g.faction);
+  const rules = sizeRules(g.points);
+  const chosen = data.detachments.filter(d => g.chosen.includes(d.name));
+  const dpUsed = chosen.reduce((s, d) => s + d.dp, 0);
+  const takenTags = new Set(chosen.map(d => d.unique).filter(Boolean));
+  $("#listsHost").innerHTML = `
+    <div class="card stack">
+      <div class="row">
+        <div class="field"><label for="genFaction">Faction</label>
+          <select class="select" id="genFaction" style="width:100%">${structuredFactions().map(f => `<option ${f === g.faction ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></div>
+        <div class="field"><label>Points</label>
+          <div class="segmented" id="genPoints">${POINT_SIZES.map(p => `<button type="button" data-v="${p}" aria-pressed="${p === g.points}">${p}</button>`).join("")}</div>
+          <span class="hint">${rules.name}: ${rules.dp} detachment points, up to ${rules.enh} enhancements, ${rules.dup} copies of a unit (Battleline ${rules.dup * 2}).</span></div>
+      </div>
+      <div class="field"><label for="genVibe">What should the army feel like?</label>
+        <textarea class="input" id="genVibe" placeholder="e.g. Deathwing Terminators teleporting onto objectives, a few Ravenwing bikes for speed, no tanks">${esc(g.vibe)}</textarea>
+        <span class="hint">Mention playstyle, units you want, models you own, or things to avoid.</span></div>
+      <div class="field"><label>Detachments</label>
+        <div class="segmented" id="genPick"><button type="button" data-v="pick" aria-pressed="${g.pick}">Pick for me</button><button type="button" data-v="choose" aria-pressed="${!g.pick}">Let me choose</button></div>
+        ${g.pick ? "" : `<div class="hint">${dpUsed} of ${rules.dp} DP used${rules.name === "Incursion" ? " (a single 3 DP detachment is also allowed)" : ""}</div>
+          <div class="list lb-detpick">${data.detachments.slice().sort((a, b) => a.name.localeCompare(b.name)).map(d => {
+            const on = g.chosen.includes(d.name);
+            const blocked = !on && ((d.unique && takenTags.has(d.unique)) || !detachmentsBudgetOK([...chosen, d], rules));
+            return `<label class="list-row ${blocked ? "lb-blocked" : ""}"><input type="checkbox" data-gen-det="${esc(d.name)}" ${on ? "checked" : ""} ${blocked ? "disabled" : ""}>
+              <span class="main"><span class="title">${esc(d.name)}</span><span class="meta" style="display:block">${d.dp} DP${d.unique ? ` · Unique: ${esc(d.unique)}` : ""}</span></span></label>`;
+          }).join("")}</div>`}
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary large" type="button" id="genGo">Generate list</button>
+        <span class="check problem hidden" id="genError"></span>
+      </div>
+    </div>`;
+}
+
+/** One weapon area per model type: tick what they carry, with how many of them carry it. */
+function lbLoadout(x, buffs) {
+  const ws = x.unit.ds.weapons || [];
+  if (!ws.length) return "";
+  const profiles = base => ws.filter(w => weaponBase(w.name) === base);
+  const open = listUI.openWeapons;
+  return (x.loadout || []).map(gr => {
+    const problems = (x.loadoutProblems || {})[gr.name] || [];
+    const problem = problems.length > 0;
+    const limits = weaponLimits(gr, x.models);
+    const icon = msgs => msgs.length ? `<span class="lb-warnicon" role="img" tabindex="0" title="${esc(msgs.join(" "))}" aria-label="${esc(msgs.join(" "))}" data-lb-warn="${esc(msgs.join(" "))}">⚠︎</span>` : "";
+    const weaponWarn = w => icon(problems.filter(p => (p.ws || []).includes(w)).map(p => p.msg));
+    const groupWarn = icon(problems.filter(p => !(p.ws || []).length).map(p => p.msg));
+    const row = w => {
+      const ps = profiles(w);
+      if (!ps.length) return "";
+      // Swap-in weapons show the most this squad size allows; default weapons show what's left after swaps.
+      const type = ps[0].type, n = gr.counts[w] ?? 0, isDefault = gr.defaults.includes(w);
+      // X/Y: Y is the most models the datasheet lets carry this weapon (every model for default wargear).
+      const room = isDefault ? gr.N : Math.max(1, gr.reach.get(w) ?? 0);
+      const canAdd = n < room;   // greyed out at the most the datasheet allows
+      const key = `${x.id}|${gr.name}|${w}`;
+      const mine = buffs.filter(b => !b.type || b.type === type);
+      const own = [...new Set(ps.flatMap(p => keywordList(p.tags)))];
+      const extra = [...mine.filter(b => b.keyword && !own.some(k => normName(k).startsWith(normName(b.keyword.split(" (")[0])))).map(b => `${b.keyword} – ${b.source}`),
+        ...mine.filter(b => b.stat).map(b => `${b.delta > 0 ? "+" : ""}${b.delta} ${b.stat} – ${b.source}`)];
+      const kw = [own.length ? esc(own.join(", ")) : "", ...extra.map(e => `<span class="lb-buffkw">${esc(e)}</span>`)].filter(Boolean).join('<span class="lb-sep">, </span>');
+      const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
+      return `<div class="lb-wopt${n > 0 ? " on" : ""}">
+        <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="${esc(w)}">
+        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
+          ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</summary>
+          ${weaponGridHTML(ps, type, buffs, "profile")}</details>
+        <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>` : ""}</div>
+      </div>`;
+    };
+    const all = [...gr.reach.keys()];
+    const byType = t => all.filter(w => profiles(w)[0]?.type === t);
+    const part = (t, label) => byType(t).length ? `<div class="lb-wtype">${label}</div><div class="lb-wopts">${byType(t).map(row).join("")}</div>` : "";
+    return panelHTML(`${esc(gr.name)} <span class="lb-subtle">· ${gr.N} model${gr.N === 1 ? "" : "s"}</span>${groupWarn}`,
+      part("Ranged", "Ranged weapons") + part("Melee", "Melee weapons"), problem ? "lb-bad" : "");
+  }).join("");
+}
+
+/** Enhancement or upgrade picker, with the chosen one's rules text underneath. */
+function lbEnhPicker(x, r, upgrade) {
+  const taken = new Set(r.entries.flatMap(o => o.id === x.id ? [] : [o.enh, o.upg]).filter(Boolean));
+  const current = upgrade ? x.upg : x.enh;
+  const eligible = r.enhPool.filter(en => !!en.req?.upgrade === upgrade && canTakeEnhancement(x.unit, en) && !taken.has(en.name));
+  if (!eligible.length && !current) return "";
+  const cur = r.enhPool.find(e => e.name === current);
+  const label = upgrade ? "Upgrade" : "Enhancement";
+  return `<div class="lb-field"><label class="lb-label" for="lbe-${upgrade ? "u" : "e"}">${label}</label>
+    <select class="select lb-select" id="lbe-${upgrade ? "u" : "e"}" data-lb-${upgrade ? "upg" : "enh"}="${x.id}">
+      <option value="">None</option>
+      ${eligible.map(en => `<option value="${esc(en.name)}" ${en.name === current ? "selected" : ""}>${esc(en.name)} (+${en.points} pts) · ${esc(en.detachment)}</option>`).join("")}
+      ${current && !eligible.some(e => e.name === current) ? `<option selected value="${esc(current)}">${esc(current)}</option>` : ""}
+    </select>
+    ${cur ? `<div class="lb-enhdesc"><div class="lb-enhname">${esc(cur.name)} <span>+${cur.points} pts</span></div><div class="fv-rich">${richHTML(cur.text)}</div></div>` : ""}
+  </div>`;
+}
+
+function lbInspector(list, r, data) {
+  const x = r.entries.find(e => e.id === listUI.sel);
+  if (!x) return `<div class="lb-empty">${r.entries.length ? "Select a unit in your list to see its datasheet." : "Add units from the list on the right."}</div>`;
+  if (!x.unit) return `<div class="lb-empty">“${esc(x.key)}” isn't in your library any more.<div><button class="btn danger" type="button" data-lb-remove="${x.id}">Remove</button></div></div>`;
+  const u = x.unit, ds = u.ds;
+  const buffs = buffsFor(x, r);
+  const size = u.options.length > 1
+    ? (() => {
+        const i = Math.max(0, u.options.findIndex(o => o.models === x.models));
+        return `<div class="lb-switch" role="radiogroup" aria-label="Unit size" style="--n:${u.options.length};--i:${i}">
+          <span class="lb-thumb" aria-hidden="true"></span>
+          ${u.options.map((o, k) => `<button type="button" role="radio" aria-checked="${k === i}" data-lb-setsize="${x.id}" data-v="${o.models}" data-i="${k}">${o.models} Model${o.models === 1 ? "" : "s"} - ${o.points} pts</button>`).join("")}
+        </div>`;
+      })()
+    : `<span class="lb-subtle">${x.models} model${x.models === 1 ? "" : "s"}</span>`;
+
+  let attach = "";
+  if (u.character) {
+    const slot = charSlot(u);
+    const hosts = r.entries.filter(h => h.unit && !h.unit.character && canAttach(u, h.unit, slot) && (h.id === x.attachTo || !r.entries.some(o => o.attachTo === h.id && (o.slot || charSlot(o.unit)) === slot)));
+    const same = h => r.entries.filter(o => o.key === h.key);
+    attach = `<div class="lb-field"><div class="lb-label">${slot === "support" ? "Support a unit" : "Lead a unit"}</div><div class="lb-hosts">
+      ${hosts.map(h => `<button type="button" class="lb-host${h.id === x.attachTo ? " on" : ""}" data-lb-attachto="${h.id}">
+        <span class="lb-hostname">${esc(h.unit.name)}${same(h).length > 1 ? ` #${same(h).indexOf(h) + 1}` : ""}</span><span class="lb-subtle">${h.models} models · ${h.total} pts</span>${h.id === x.attachTo ? `<span class="lb-tick">✓</span>` : ""}</button>`).join("")}
+      <button type="button" class="lb-host${!x.attachTo ? " on" : ""}" data-lb-attachto=""><span class="lb-hostname">Not attached</span><span class="lb-subtle">${hosts.length ? "Fights as its own unit" : "No unit in your list can take this character"}</span></button>
+    </div></div>`;
+  }
+  const buffNote = buffs.length ? `<div class="lb-buffnote">Weapon bonuses from attached characters are shown in <span class="lb-buffkw">this colour</span>.</div>` : "";
+  const enhHTML = lbEnhPicker(x, r, false) + lbEnhPicker(x, r, true);
+  return `
+    <div class="lb-insp-head">
+      <div class="lb-insp-title"><h2>${esc(u.name)}</h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>
+      <div class="lb-insp-bar">${size}
+        ${u.character ? `<button class="btn${x.warlord ? " lb-on" : ""}" type="button" data-lb-warlord="${x.id}">${x.warlord ? "★ Warlord" : "☆ Make Warlord"}</button>` : ""}
+        <button class="btn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""}>Duplicate</button>
+        <button class="btn danger" type="button" data-lb-remove="${x.id}">Remove</button></div>
+    </div>
+    ${attach}
+    ${statsHTML(ds)}
+    ${wargearOptionsHTML(ds)}
+    ${buffNote}
+    ${(() => { const other = (x.problems || []).filter(p => !(x.loadoutText || []).includes(p)); return other.length ? `<div class="lb-problems">${other.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""; })()}
+    ${lbLoadout(x, buffs)}
+    ${enhHTML ? panelHTML("Enhancements &amp; Upgrades", enhHTML) : ""}
+    ${datasheetDetailsHTML(ds, factionArmyRules(list.faction))}`;
+}
+
+function lbAtMax(u, r) {
+  const n = r.entries.filter(e => e.key === u.key).length;
+  if (n >= unitMax(u, r.rules)) return true;
+  return u.transport && r.entries.filter(e => e.unit?.transport).length >= 6;
+}
+
+function lbGroupOf(u) { return DATASHEET_GROUPS.findIndex(([, test]) => test(u.kws)); }
+
+const TRASH_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4a1 1 0 0 1 1 1V3h3a.75.75 0 0 1 0 1.5h-.6l-.7 9.1A1.5 1.5 0 0 1 11.2 15H4.8a1.5 1.5 0 0 1-1.5-1.4L2.6 4.5H2A.75.75 0 0 1 2 3h3v-.5a1 1 0 0 1 1-1Zm-1.9 3 .7 9h6.4l.7-9H4.1Zm2.15 1.75a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Zm3.5 0a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Z"/></svg>`;
+
+function lbListColumn(list, r) {
+  const chip = (target, label) => `<button type="button" class="lb-attached${target.problems?.length ? " bad" : ""}" data-lb-jump="${target.id}" title="Show ${esc(target.unit.name)} in the list"><span class="lb-arrow">${label}</span><span class="lb-aname">${esc(target.unit.name)}</span><span class="lb-ccost">${target.total}</span></button>`;
+  const card = x => {
+    const sel = listUI.sel === x.id ? " sel" : "";
+    const trash = `<button type="button" class="lb-trash" data-lb-remove="${x.id}" title="Delete this unit" aria-label="Delete ${esc(x.unit?.name || x.key)}">${TRASH_SVG}</button>`;
+    if (!x.unit) return `<div class="lb-cardwrap"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div>`;
+    const host = x.attachTo ? r.entries.find(h => h.id === x.attachTo && h.unit) : null;
+    const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
+    // A unit lists the characters attached to it; a character lists the unit it's attached to.
+    const chips = x.unit.character ? (host ? [chip(host, "↳")] : []) : r.entries.filter(c => c.attachTo === x.id && c.unit).map(c => chip(c, "↳"));
+    const bad = x.problems?.length ? " bad" : "";
+    return `<div class="lb-cardwrap">
+      <div role="button" tabindex="0" class="lb-card${sel}${bad}" id="lbc-${x.id}" data-lb-sel="${x.id}">
+        <span class="lb-ctop"><span class="lb-cname">${esc(x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
+        <span class="lb-cmeta">${x.models} model${x.models === 1 ? "" : "s"}${host ? ` · ${x.slot === "support" ? "supporting" : "leading"} the unit below` : ""}${x.copy >= 3 && x.opt?.later ? " · 3rd+ cost" : ""}</span>
+        ${tags ? `<span class="lb-ctags">${tags}</span>` : ""}
+        ${bad ? `<span class="lb-cerr">⚠︎ ${esc(x.problems[0])}${x.problems.length > 1 ? ` (+${x.problems.length - 1} more)` : ""}</span>` : ""}
+        ${trash}
+      </div>
+      ${chips.join("")}
+    </div>`;
+  };
+  const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));
+  for (const x of r.entries) groups[x.unit ? lbGroupOf(x.unit) : groups.length - 1].items.push(x);
+  // Alphabetical within each category, whenever a unit was added (copies keep their order).
+  for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
+  const pct = Math.min(100, Math.round(r.total / list.points * 100));
+  const enhCount = r.entries.reduce((n, x) => n + (x.enh ? 1 : 0) + (x.upg ? 1 : 0), 0);
+  return `
+    <div class="lb-listhead">
+      <div class="lb-namebar"><h2>${esc(list.name)}</h2><button class="btn plain" type="button" data-lb-rename="${list.id}">Rename</button></div>
+      <div class="lb-meta">${esc(list.faction)} · ${r.rules.name}</div>
+      <div class="lb-pts"><b class="${r.left < 0 ? "over" : ""}">${r.total.toLocaleString()}</b> / ${list.points.toLocaleString()} pts · ${r.entries.length} unit${r.entries.length === 1 ? "" : "s"}</div>
+      <div class="lb-bar"><span class="${r.left < 0 ? "over" : ""}" style="width:${pct}%"></span></div>
+      <div class="lb-meta">${r.dpUsed} of ${r.rules.dp} DP · ${enhCount} of ${r.rules.enh} enhancements &amp; upgrades</div>
+      <div class="lb-dets">${list.detachments.map(d => { const dd = r.dets.find(x => x.name === d); return `<span class="lb-chip">${esc(d)}${dd?.unique ? ` · Unique: ${esc(dd.unique)}` : ""}</span>`; }).join("") || `<span class="lb-subtle">No detachment chosen</span>`}
+        <button class="btn plain" type="button" data-lb="detachments">Change</button></div>
+      ${r.issues.length ? `<div class="lb-issues">${r.issues.map(i => `<div>⚠︎ ${esc(i)}</div>`).join("")}</div>` : `<div class="lb-ok">✓ Legal for ${r.rules.name}</div>`}
+      ${list.generated?.notes?.length ? `<details class="more"><summary>Why this list</summary><ul class="lb-notes">${list.generated.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></details>` : ""}
+      <div class="lb-actions"><button class="btn" type="button" data-lb="copy">Copy as text</button><button class="btn danger" type="button" data-lb-delete="${list.id}">Delete list</button></div>
+    </div>
+    ${groups.filter(g => g.items.length).map(g => `<div class="lb-grp"><div class="lb-grp-title">${esc(g.title)} · ${g.items.length}</div>${g.items.map(card).join("")}</div>`).join("") || `<div class="lb-empty">No units yet.<br>Add them from the list on the right.</div>`}`;
+}
+
+function lbAddColumn(list, r, data) {
+  const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));
+  for (const u of data.units) groups[lbGroupOf(u)].items.push(u);
+  return `
+    <div class="lb-addhead"><div class="lb-addtitle">Add units <span class="lb-subtle">· ${Math.max(0, r.left)} pts left</span></div>
+      <input class="input" id="lbAddFilter" placeholder="Search units…" value="${esc(listUI.filter || "")}" autocomplete="off"></div>
+    ${groups.filter(g => g.items.length).map(g => `<details class="lb-grp lb-addgrp" data-addgrp="${esc(g.title)}" ${listUI.collapsed.has(g.title) ? "" : "open"}><summary class="lb-grp-title">${esc(g.title)} · ${g.items.length}</summary>
+      ${g.items.sort((a, b) => a.name.localeCompare(b.name)).map(u => {
+        const n = r.entries.filter(e => e.key === u.key).length, max = unitMax(u, r.rules), full = lbAtMax(u, r);
+        return `<button type="button" class="lb-addrow${full ? " full" : ""}" data-lb-addunit="${esc(u.key)}" data-name="${esc(normName(u.name))}" ${full ? 'disabled aria-disabled="true"' : ""}>
+          <span class="lb-plus">+</span><span class="lb-aname">${esc(u.name)}<span class="lb-subtle">${n ? `${n} in list · ` : ""}max ${max}${u.transport ? " (6 transports total)" : ""}</span></span>
+          <span class="lb-ccost">${u.options[0].points}</span></button>`;
+      }).join("")}</details>`).join("")}`;
+}
+
+function renderListEditor(list) {
+  const data = armyData(list.faction);
+  // Upgrades live in their own slot; older lists kept them with enhancements.
+  const pool = data.detachments.flatMap(d => d.enhancements);
+  for (const e of list.units) {
+    const en = e.enh && pool.find(p => p.name === e.enh);
+    if (en?.req?.upgrade && !e.upg) { e.upg = e.enh; e.enh = null; }
+  }
+  const r = evaluateList(list, data);
+  if (!r.entries.some(e => e.id === listUI.sel)) listUI.sel = r.entries[0]?.id || null;
+  const view = $("#view-lists");
+  view.classList.add("lb-editing");
+  $("#listsTitle").innerHTML = `<button class="btn plain lb-back" type="button" data-lb="home">‹ Lists</button>`;
+  $("#listsToolbar").innerHTML = `
+    <div class="segmented lb-panes" role="tablist">
+      <button type="button" data-lb-pane="list" class="lb-pane-list" aria-pressed="${listUI.pane === "list"}">List</button>
+      <button type="button" data-lb-pane="unit" aria-pressed="${listUI.pane === "unit"}">Unit</button>
+      <button type="button" data-lb-pane="add" aria-pressed="${listUI.pane === "add"}">Add</button>
+    </div>
+    <div class="lb-left ${r.left < 0 ? "over" : ""}"><span>${Math.abs(r.left).toLocaleString()}</span> <i class="lb-w">points</i> ${r.left < 0 ? "over" : "left"}</div>`;
+  const host = $("#listsHost");
+  const keep = {};
+  for (const c of host.querySelectorAll(".lb-col")) keep[c.dataset.col] = c.scrollTop;
+  const filterFocused = document.activeElement?.id === "lbAddFilter";
+  host.innerHTML = `<div class="lb-shell" data-pane="${listUI.pane}">
+    <div class="lb-col lb-colL" data-col="L">${lbListColumn(list, r)}</div>
+    <div class="lb-col lb-colC" data-col="C">${lbInspector(list, r, data)}</div>
+    <div class="lb-col lb-colR" data-col="R">${lbAddColumn(list, r, data)}</div>
+  </div>`;
+  for (const c of host.querySelectorAll(".lb-col")) if (keep[c.dataset.col] != null) c.scrollTop = keep[c.dataset.col];
+  lbApplyFilter();
+  if (filterFocused) { const f = $("#lbAddFilter"); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
+}
+
+function lbApplyFilter() {
+  const q = normName(listUI.filter || "");
+  $$("#listsHost .lb-addrow").forEach(b => b.hidden = !!q && !b.dataset.name.includes(q));
+  $$("#listsHost .lb-addgrp").forEach(g => {
+    g.hidden = !g.querySelector(".lb-addrow:not([hidden])");
+    if (q && !g.hidden) g.open = true;
+  });
+}
+
+/** Adds or removes a weapon for one model type; swaps happen automatically where the datasheet says what it replaces. */
+function lbChangeWeapon(list, d, how) {
+  const e = list.units.find(u => u.id === d.entry);
+  const data = armyData(list.faction);
+  const x = evaluateList(list, data).entries.find(o => o.id === d.entry);
+  const gr = x?.loadout?.find(g => g.name === d.group);
+  if (!e || !gr) return;
+  const counts = setWeapon(gr, d.w, how);
+  e.load ||= {};
+  e.load[gr.name] = { n: gr.N, c: counts };
+  saveList(list);
+  renderListEditor(list);
+}
+
+/** Selects a unit and scrolls the list so its card is in view. */
+function lbJumpTo(list, id) {
+  listUI.sel = id;
+  renderListEditor(list);
+  const card = document.getElementById("lbc-" + id);
+  if (!card) return;
+  card.scrollIntoView({ block: "center", behavior: "smooth" });
+  card.classList.add("flash");
+  setTimeout(() => card.classList.remove("flash"), 1200);
+}
+
+function openDetachmentPicker(list) {
+  const data = armyData(list.faction);
+  const rules = sizeRules(list.points);
+  const draw = () => {
+    const chosen = data.detachments.filter(d => list.detachments.includes(d.name));
+    const tags = new Set(chosen.map(d => d.unique).filter(Boolean));
+    openSheet(`
+      <div class="sheet-head"><h2>Detachments</h2><p>${chosen.reduce((s, d) => s + d.dp, 0)} of ${rules.dp} DP used · no two detachments may share a Unique tag.</p></div>
+      <div class="sheet-body"><div class="list">${data.detachments.slice().sort((a, b) => a.name.localeCompare(b.name)).map(d => {
+        const on = list.detachments.includes(d.name);
+        const blocked = !on && ((d.unique && tags.has(d.unique)) || !detachmentsBudgetOK([...chosen, d], rules));
+        return `<label class="list-row ${blocked ? "lb-blocked" : ""}"><input type="checkbox" data-det="${esc(d.name)}" ${on ? "checked" : ""} ${blocked ? "disabled" : ""}>
+          <span class="main"><span class="title">${esc(d.name)}</span><span class="meta" style="display:block">${d.dp} DP${d.unique ? ` · Unique: ${esc(d.unique)}` : ""} · ${d.enhancements.length} enhancements</span></span></label>`;
+      }).join("")}</div></div>
+      <div class="sheet-foot"><button class="btn primary" type="button" data-close>Done</button></div>`);
+    $$('#sheet [data-det]').forEach(cb => cb.onchange = () => {
+      list.detachments = cb.checked ? [...list.detachments, cb.dataset.det] : list.detachments.filter(n => n !== cb.dataset.det);
+      // Enhancements from a removed detachment are dropped.
+      const allowed = new Set(data.detachments.filter(d => list.detachments.includes(d.name)).flatMap(d => d.enhancements.map(e => e.name)));
+      for (const u of list.units) { if (u.enh && !allowed.has(u.enh)) u.enh = null; if (u.upg && !allowed.has(u.upg)) u.upg = null; }
+      saveList(list);
+      renderListEditor(list);
+      draw();
+    });
+  };
+  draw();
+}
+
+function openCreateSheet() {
+  const factions = structuredFactions();
+  const d = openSheet(`
+    <div class="sheet-head"><h2>Create list</h2><p>Build it yourself, unit by unit.</p></div>
+    <div class="sheet-body">
+      <div class="field"><label for="newName">Name</label><input class="input" id="newName" placeholder="My army"></div>
+      <div class="field"><label for="newFaction">Faction</label><select class="select" id="newFaction" style="width:100%">${factions.map(f => `<option>${esc(f)}</option>`).join("")}</select></div>
+      <div class="field"><label>Points</label><div class="segmented" id="newPoints">${POINT_SIZES.map(p => `<button type="button" data-v="${p}" aria-pressed="${p === 2000}">${p}</button>`).join("")}</div></div>
+    </div>
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="newGo">Create</button></div>`);
+  let pts = 2000;
+  $$("#newPoints button").forEach(b => b.onclick = () => { pts = +b.dataset.v; $$("#newPoints button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+  $("#newGo").onclick = () => {
+    const faction = $("#newFaction").value;
+    const list = { id: uid(), version: 2, name: $("#newName").value.trim() || `${faction} ${pts}`, faction, points: pts, detachments: [], units: [], createdAt: Date.now(), updatedAt: Date.now() };
+    saveList(list, true);
+    d.close();
+    listUI.mode = "edit"; listUI.id = list.id; listUI.sel = null; listUI.pane = isPhone() ? "list" : "unit";
+    renderListsPage();
+    openDetachmentPicker(list);
+  };
+}
+
+function wireListBuilder() {
+  const view = $("#view-lists");
+  view.addEventListener("click", async e => {
+    const t = e.target;
+    const act = t.closest("[data-lb]")?.dataset.lb;
+    const list = state.lists.find(l => l.id === listUI.id);
+    if (act === "home") { listUI.mode = "home"; return renderListsPage(); }
+    if (act === "generate") { listUI.mode = "generate"; return renderListsPage(); }
+    if (act === "create") return openCreateSheet();
+    if (act === "add" && list) { listUI.pane = "add"; return renderListEditor(list); }
+    if (act === "detachments" && list) return openDetachmentPicker(list);
+    if (act === "copy" && list) {
+      const text = listToText(list);
+      try { await navigator.clipboard.writeText(text); toast("List copied"); } catch { toast("Couldn't copy here"); }
+      return;
+    }
+    const open = t.closest("[data-lb-open]");
+    if (open) { listUI.mode = "edit"; listUI.id = open.dataset.lbOpen; listUI.sel = null; listUI.pane = isPhone() ? "list" : "unit"; return renderListsPage(); }
+    const ren = t.closest("[data-lb-rename]");
+    if (ren) {
+      const l = state.lists.find(x => x.id === ren.dataset.lbRename);
+      const name = await askText("Rename list", "Name", l.name);
+      if (name) { l.name = name; await saveList(l, true); renderListsPage(); }
+      return;
+    }
+    const del = t.closest("[data-lb-delete]");
+    if (del) {
+      const l = state.lists.find(x => x.id === del.dataset.lbDelete);
+      if (!(await confirmSheet("Delete this list?", `“${l.name || l.title || "This list"}” will be deleted. This can't be undone.`, "Delete"))) return;
+      await DB.del("lists", l.id);
+      state.lists = state.lists.filter(x => x !== l);
+      if (listUI.id === l.id) listUI.mode = "home";
+      return renderListsPage();
+    }
+    const old = t.closest("[data-lb-copy-old]");
+    if (old) { try { await navigator.clipboard.writeText(state.lists.find(l => l.id === old.dataset.lbCopyOld)?.text || ""); toast("Copied"); } catch {} return; }
+    if (t.id === "genGo") {
+      const g = listUI.gen;
+      g.vibe = $("#genVibe").value;
+      try {
+        const made = generateList({ faction: g.faction, points: g.points, vibe: g.vibe, detachments: g.pick ? null : g.chosen });
+        await saveList(made, true);
+        listUI.mode = "edit"; listUI.id = made.id; listUI.sel = null; listUI.pane = isPhone() ? "list" : "unit";
+        renderListsPage();
+        toast("List generated");
+      } catch (err) { const box = $("#genError"); box.textContent = err.message; box.classList.remove("hidden"); }
+    }
+    const pb = t.closest("#genPoints button");
+    if (pb) { listUI.gen.vibe = $("#genVibe").value; listUI.gen.points = +pb.dataset.v; store.set("rf.points", listUI.gen.points); listUI.gen.chosen = []; return renderGenerateForm(); }
+    const pk = t.closest("#genPick button");
+    if (pk) { listUI.gen.vibe = $("#genVibe").value; listUI.gen.pick = pk.dataset.v === "pick"; return renderGenerateForm(); }
+    if (!list) return;
+    // Delete from the trash icon on a unit card (checked before the card's own click).
+    const trash = t.closest(".lb-trash");
+    if (trash) {
+      const id = trash.dataset.lbRemove;
+      list.units = list.units.filter(u => u.id !== id).map(u => (u.attachTo === id ? { ...u, attachTo: null, slot: null } : u));
+      if (listUI.sel === id) listUI.sel = null;
+      saveList(list); return renderListEditor(list);
+    }
+    const sz = t.closest("[data-lb-setsize]");
+    if (sz) {
+      const e = list.units.find(u => u.id === sz.dataset.lbSetsize);
+      if (!e || e.models === +sz.dataset.v) return;
+      // Slide the switch to the chosen size, then update the unit once it has moved.
+      const sw = sz.closest(".lb-switch");
+      sw.style.setProperty("--i", sz.dataset.i);
+      sw.querySelectorAll("button").forEach(b => b.setAttribute("aria-checked", String(b === sz)));
+      e.models = +sz.dataset.v;
+      saveList(list);
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setTimeout(() => renderListEditor(list), reduce ? 0 : 200);
+      return;
+    }
+    const warnIcon = t.closest("[data-lb-warn]");
+    if (warnIcon) { e.preventDefault(); return toast(warnIcon.dataset.lbWarn); }
+    const step = t.closest("[data-lb-step]");
+    if (step) return lbChangeWeapon(list, step.dataset, +step.dataset.lbStep);
+    const pane = t.closest("[data-lb-pane]");
+    if (pane) { listUI.pane = pane.dataset.lbPane; return renderListEditor(list); }
+    const sel = t.closest("[data-lb-sel]");
+    if (sel) { listUI.sel = sel.dataset.lbSel; listUI.pane = "unit"; renderListEditor(list); if (isPhone()) $(".lb-colC").scrollTop = 0; return; }
+    const jump = t.closest("[data-lb-jump]");
+    if (jump) { if (isPhone()) listUI.pane = "list"; return lbJumpTo(list, jump.dataset.lbJump); }
+    const addu = t.closest("[data-lb-addunit]");
+    if (addu) {
+      if (addu.disabled) return;
+      const data = armyData(list.faction);
+      const u = data.units.find(x => x.key === addu.dataset.lbAddunit);
+      if (!u || lbAtMax(u, evaluateList(list, data))) return;
+      const e = { id: uid(), key: u.key, models: u.options[0].models, enh: null, upg: null, attachTo: null, slot: null, warlord: false, gear: {} };
+      if (u.character && !list.units.some(x => x.warlord)) e.warlord = true;
+      list.units.push(e);
+      if (!isPhone()) listUI.sel = e.id;
+      saveList(list); renderListEditor(list);
+      if (!isPhone()) document.getElementById("lbc-" + e.id)?.scrollIntoView({ block: "nearest" });
+      return toast(`Added ${u.name}`);
+    }
+    const at = t.closest("[data-lb-attachto]");
+    if (at) {
+      const c = list.units.find(u => u.id === listUI.sel);
+      const u = c && armyData(list.faction).units.find(x => x.key === c.key);
+      if (!c || !u) return;
+      c.attachTo = at.dataset.lbAttachto || null; c.slot = c.attachTo ? charSlot(u) : null;
+      saveList(list); return renderListEditor(list);
+    }
+    const dup = t.closest("[data-lb-dup]");
+    if (dup) {
+      const src = list.units.find(u => u.id === dup.dataset.lbDup);
+      if (!src) return;
+      const copy = { ...src, id: uid(), enh: null, upg: null, attachTo: null, slot: null, warlord: false, gear: JSON.parse(JSON.stringify(src.gear || {})) };
+      list.units.splice(list.units.indexOf(src) + 1, 0, copy);
+      listUI.sel = copy.id;
+      saveList(list); return renderListEditor(list);
+    }
+    const rm = t.closest("[data-lb-remove]");
+    if (rm) {
+      const id = rm.dataset.lbRemove;
+      list.units = list.units.filter(u => u.id !== id).map(u => (u.attachTo === id ? { ...u, attachTo: null, slot: null } : u));
+      saveList(list); return renderListEditor(list);
+    }
+    const wl = t.closest("[data-lb-warlord]");
+    if (wl) { for (const u of list.units) u.warlord = u.id === wl.dataset.lbWarlord; saveList(list); return renderListEditor(list); }
+  });
+  view.addEventListener("change", e => {
+    const t = e.target;
+    if (t.id === "genFaction") { listUI.gen.vibe = $("#genVibe").value; listUI.gen.faction = t.value; listUI.gen.chosen = []; return renderGenerateForm(); }
+    if (t.dataset.genDet) {
+      listUI.gen.vibe = $("#genVibe").value;
+      const g = listUI.gen;
+      g.chosen = t.checked ? [...g.chosen, t.dataset.genDet] : g.chosen.filter(n => n !== t.dataset.genDet);
+      return renderGenerateForm();
+    }
+    const list = state.lists.find(l => l.id === listUI.id);
+    if (!list) return;
+    const entry = id => list.units.find(u => u.id === id);
+    if (t.dataset.lbSize) { entry(t.dataset.lbSize).models = +t.value; }
+    else if (t.matches("[data-lb-enh]")) { entry(t.dataset.lbEnh).enh = t.value || null; }
+    else if (t.matches("[data-lb-upg]")) { entry(t.dataset.lbUpg).upg = t.value || null; }
+    else if (t.matches("[data-lb-wcheck]")) return lbChangeWeapon(list, t.dataset, t.checked ? "on" : "off");
+    else if (t.matches("[data-lb-attach]")) {
+      const c = entry(t.dataset.lbAttach);
+      const u = armyData(list.faction).units.find(x => x.key === c.key);
+      c.attachTo = t.value || null; c.slot = t.value ? charSlot(u) : null;
+    } else return;
+    saveList(list);
+    renderListEditor(list);
+  });
+  view.addEventListener("input", e => {
+    if (e.target.id === "genVibe" && listUI.gen) listUI.gen.vibe = e.target.value;
+    if (e.target.id === "lbAddFilter") { listUI.filter = e.target.value; lbApplyFilter(); }
+  });
+  // Remember which weapon bars are open, so they stay open after changes.
+  view.addEventListener("toggle", e => {
+    const k = e.target.dataset?.wkey;
+    if (k) e.target.open ? listUI.openWeapons.add(k) : listUI.openWeapons.delete(k);
+    const g = e.target.dataset?.addgrp;
+    if (g && !listUI.filter) e.target.open ? listUI.collapsed.delete(g) : listUI.collapsed.add(g);
+  }, true);
+  // Keyboard: unit cards act like buttons.
+  view.addEventListener("keydown", e => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".lb-card")) { e.preventDefault(); e.target.click(); }
+  });
+}
+
+export { renderListsPage, renderSaved, wireListBuilder };
