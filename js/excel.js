@@ -1,9 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=5.3";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=5.3";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=5.3";
+import { formatGB, toast } from "./core.js?v=5.5";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=5.5";
+import { rulesToSheets } from "./rules-doc.js?v=5.5";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=5.5";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -125,8 +126,8 @@ function structuredToSheets(data, faction) {
       }) },
     { name: "Detachment rules", columns: [W("Detachment", 30), W("Rule", 32), W("Rules", 90), W("Formatted", 20)],
       rows: data.detachments.flatMap(d => d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => [d.name, r.name, r.text, rich(r.rich)])) },
-    { name: "Enhancements", columns: [W("Detachment", 30), W("Enhancement", 34), W("Points", 8), W("Rules", 90), W("Formatted", 20)],
-      rows: data.detachments.flatMap(d => d.enhancements.map(e => [d.name, e.name, e.points ?? "", e.text, rich(e.rich)])) },
+    { name: "Enhancements", columns: [W("Detachment", 30), W("Enhancement", 34), W("Points", 8), W("Upgrade", 9), W("Rules", 90), W("Formatted", 20)],
+      rows: data.detachments.flatMap(d => d.enhancements.map(e => [d.name, e.name, e.points ?? "", e.upgrade === true ? "Yes" : e.upgrade === false ? "No" : "", e.text, rich(e.rich)])) },
     { name: "Stratagems", columns: [W("Detachment", 30), W("Stratagem", 32), W("CP", 6), W("Category", 18), W("Rules", 90), W("Formatted", 20)],
       rows: data.detachments.flatMap(d => d.stratagems.map(s => [d.name, s.name, s.cp, s.category || "", s.text, rich(s.rich)])) },
     { name: "Army rules", columns: [W("Rule", 32), W("Special move", 10), W("Rules", 100), W("Formatted", 20)],
@@ -255,7 +256,9 @@ function structuredFromWorkbook(book) {
     return {
       name: d.detachment, dp: String(d["detachment points"] || "").replace(/\s+/g, "") || "1DP",
       unique: (d["unique keyword"] || "").trim(), description: d.description || "", rules,
-      enhancements: (enhs.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points), text: e.rules || "", rich: richOr(e.formatted, e.rules || "") })),
+      // "Upgrade" column: Yes/No; workbooks made before it existed leave it to the rules text.
+      enhancements: (enhs.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points), text: e.rules || "", rich: richOr(e.formatted, e.rules || ""),
+        ...(/^(yes|true|y|1)$/i.test(e.upgrade || "") ? { upgrade: true } : /^(no|false|n|0)$/i.test(e.upgrade || "") ? { upgrade: false } : {}) })),
       stratagems: (detStrats.get(k) || []).map(s => ({ name: s.stratagem || "", cp: s.cp || "", category: s.category || "", text: s.rules || "", rich: richOr(s.formatted, s.rules || "") })),
       fromExcel: true,
     };
@@ -287,8 +290,10 @@ async function downloadBlob(blob, fileName) {
 }
 
 async function exportDocToExcel(doc) {
-  const blob = await buildXlsx(structuredToSheets(doc.structured, doc.faction));   // built fresh from the stored data
-  const saved = await downloadBlob(blob, `${(doc.faction || doc.title).replace(/[^\w\- ]+/g, "").trim() || "faction"} data.xlsx`);
+  // Built fresh from the stored data: rules documents (Core Rules, updates) or faction data.
+  const rules = !doc.structured.datasheets;
+  const blob = await buildXlsx(rules ? rulesToSheets(doc) : structuredToSheets(doc.structured, doc.faction));
+  const saved = await downloadBlob(blob, `${(rules ? doc.title : doc.faction || doc.title).replace(/[^\w\- ]+/g, "").trim() || "rules"} data.xlsx`);
   if (saved) toast(`Excel file saved (${formatGB(blob.size)})`);
 }
 

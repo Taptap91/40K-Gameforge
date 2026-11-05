@@ -1,11 +1,11 @@
 /* RulesForge · rules-chat.js
  * Ask Rules: prompts, answer clean-up and the chat page.
  */
-import { AI, isOverflow } from "./ai.js?v=5.3";
-import { $, $$, esc, state, store } from "./core.js?v=5.3";
-import { factionsInLibrary } from "./library.js?v=5.3";
-import { buildContext, planRetrieval } from "./search.js?v=5.3";
-import { md, normName, tokens } from "./text.js?v=5.3";
+import { AI, isOverflow } from "./ai.js?v=5.5";
+import { $, $$, esc, state, store } from "./core.js?v=5.5";
+import { factionsInLibrary } from "./library.js?v=5.5";
+import { buildContext, planRetrieval } from "./search.js?v=5.5";
+import { md, normName, tokens } from "./text.js?v=5.5";
 
 const RULES_SYSTEM = `You are a Warhammer 40,000 rules assistant. Answer ONLY from the numbered rules excerpts in the prompt. Never guess and never use outside knowledge.
 
@@ -16,7 +16,7 @@ How to answer:
 - End each bullet with the number of the excerpt it comes from, like [2].
 - Don't repeat the question. No introduction, no closing summary, no tips. The player can ask for more.
 - If the excerpts don't answer it, say so in one line and name the rule to look up.
-- A FAQ or Balance Dataslate overrides older text; mention it only if it changes the answer.
+- Excerpts already use the newest rules: when an excerpt says it replaces an older rule, that excerpt is the rule in force. Mention the update only if it changes the answer.
 
 Example of the layout only (a different question):
 QUESTION: Can a unit that Advanced still charge?

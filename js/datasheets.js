@@ -1,10 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=5.3";
-import { wargearOf } from "./loadout.js?v=5.3";
-import { factionMatches } from "./search.js?v=5.3";
-import { itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, stripRich, titleCase } from "./text.js?v=5.3";
+import { esc, state, uid } from "./core.js?v=5.5";
+import { wargearOf } from "./loadout.js?v=5.5";
+import { factionMatches } from "./search.js?v=5.5";
+import { coreAbilityRule } from "./rules-doc.js?v=5.5";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=5.5";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -219,12 +220,21 @@ function factionAbilitiesHTML(names, armyRules) {
   const key = n => normName(String(n).replace(/\(.*?\)/g, ""));
   const body = names.map(n => {
     const rule = (armyRules || []).find(r => key(r.name) === key(n)) || (armyRules || []).find(r => key(n).startsWith(key(r.name)) || key(r.name).startsWith(key(n)));
-    return `<div class="fv-ab"><div class="fv-ab-name">${esc(n)}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}</div></div>`;
+    return `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}</div><div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">The rules text for this isn't in your faction pack.</span>`}</div></div>`;
   }).join("");
-  return panelHTML("Faction Abilities", body);
+  return panelHTML("Faction Abilities", body, "fv-army");
 }
+/** Core abilities, with their rules text from the Core Rules (or a newer update) when those are in the Library. */
+function coreAbilitiesHTML(names) {
+  if (!names?.length) return "";
+  const withRule = names.map(n => ({ n, rule: coreAbilityRule(n) }));
+  if (!withRule.some(x => x.rule)) return panelHTML("Core Abilities", `<div class="fv-core">${names.map(n => `<span>${esc(softenCaps(n))}</span>`).join("")}</div>`);
+  return panelHTML("Core Abilities", withRule.map(({ n, rule }) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(n))}${rule?.num ? `<span class="fv-ab-ref">${esc(rule.num)}</span>` : ""}</div>
+    <div class="fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<span class="lb-subtle">Not found in your Core Rules.</span>`}</div></div>`).join(""));
+}
+
 /** Army rules of a faction from the Library (for datasheets shown in the list builder). */
-const factionArmyRules = faction => state.docs.filter(d => d.structured && factionMatches(d.faction, faction)).flatMap(d => d.structured.armyRules || []);
+const factionArmyRules = faction => state.docs.filter(d => d.structured?.datasheets && factionMatches(d.faction, faction)).flatMap(d => d.structured.armyRules || []);
 
 /** The datasheet's Wargear Options, laid out as one rule per paragraph with its choices as bullets. */
 function wargearOptionsHTML(ds) {
@@ -232,7 +242,7 @@ function wargearOptionsHTML(ds) {
   if (!wo) return "";
   const rules = wargearOf(tidyDatasheet(ds)).display || [];
   const body = rules.length
-    ? rules.map(r => `<p>${esc(r.text)}</p>${r.bullets.length ? `<ul>${r.bullets.map(b => `<li>${esc(b.replace(/\.$/, ""))}</li>`).join("")}</ul>` : ""}`).join("")
+    ? rules.map(r => `<p>${esc(softenCaps(r.text))}</p>${r.bullets.length ? `<ul>${r.bullets.map(b => `<li>${esc(softenCaps(b.replace(/\.$/, "")))}</li>`).join("")}</ul>` : ""}`).join("")
     : richHTML(wo.rich || wo.text);
   return panelHTML("Wargear Options", `<div class="fv-rich lb-wargear">${body}</div>`);
 }
@@ -245,8 +255,9 @@ function datasheetDetailsHTML(ds, armyRules) {
   const kws = niceKeywords(ds.keywords), fkws = niceKeywords(ds.factionKeywords);
   const leaderTitle = h => /^(led|supported)/i.test(h) ? (/^led/i.test(h) ? "Led By" : "Supported By") : (/^support/i.test(h) ? "Support" : "Leader");
   return [
+    coreAbilitiesHTML(v.coreNames),
     factionAbilitiesHTML(v.factionNames, armyRules),
-    own.length || v.coreNames.length ? panelHTML("Abilities", (v.coreNames.length ? `<div class="fv-rules">${v.coreNames.map(n => `<span>${esc(n)}</span>`).join("")}</div>` : "") + abilitiesHTML(own)) : "",
+    own.length ? panelHTML("Datasheet Abilities", abilitiesHTML(own)) : "",
     gear.length ? panelHTML("Wargear Abilities", abilitiesHTML(gear)) : "",
     ...v.extras.map(s => panelHTML(esc(titleCase(s.heading)), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)),
     ...v.leader.filter(l => l.intro || l.units.length).map(l => panelHTML(leaderTitle(l.heading),
@@ -291,7 +302,7 @@ function statsHTML(ds) {
       ${profiles.map(p => (named ? `<span class="model">${esc(p.name)}</span>` : "") + cells([p.M, p.T, p.SV, p.W, p.LD, p.OC], "val")).join("")}
     </div>${ds.invuln ? `<div class="fv-inv"><span>Invulnerable Save</span><span class="val">${esc(ds.invuln)}</span></div>` : ""}</section>`;
 }
-const abilitiesHTML = list => list.map(a => `<div class="fv-ab"><div class="fv-ab-name">${esc(a.name)}</div><div class="fv-rich">${richHTML(a.rich || a.text)}</div></div>`).join("");
+const abilitiesHTML = list => list.map(a => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(a.name))}</div><div class="fv-rich">${richHTML(a.rich || a.text)}</div></div>`).join("");
 
 /** Weapon rows with attached-character buffs worked in. */
 function weaponGridHTML(ws, type, buffs, withHead = true) {
@@ -314,7 +325,7 @@ function weaponGridHTML(ws, type, buffs, withHead = true) {
         .map(b => `<span class="lb-buffkw">${esc(b.keyword)} – ${esc(b.source)}</span>`);
       const statNotes = mine.filter(b => b.stat).map(b => `<span class="lb-buffkw">${b.delta > 0 ? "+" : ""}${b.delta} ${esc(b.stat)} – ${esc(b.source)}</span>`);
       const kwHTML = [own.length ? esc(own.join(", ")) : "", ...extra, ...statNotes].filter(Boolean).join('<span class="lb-sep">, </span>');
-      return `<span class="fv-wname">${isProfileName(w.name) ? `<span class="fv-dash">–</span>` : ""}${esc(w.name.replace(/\s+non-?\s*$/i, ""))}</span>${vals.join("")}<span></span>
+      return `<span class="fv-wname">${isProfileName(w.name) ? `<span class="fv-dash">–</span>` : ""}${esc(capWords(w.name.replace(/\s+non-?\s*$/i, "")))}</span>${vals.join("")}<span></span>
         ${kwHTML ? `<span class="fv-wkl">Keywords</span><span class="fv-wkw">${kwHTML}</span>` : ""}`;
     }).join("")}
   </div>`;

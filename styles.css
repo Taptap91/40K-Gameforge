@@ -156,7 +156,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-bar span.over { background: var(--red); }
 .lb-issues { font-size: 12.5px; color: var(--orange); display: flex; flex-direction: column; gap: 3px; }
 .lb-grp { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
-.lb-grp-title { font-size: 11.5px; font-weight: 600; color: var(--text-2); letter-spacing: .05em; text-transform: uppercase; }
+.lb-grp-title { font-size: 12.5px; font-weight: 600; color: var(--text-2); letter-spacing: .01em; }
 .lb-cardwrap { display: flex; flex-direction: column; gap: 4px; }
 .lb-card { width: 100%; text-align: left; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-height: 66px; display: flex; flex-direction: column; gap: 3px; }
 .lb-card:hover { background: var(--panel-2); }
@@ -316,18 +316,28 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-wkl { font-size: 12px; color: var(--text-2); padding: 0 0 8px 15px; }
 .fv-wkw { grid-column: 2 / -1; font-size: 12px; color: var(--text-2); padding-bottom: 8px; }
 .fv-rules { display: flex; flex-wrap: wrap; gap: 6px 32px; font-size: 14px; color: var(--text-2); padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border-strong); }
-.fv-ab + .fv-ab { margin-top: 10px; }
-.fv-ab-name { font-size: 14px; padding-left: 10px; margin-bottom: 4px; }
+/* Abilities: name in its own column so it's easy to find, rules text aligned beside it. */
+.fv-panel { container-type: inline-size; }
+.fv-ab { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); column-gap: 18px; row-gap: 4px; align-items: baseline; padding: 10px 0; }
+.fv-ab + .fv-ab { border-top: 1px solid var(--border); }
+.fv-ab:first-child { padding-top: 2px; }
+.fv-ab:last-child { padding-bottom: 2px; }
+.fv-ab-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+.fv-ab > .fv-rich { min-width: 0; }
+@container (max-width: 440px) { .fv-ab { grid-template-columns: minmax(0, 1fr); } }
+.fv-core { display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 14px; font-weight: 600; color: var(--text); padding: 2px 0; }
+/* Army rules: sub-headings keep their colour but aren't bold. */
+.fv-army strong, .fv-army .fv-rich strong, .fv-rich.fv-army strong { font-weight: 400; }
 .fv-rich { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
-.fv-rich strong { color: var(--text); font-weight: 700; }
+.fv-rich strong { color: var(--text); font-weight: 600; }
 .fv-rich p { margin: 0 0 6px; }
 .fv-rich p:last-child { margin-bottom: 0; }
 .fv-rich ul { margin: 6px 0 8px; padding-left: 20px; }
 .fv-rich li { margin: 2px 0; }
-.fv-intro { font-size: 14px; color: var(--text-2); padding-left: 10px; margin-bottom: 6px; }
-.fv-units { margin: 0; padding-left: 28px; font-size: 12.5px; line-height: 1.5; }
-.fv-kh { font-size: 14px; color: var(--text-2); padding-left: 10px; margin: 6px 0 6px; }
-.fv-kv { font-size: 12.5px; padding-left: 4px; margin-bottom: 6px; }
+.fv-intro { font-size: 14px; color: var(--text-2); margin-bottom: 6px; }
+.fv-units { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }
+.fv-kh { font-size: 14px; font-weight: 600; color: var(--text); margin: 4px 0 4px; }
+.fv-kv { font-size: 12.5px; color: var(--text-2); margin-bottom: 8px; }
 .fv-sublist .fv-row > summary { grid-template-columns: 18px minmax(0, 45%) 1fr; padding: 10px 0 10px 2px; }
 .fv-sublist .fv-row > summary::before { color: var(--text); }
 .fv-sublist .fv-name { font-weight: 400; }
@@ -542,3 +552,54 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 }
 
 .version-warn{position:sticky;top:0;z-index:50;padding:10px 16px;background:#7a2a1f;color:#fff;font-size:13px;text-align:center}
+
+/* Enhancements and upgrades: a checklist like the weapons, with each one's rules under its name. */
+.lb-enhopt { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 8px; align-items: start; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px 12px 8px; cursor: pointer; }
+.lb-enhopt.on { border-color: rgba(48,209,88,.5); }
+.lb-enhopt.taken { cursor: default; }
+.lb-enhopt.taken .lb-check { cursor: not-allowed; opacity: .4; }
+.lb-enhopt.taken .lb-enhhead, .lb-enhopt.taken .lb-enhdet, .lb-enhopt.taken .lb-enhtext { opacity: .45; }
+.lb-enhbody { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; min-width: 0; }
+.lb-enhhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.lb-enhpts { font-size: 12px; color: var(--text-2); }
+.lb-enhdet { font-size: 12px; color: var(--text-3); }
+.lb-enhtext { display: block; }
+.lb-enhtaken { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 4px; font-size: 12.5px; color: var(--red); }
+.lb-enhmove { padding: 4px 10px; font-size: 12.5px; }
+.lb-enhnote { font-size: 12px; color: var(--text-2); margin: -2px 0 8px; }
+.lb-why { display: block; color: var(--red); font-size: 12px; margin-top: 2px; }
+.lb-host[disabled] { opacity: .55; cursor: not-allowed; }
+.lib-status { color: var(--orange); }
+.fv-ab-ref { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
+/* Factions page: list on the left (30%), the selected item on the right (70%) */
+.fp-host { flex: 1; min-height: 0; }
+.fp-shell { display: grid; grid-template-columns: 30% 70%; height: 100%; min-height: 0; }
+.fp-left, .fp-right { overflow-y: auto; min-height: 0; min-width: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.fp-left { border-right: 1px solid var(--border); background: var(--bg); padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 4px; }
+.fp-right { padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 8px; }
+.fp-filter { margin-bottom: 6px; }
+.fp-grp { margin-top: 10px; }
+.fp-grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0 6px; }
+.fp-grp > summary::-webkit-details-marker { display: none; }
+.fp-grp > summary::before { content: "▾"; font-size: 10px; color: var(--text-2); transition: transform .15s; }
+.fp-grp:not([open]) > summary::before { transform: rotate(-90deg); }
+.fp-items { display: flex; flex-direction: column; gap: 4px; }
+.fp-item { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+.fp-item:hover { border-color: var(--border-strong); background: var(--panel-2); }
+.fp-item.on { border-color: var(--accent); background: var(--accent-soft); }
+.fp-iname { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.fp-imeta { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.fp-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
+.fp-head h2 { margin: 0; font-size: 22px; }
+.fp-sub { font-size: 13px; color: var(--text-2); }
+.fp-text { font-size: 13px; }
+.fp-back { display: none; align-self: flex-start; padding-left: 0; }
+.fp-empty, .fp-none { color: var(--text-2); text-align: center; padding: 40px 16px; }
+@media (max-width: 760px) {
+  .fp-shell { grid-template-columns: minmax(0, 1fr); }
+  .fp-shell .fp-right { display: none; }
+  .fp-shell.show-detail .fp-left { display: none; }
+  .fp-shell.show-detail .fp-right { display: flex; padding: 12px 16px 40px; }
+  .fp-back { display: inline-flex; }
+  .fp-left { border-right: 0; }
+}

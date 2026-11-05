@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=5.3";
+import { esc } from "./core.js?v=5.5";
 
 function normalize(raw) {
   return raw
@@ -23,7 +23,7 @@ const isStatValue = s => /^(\d+["+]?|-|\d+\+|N\/A|\*|D\d+(\+\d+)?|\d*D\d+(\+\d+)
 const cleanGlyphs = s => s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim();
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"]);
 const titleCase = s => s === s.toUpperCase()
-  ? s.toLowerCase().replace(/(^|[\s\-(])(\w+)/g, (m, a, w, i) => a + (i > 0 && a === " " && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
+  ? s.toLowerCase().replace(/(^|[\s\-([])(\w+)/g, (m, a, w, i) => a + (i > 0 && a === " " && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
       .replace(/(\w['’])([a-z])([a-z]{2,})/g, (m, a, b, c) => a + b.toUpperCase() + c)
   : s;
 /** Keyword lists: "INFANTRY; CHARACTER" → "INFANTRY, CHARACTER" (always capitals). */
@@ -58,8 +58,16 @@ function itemize(lines) {
   return out;
 }
 const stripRich = s => String(s || "").replace(/\*\*/g, "");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
+/** Keywords printed in capitals ("DEATH GUARD INFANTRY model only") shown with capital first letters ("Death Guard Infantry"). */
+const KEEP_CAPS = new Set(["CP", "OC", "AP", "WS", "BS", "HQ", "VP", "DP", "FNP", "OK", "II", "III", "IV", "AM", "PM"]);
+const softenCaps = s => String(s ?? "").replace(/(?<![\w’'])[A-Z][A-Z’'-]+(?:(?:\s+|\s*\/\s*)[A-Z][A-Z’'-]+)*(?![\w’'])/g,
+  m => (!/\s|\//.test(m) && KEEP_CAPS.has(m)) ? m : m.split(/(\s*\/\s*)/).map(p => /^\s*\/\s*$/.test(p) ? p : titleCase(p).replace(/\b(Cp|Oc|Ap|Ws|Bs|Hq|Vp|Dp|Fnp)\b/g, w => w.toUpperCase())).join(""));
+
+/** Weapon names with capital first letters: "Plague knife – strike" → "Plague Knife – Strike". */
+const capWords = s => String(s ?? "").replace(/(^|[\s(\/–-])([a-z])([\w’']*)/g, (m, a, c, rest) => a + ((a === " " && SMALL_WORDS.has(c + rest)) ? c : c.toUpperCase()) + rest);
+
 function richHTML(text) {
-  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const inline = t => esc(softenCaps(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   let html = "", list = false;
   for (const line of String(text || "").split("\n").filter(l => l.trim())) {
     if (line.startsWith("• ")) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(line.slice(2))}</li>`; continue; }
@@ -110,4 +118,4 @@ function md(text) {
   return out;
 }
 
-export { cleanGlyphs, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };
+export { capWords, cleanGlyphs, softenCaps, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };

@@ -1,15 +1,15 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, POINT_SIZES, saveList, sizeRules, unitMax } from "./army.js?v=5.3";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=5.3";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.3";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=5.3";
-import { keywordList, normName, richHTML } from "./text.js?v=5.3";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=5.5";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=5.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.5";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=5.5";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=5.5";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
-const structuredFactions = () => [...new Set(state.docs.filter(d => d.structured && d.faction).map(d => d.faction))].sort();
+const structuredFactions = () => [...new Set(state.docs.filter(d => d.structured?.datasheets && d.faction).map(d => d.faction))].sort();
 
 function renderListsPage() {
   const host = $("#listsHost"), tools = $("#listsToolbar"), title = $("#listsTitle");
@@ -44,7 +44,7 @@ function renderListsPage() {
 }
 
 function renderGenerateForm() {
-  const g = listUI.gen ||= { faction: structuredFactions()[0] || "", points: store.get("rf.points", 2000), vibe: "", pick: true, chosen: [] };
+  const g = listUI.gen ||= { faction: structuredFactions()[0] || "", points: (p => pointSizes().includes(p) ? p : pointSizes().at(-1))(store.get("rf.points", 2000)), vibe: "", pick: true, chosen: [] };
   $("#listsTitle").textContent = "Generate List";
   $("#listsToolbar").innerHTML = `<button class="btn" type="button" data-lb="home">Cancel</button>`;
   const data = armyData(g.faction);
@@ -58,7 +58,7 @@ function renderGenerateForm() {
         <div class="field"><label for="genFaction">Faction</label>
           <select class="select" id="genFaction" style="width:100%">${structuredFactions().map(f => `<option ${f === g.faction ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></div>
         <div class="field"><label>Points</label>
-          <div class="segmented" id="genPoints">${POINT_SIZES.map(p => `<button type="button" data-v="${p}" aria-pressed="${p === g.points}">${p}</button>`).join("")}</div>
+          <div class="segmented" id="genPoints">${pointSizes().map(p => `<button type="button" data-v="${p}" aria-pressed="${p === g.points}">${p}</button>`).join("")}</div>
           <span class="hint">${rules.name}: ${rules.dp} detachment points, up to ${rules.enh} enhancements, ${rules.dup} copies of a unit (Battleline ${rules.dup * 2}).</span></div>
       </div>
       <div class="field"><label for="genVibe">What should the army feel like?</label>
@@ -111,7 +111,7 @@ function lbLoadout(x, buffs) {
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
       return `<div class="lb-wopt${n > 0 ? " on" : ""}">
         <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="${esc(w)}">
-        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(w)}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
+        <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-wtitle">${esc(capWords(w))}${ps.length > 1 ? ` <span class="lb-subtle">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
           ${kw ? `<span class="lb-wkws">${kw}</span>` : ""}</summary>
           ${weaponGridHTML(ps, type, buffs, "profile")}</details>
         <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>` : ""}</div>
@@ -125,22 +125,86 @@ function lbLoadout(x, buffs) {
   }).join("");
 }
 
-/** Enhancement or upgrade picker, with the chosen one's rules text underneath. */
-function lbEnhPicker(x, r, upgrade) {
-  const taken = new Set(r.entries.flatMap(o => o.id === x.id ? [] : [o.enh, o.upg]).filter(Boolean));
-  const current = upgrade ? x.upg : x.enh;
-  const eligible = r.enhPool.filter(en => !!en.req?.upgrade === upgrade && canTakeEnhancement(x.unit, en) && !taken.has(en.name));
-  if (!eligible.length && !current) return "";
-  const cur = r.enhPool.find(e => e.name === current);
-  const label = upgrade ? "Upgrade" : "Enhancement";
-  return `<div class="lb-field"><label class="lb-label" for="lbe-${upgrade ? "u" : "e"}">${label}</label>
-    <select class="select lb-select" id="lbe-${upgrade ? "u" : "e"}" data-lb-${upgrade ? "upg" : "enh"}="${x.id}">
-      <option value="">None</option>
-      ${eligible.map(en => `<option value="${esc(en.name)}" ${en.name === current ? "selected" : ""}>${esc(en.name)} (+${en.points} pts) · ${esc(en.detachment)}</option>`).join("")}
-      ${current && !eligible.some(e => e.name === current) ? `<option selected value="${esc(current)}">${esc(current)}</option>` : ""}
-    </select>
-    ${cur ? `<div class="lb-enhdesc"><div class="lb-enhname">${esc(cur.name)} <span>+${cur.points} pts</span></div><div class="fv-rich">${richHTML(cur.text)}</div></div>` : ""}
-  </div>`;
+/** "Plague Marines #2 (led by Lord of Contagion)": a list entry named so it can be told apart from its copies. */
+function lbEntryLabel(o, r) {
+  const same = r.entries.filter(e => e.key === o.key);
+  const name = `${o.unit?.name || o.key}${same.length > 1 ? ` #${same.indexOf(o) + 1}` : ""}`;
+  const host = o.attachTo && r.entries.find(e => e.id === o.attachTo);
+  const riders = r.entries.filter(e => e.attachTo === o.id && e.unit);
+  if (host?.unit) return `${name} (attached to ${host.unit.name})`;
+  if (riders.length) return `${name} (with ${riders.map(e => e.unit.name).join(", ")})`;
+  return name;
+}
+
+/** Enhancements or upgrades this unit can take, as a checklist with each one's rules under its name.
+ *  Kept legal (Core Rules 25.04): one enhancement per unit (attached units count as one), the battle size's
+ *  enhancement limit (extra copies of an Upgrade don't count), one of each enhancement and up to three of each Upgrade.
+ *  Anything blocked is greyed out and says why; where it can be moved here, a button does that. */
+function lbEnhChecklist(x, r, upgrade) {
+  const current = x.enh || x.upg;
+  const options = r.enhPool.filter(en => !!en.upgrade === upgrade && (canTakeEnhancement(x.unit, en) || en.name === current));
+  if (!options.length) return "";
+  const group = attachedGroup(r.entries, x);
+  const partnerPick = group.filter(o => o.id !== x.id).find(o => o.enh || o.upg);
+  const ownPick = (x.picks || [])[0];
+  const rows = options.map(en => {
+    const on = en.name === x.enh || en.name === x.upg;
+    const holders = r.entries.filter(o => o.id !== x.id && (o.enh === en.name || o.upg === en.name));
+    const max = enhLimit(en);
+    let block = null;   // { msg, move: true when the button can fix it }
+    if (!on) {
+      // Would this add to the enhancement count? (Swapping this unit's own counted pick doesn't.)
+      const adds = !(en.upgrade && holders.length) && !(ownPick && !(ownPick.upgrade && r.entries.some(o => o.id !== x.id && (o.enh === ownPick.name || o.upg === ownPick.name))));
+      if (holders.length >= max) block = { msg: `Equipped to ${holders.map(o => lbEntryLabel(o, r)).join(", ")}${max > 1 ? ` (all ${max} copies)` : ""}`, move: true };
+      else if (partnerPick) block = { msg: `${lbEntryLabel(partnerPick, r)} already has ${partnerPick.enh || partnerPick.upg}. An attached unit can only have one enhancement.`, move: true, from: partnerPick.id };
+      else if (adds && r.enhCount >= r.rules.enh) block = { msg: `Enhancement limit reached (${r.enhCount} of ${r.rules.enh} for ${r.rules.name}). Remove one from another unit first.` };
+    }
+    const btn = block?.move ? `<button type="button" class="btn lb-enhmove" data-lb-enhmove="${x.id}" data-slot="${upgrade ? "upg" : "enh"}" data-name="${esc(en.name)}"${block.from ? ` data-from="${block.from}"` : ""}>Equip to this unit?</button>` : "";
+    const count = en.upgrade ? ` <span class="lb-subtle">${holders.length + (on ? 1 : 0)}/${max} in army</span>` : max > 1 ? ` <span class="lb-subtle">${holders.length + (on ? 1 : 0)}/${max} in army</span>` : "";
+    return `<label class="lb-enhopt${on ? " on" : ""}${block ? " taken" : ""}">
+      <input type="checkbox" class="lb-check" data-lb-enhcheck="${x.id}" data-slot="${upgrade ? "upg" : "enh"}" data-name="${esc(en.name)}" ${on ? "checked" : ""} ${block ? "disabled" : ""}>
+      <span class="lb-enhbody"><span class="lb-enhhead"><span class="lb-wtitle">${esc(en.name)}</span><span class="lb-enhpts">+${en.points} pts</span>${count}</span>
+        <span class="lb-enhdet">${esc(en.detachment)}${en.upgrade ? " · Upgrade" : ""}</span>
+        <span class="fv-rich lb-enhtext">${richHTML(en.text)}</span>${block ? `<div class="lb-enhtaken"><span>${esc(block.msg)}</span>${btn}</div>` : ""}</span>
+    </label>`;
+  }).join("");
+  const note = upgrade ? "Up to three of each Upgrade; only the first counts towards the enhancement limit." : "";
+  return panelHTML(upgrade ? "Upgrades" : "Enhancements", `${note ? `<div class="lb-enhnote">${note}</div>` : ""}<div class="lb-wopts">${rows}</div>`);
+}
+
+/** Puts an enhancement or upgrade on a unit. It replaces anything else in that unit's attached group (one per unit),
+ *  and comes off `from` when every copy was in use. */
+function lbEquipEnh(list, id, slot, name, from) {
+  const e = list.units.find(u => u.id === id);
+  if (!e) return;
+  const r = evaluateList(list);
+  const x = r.entries.find(o => o.id === id);
+  const removed = [];
+  if (from) { const o = list.units.find(u => u.id === from); if (o) { if (o.enh === name) o.enh = null; if (o.upg === name) o.upg = null; } }
+  for (const g of attachedGroup(r.entries, x)) {
+    const u = list.units.find(o => o.id === g.id);
+    for (const k of ["enh", "upg"]) if (u[k] && !(u.id === id && u[k] === name)) { if (u.id !== id || u[k] !== name) removed.push(`${u[k]} from ${lbEntryLabel(g, r)}`); u[k] = null; }
+  }
+  e[slot] = name;
+  saveList(list);
+  renderListEditor(list);
+  const others = removed.filter(t => !t.endsWith(`from ${lbEntryLabel(x, r)}`));
+  if (others.length) toast(`Removed ${others.join(", ")} (one enhancement per unit)`);
+}
+
+/** "Equip to this unit?" — moves it straight over, or asks which unit gives it up when several have it. */
+function lbMoveEnh(list, d) {
+  const data = armyData(list.faction), r = evaluateList(list, data);
+  if (d.from) return lbEquipEnh(list, d.lbEnhmove, d.slot, d.name);   // a partner in the same attached unit gives up theirs
+  const holders = r.entries.filter(o => o.id !== d.lbEnhmove && (o.enh === d.name || o.upg === d.name));
+  if (holders.length <= 1) return lbEquipEnh(list, d.lbEnhmove, d.slot, d.name, holders[0]?.id);
+  const target = r.entries.find(o => o.id === d.lbEnhmove);
+  const dlg = openSheet(`
+    <div class="sheet-head"><h2>${esc(d.name)}</h2><p>Every copy is in use. Choose the unit that gives it up so ${esc(target ? lbEntryLabel(target, r) : "this unit")} can take it.</p></div>
+    <div class="sheet-body"><div class="lb-hosts">${holders.map(o => `<button type="button" class="lb-host" data-enhfrom="${o.id}">
+      <span class="lb-hostname">${esc(lbEntryLabel(o, r))}</span><span class="lb-subtle">${o.models} model${o.models === 1 ? "" : "s"} · ${o.total} pts</span></button>`).join("")}</div></div>
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button></div>`);
+  dlg.querySelectorAll("[data-enhfrom]").forEach(b => b.onclick = () => { dlg.close(); lbEquipEnh(list, d.lbEnhmove, d.slot, d.name, b.dataset.enhfrom); });
 }
 
 function lbInspector(list, r, data) {
@@ -163,15 +227,17 @@ function lbInspector(list, r, data) {
   if (u.character) {
     const slot = charSlot(u);
     const hosts = r.entries.filter(h => h.unit && !h.unit.character && canAttach(u, h.unit, slot) && (h.id === x.attachTo || !r.entries.some(o => o.attachTo === h.id && (o.slot || charSlot(o.unit)) === slot)));
+    // Attaching can't give one unit two enhancements (Core Rules 25.04).
+    const clash = h => h.id !== x.attachTo && (x.enh || x.upg) && [h, ...r.entries.filter(o => o.attachTo === h.id && o.id !== x.id)].find(o => o.enh || o.upg);
     const same = h => r.entries.filter(o => o.key === h.key);
     attach = `<div class="lb-field"><div class="lb-label">${slot === "support" ? "Support a unit" : "Lead a unit"}</div><div class="lb-hosts">
-      ${hosts.map(h => `<button type="button" class="lb-host${h.id === x.attachTo ? " on" : ""}" data-lb-attachto="${h.id}">
-        <span class="lb-hostname">${esc(h.unit.name)}${same(h).length > 1 ? ` #${same(h).indexOf(h) + 1}` : ""}</span><span class="lb-subtle">${h.models} models · ${h.total} pts</span>${h.id === x.attachTo ? `<span class="lb-tick">✓</span>` : ""}</button>`).join("")}
+      ${hosts.map(h => { const c = clash(h); return `<button type="button" class="lb-host${h.id === x.attachTo ? " on" : ""}" data-lb-attachto="${h.id}" ${c ? "disabled" : ""}>
+        <span class="lb-hostname">${esc(h.unit.name)}${same(h).length > 1 ? ` #${same(h).indexOf(h) + 1}` : ""}</span><span class="lb-subtle">${c ? `${esc(c.unit.name)} has ${esc(c.enh || c.upg)}; one enhancement per attached unit` : `${h.models} models · ${h.total} pts`}</span>${h.id === x.attachTo ? `<span class="lb-tick">✓</span>` : ""}</button>`; }).join("")}
       <button type="button" class="lb-host${!x.attachTo ? " on" : ""}" data-lb-attachto=""><span class="lb-hostname">Not attached</span><span class="lb-subtle">${hosts.length ? "Fights as its own unit" : "No unit in your list can take this character"}</span></button>
     </div></div>`;
   }
   const buffNote = buffs.length ? `<div class="lb-buffnote">Weapon bonuses from attached characters are shown in <span class="lb-buffkw">this colour</span>.</div>` : "";
-  const enhHTML = lbEnhPicker(x, r, false) + lbEnhPicker(x, r, true);
+  const enhHTML = lbEnhChecklist(x, r, false) + lbEnhChecklist(x, r, true);
   return `
     <div class="lb-insp-head">
       <div class="lb-insp-title"><h2>${esc(u.name)}</h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>
@@ -186,7 +252,7 @@ function lbInspector(list, r, data) {
     ${buffNote}
     ${(() => { const other = (x.problems || []).filter(p => !(x.loadoutText || []).includes(p)); return other.length ? `<div class="lb-problems">${other.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""; })()}
     ${lbLoadout(x, buffs)}
-    ${enhHTML ? panelHTML("Enhancements &amp; Upgrades", enhHTML) : ""}
+    ${enhHTML}
     ${datasheetDetailsHTML(ds, factionArmyRules(list.faction))}`;
 }
 
@@ -227,14 +293,14 @@ function lbListColumn(list, r) {
   // Alphabetical within each category, whenever a unit was added (copies keep their order).
   for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
   const pct = Math.min(100, Math.round(r.total / list.points * 100));
-  const enhCount = r.entries.reduce((n, x) => n + (x.enh ? 1 : 0) + (x.upg ? 1 : 0), 0);
+  const enhCount = r.enhCount;
   return `
     <div class="lb-listhead">
       <div class="lb-namebar"><h2>${esc(list.name)}</h2><button class="btn plain" type="button" data-lb-rename="${list.id}">Rename</button></div>
       <div class="lb-meta">${esc(list.faction)} · ${r.rules.name}</div>
       <div class="lb-pts"><b class="${r.left < 0 ? "over" : ""}">${r.total.toLocaleString()}</b> / ${list.points.toLocaleString()} pts · ${r.entries.length} unit${r.entries.length === 1 ? "" : "s"}</div>
       <div class="lb-bar"><span class="${r.left < 0 ? "over" : ""}" style="width:${pct}%"></span></div>
-      <div class="lb-meta">${r.dpUsed} of ${r.rules.dp} DP · ${enhCount} of ${r.rules.enh} enhancements &amp; upgrades</div>
+      <div class="lb-meta">${r.dpUsed} of ${r.rules.dp} DP · ${enhCount} of ${r.rules.enh} enhancements</div>
       <div class="lb-dets">${list.detachments.map(d => { const dd = r.dets.find(x => x.name === d); return `<span class="lb-chip">${esc(d)}${dd?.unique ? ` · Unique: ${esc(dd.unique)}` : ""}</span>`; }).join("") || `<span class="lb-subtle">No detachment chosen</span>`}
         <button class="btn plain" type="button" data-lb="detachments">Change</button></div>
       ${r.issues.length ? `<div class="lb-issues">${r.issues.map(i => `<div>⚠︎ ${esc(i)}</div>`).join("")}</div>` : `<div class="lb-ok">✓ Legal for ${r.rules.name}</div>`}
@@ -334,12 +400,14 @@ function openDetachmentPicker(list) {
     const chosen = data.detachments.filter(d => list.detachments.includes(d.name));
     const tags = new Set(chosen.map(d => d.unique).filter(Boolean));
     openSheet(`
-      <div class="sheet-head"><h2>Detachments</h2><p>${chosen.reduce((s, d) => s + d.dp, 0)} of ${rules.dp} DP used · no two detachments may share a Unique tag.</p></div>
+      <div class="sheet-head"><h2>Detachments</h2><p>${chosen.reduce((s, d) => s + d.dp, 0)} of ${rules.dp} DP used (${rules.name}) · no two detachments may share a Unique tag${rules.name === "Incursion" ? " · one 3 DP detachment may be taken on its own" : ""}.</p></div>
       <div class="sheet-body"><div class="list">${data.detachments.slice().sort((a, b) => a.name.localeCompare(b.name)).map(d => {
         const on = list.detachments.includes(d.name);
-        const blocked = !on && ((d.unique && tags.has(d.unique)) || !detachmentsBudgetOK([...chosen, d], rules));
-        return `<label class="list-row ${blocked ? "lb-blocked" : ""}"><input type="checkbox" data-det="${esc(d.name)}" ${on ? "checked" : ""} ${blocked ? "disabled" : ""}>
-          <span class="main"><span class="title">${esc(d.name)}</span><span class="meta" style="display:block">${d.dp} DP${d.unique ? ` · Unique: ${esc(d.unique)}` : ""} · ${d.enhancements.length} enhancements</span></span></label>`;
+        const rival = !on && d.unique && chosen.find(c => c.unique === d.unique);
+        const over = !on && !detachmentsBudgetOK([...chosen, d], rules);
+        const why = rival ? `Shares the Unique: ${d.unique} tag with ${rival.name}` : over ? `Needs ${d.dp} DP; ${Math.max(0, rules.dp - chosen.reduce((s, c) => s + c.dp, 0))} left for ${rules.name}` : "";
+        return `<label class="list-row ${why ? "lb-blocked" : ""}"><input type="checkbox" data-det="${esc(d.name)}" ${on ? "checked" : ""} ${why ? "disabled" : ""}>
+          <span class="main"><span class="title">${esc(d.name)}</span><span class="meta" style="display:block">${d.dp} DP${d.unique ? ` · Unique: ${esc(d.unique)}` : ""} · ${d.enhancements.length} enhancements</span>${why ? `<span class="meta lb-why">${esc(why)}</span>` : ""}</span></label>`;
       }).join("")}</div></div>
       <div class="sheet-foot"><button class="btn primary" type="button" data-close>Done</button></div>`);
     $$('#sheet [data-det]').forEach(cb => cb.onchange = () => {
@@ -362,7 +430,7 @@ function openCreateSheet() {
     <div class="sheet-body">
       <div class="field"><label for="newName">Name</label><input class="input" id="newName" placeholder="My army"></div>
       <div class="field"><label for="newFaction">Faction</label><select class="select" id="newFaction" style="width:100%">${factions.map(f => `<option>${esc(f)}</option>`).join("")}</select></div>
-      <div class="field"><label>Points</label><div class="segmented" id="newPoints">${POINT_SIZES.map(p => `<button type="button" data-v="${p}" aria-pressed="${p === 2000}">${p}</button>`).join("")}</div></div>
+      <div class="field"><label>Points</label><div class="segmented" id="newPoints">${pointSizes().map(p => `<button type="button" data-v="${p}" aria-pressed="${p === 2000}">${p}</button>`).join("")}</div></div>
     </div>
     <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="newGo">Create</button></div>`);
   let pts = 2000;
@@ -452,6 +520,8 @@ function wireListBuilder() {
       setTimeout(() => renderListEditor(list), reduce ? 0 : 200);
       return;
     }
+    const move = t.closest("[data-lb-enhmove]");
+    if (move) { e.preventDefault(); return lbMoveEnh(list, move.dataset); }
     const warnIcon = t.closest("[data-lb-warn]");
     if (warnIcon) { e.preventDefault(); return toast(warnIcon.dataset.lbWarn); }
     const step = t.closest("[data-lb-step]");
@@ -515,8 +585,10 @@ function wireListBuilder() {
     if (!list) return;
     const entry = id => list.units.find(u => u.id === id);
     if (t.dataset.lbSize) { entry(t.dataset.lbSize).models = +t.value; }
-    else if (t.matches("[data-lb-enh]")) { entry(t.dataset.lbEnh).enh = t.value || null; }
-    else if (t.matches("[data-lb-upg]")) { entry(t.dataset.lbUpg).upg = t.value || null; }
+    else if (t.matches("[data-lb-enhcheck]")) {
+      if (t.checked) return lbEquipEnh(list, t.dataset.lbEnhcheck, t.dataset.slot, t.dataset.name);
+      const u = entry(t.dataset.lbEnhcheck); if (u.enh === t.dataset.name) u.enh = null; if (u.upg === t.dataset.name) u.upg = null;
+    }
     else if (t.matches("[data-lb-wcheck]")) return lbChangeWeapon(list, t.dataset, t.checked ? "on" : "off");
     else if (t.matches("[data-lb-attach]")) {
       const c = entry(t.dataset.lbAttach);

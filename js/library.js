@@ -1,13 +1,14 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=5.3";
-import { structuredToLibrary } from "./datasheets.js?v=5.3";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=5.3";
-import { extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, mergeArmyRules } from "./faction-parser.js?v=5.3";
-import { renderAll } from "./main.js?v=5.3";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=5.3";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=5.3";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=5.5";
+import { structuredToLibrary } from "./datasheets.js?v=5.5";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=5.5";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, mergeArmyRules } from "./faction-parser.js?v=5.5";
+import { renderAll } from "./main.js?v=5.5";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=5.5";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=5.5";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=5.5";
 
 async function importFiles(files, kind, faction) {
   const box = $("#importProgress"), errBox = $("#importError");
@@ -24,6 +25,19 @@ async function importFiles(files, kind, faction) {
       });
       if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
       // Untagged faction PDFs are tagged from their title or file name ("Dark_Angels_Codex…" → Dark Angels).
+      const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name);
+      // Core Rules and updates become numbered rule sections, saved through an Excel workbook like faction packs.
+      if (kind === "core" || kind === "updates") {
+        $("#importText").textContent = `Converting ${f.name} into rule sections…`;
+        await new Promise(r => setTimeout(r, 30));
+        const parsed = parseRulesPdf(pages.flatMap(p => p.items));
+        if (parsed.sections.length >= 3) {
+          const draft = { kind, title, edition, structured: parsed };
+          const back = rulesFromWorkbook(await readXlsx(await (await buildXlsx(rulesToSheets(draft))).arrayBuffer()));
+          await replaceRulesDoc({ id: uid(), title, kind, pageCount, importedAt: Date.now(), format: "structured", source: "excel", edition, structured: back.structured, chunks: sectionChunks(back.structured.sections) });
+          continue;
+        }
+      }
       let docFaction = faction;
       if (!docFaction && kind === "faction") docFaction = detectFactions(`${title} ${f.name.replace(/[_\-.]+/g, " ")}`)[0] || "";
       // Datasheet-style faction PDFs become compact structured records instead of raw page text.
@@ -31,7 +45,7 @@ async function importFiles(files, kind, faction) {
       if (kind !== "core") {
         $("#importText").textContent = `Converting ${f.name} into datasheets and detachments…`;
         await new Promise(r => setTimeout(r, 30));
-        const all = pages.flatMap(p => p.items);
+        const all = dropPageFurniture(pages.flatMap(p => p.items));
         // Two readers: one for normal letter/A4 pages, one for very tall single-page exports. Keep whichever read more.
         const printed = parsePrintedFactionPdf(all), tall = parseFactionPdf(all);
         // The letter/A4 reader keeps more detail (bold text, leaders, Unique tags), so it wins unless it clearly read less.
@@ -48,10 +62,10 @@ async function importFiles(files, kind, faction) {
         const fromExcel = structuredFromWorkbook(await readXlsx(await xlsx.arrayBuffer()));
         delete fromExcel.faction;
         const lib = structuredToLibrary(fromExcel, docFaction);
-        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), format: "structured", source: "excel", structured: fromExcel, chunks: lib.chunks, points: lib.points };
+        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), edition, format: "structured", source: "excel", structured: fromExcel, chunks: lib.chunks, points: lib.points };
       } else {
         const points = kind === "core" ? [] : extractPoints(pages).map(p => docFaction ? { ...p, section: docFaction } : p);
-        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), chunks: chunkPages(pages), points };
+        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), edition, chunks: chunkPages(pages), points };
       }
       for (const p of pages) delete p.items;   // positions aren't stored
       if (structured) await replaceFaction(doc);
@@ -74,7 +88,14 @@ async function importExcelFile(f, faction) {
   $("#importText").textContent = `Reading ${f.name}…`;
   $("#importBar").style.width = "40%";
   const buffer = await f.arrayBuffer();
-  const data = structuredFromWorkbook(await readXlsx(buffer));
+  const book = await readXlsx(buffer);
+  // A rules workbook (Core Rules or an update) rather than faction data.
+  const rules = rulesFromWorkbook(book);
+  if (rules) {
+    const title = rules.title || f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
+    return replaceRulesDoc({ id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) }, f.name);
+  }
+  const data = structuredFromWorkbook(book);
   const docFaction = faction || data.faction || detectFactions(f.name.replace(/[_\-.]+/g, " "))[0] || "";
   delete data.faction;
   const title = f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
@@ -83,9 +104,18 @@ async function importExcelFile(f, faction) {
   await replaceFaction(doc, f.name);
 }
 
+/** Stores a rules document; the same document added again (same kind and title) replaces the earlier copy. */
+async function replaceRulesDoc(doc, label = doc.title) {
+  const same = state.docs.filter(d => d.kind === doc.kind && isRulesDoc(d) && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase());
+  await DB.put("docs", doc);
+  state.docs.push(doc);
+  for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
+  if (same.length) toast(`Replaced the earlier copy of ${label}`);
+}
+
 /** Stores converted faction data, replacing any earlier data for the same faction so the newest import is the one used. */
 async function replaceFaction(doc, label = doc.title) {
-  const same = state.docs.filter(d => d.structured && doc.faction && factionMatches(d.faction, doc.faction));
+  const same = state.docs.filter(d => d.structured?.datasheets && doc.faction && factionMatches(d.faction, doc.faction));
   await DB.put("docs", doc);
   state.docs.push(doc);
   for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
@@ -114,17 +144,38 @@ function factionsInLibrary() {
           <div class="icon">${icon(info.icon)}</div>
           <div class="main">
             <div class="title">${esc(d.title)}</div>
-            <div class="meta">${[d.faction, d.source === "wahapedia" ? `${d.pageCount} datasheets · Wahapedia${d.updated ? " " + d.updated.slice(0, 10) : ""}` : d.structured ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.length} army rules${d.source === "excel" ? " · Excel" : ""}` : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : ""].filter(Boolean).map(esc).join(" · ")}</div>
+            <div class="meta">${docMeta(d).map(esc).join(" · ")}</div>
+            ${isRulesDoc(d) ? rulesStatus(d) : ""}
           </div>
-          ${d.structured ? `<button class="btn" data-view-data="${d.id}" type="button">View</button><button class="btn" data-excel="${d.id}" type="button">Download Excel</button>` : ""}
-          ${kind !== "core" ? `<button class="btn" data-points="${d.id}" type="button">Points</button>` : ""}
+          ${d.structured?.datasheets ? `<button class="btn" data-view-data="${d.id}" type="button">View</button>` : ""}
+          ${d.structured ? `<button class="btn" data-excel="${d.id}" type="button">Download Excel</button>` : ""}
+          ${kind === "faction" || kind === "points" ? `<button class="btn" data-points="${d.id}" type="button">Points</button>` : ""}
           <button class="btn plain danger" data-delete="${d.id}" type="button">Remove</button>
         </div>`).join("")}
       </div>`;
   }).join("");
 }
 
-/** Excel workbooks are always faction data, so they go straight in; PDFs ask what they are. */
+function docMeta(d) {
+  const ed = editionLabel(d.edition);
+  if (isRulesDoc(d)) return [`${d.structured.sections.length} rule sections`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed];
+  return [d.faction, d.source === "wahapedia" ? `${d.pageCount} datasheets · Wahapedia${d.updated ? " " + d.updated.slice(0, 10) : ""}`
+    : d.structured?.datasheets ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.length} army rules${d.source === "excel" ? " · Excel" : ""}`
+    : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : "", ed].filter(Boolean);
+}
+
+/** For rules documents: how many of its rules are in force, and what it replaced or what replaced it. */
+function rulesStatus(d) {
+  const eff = effectiveRules().sections;
+  const live = eff.filter(s => s.source.docId === d.id);
+  const replaced = live.filter(s => s.replaces.length).length;
+  const lost = d.structured.sections.length - live.length;
+  const bits = [d.kind === "updates" && replaced ? `Replaces ${replaced} earlier rule${replaced === 1 ? "" : "s"}` : "",
+    lost > 0 ? `${lost} rule${lost === 1 ? "" : "s"} replaced by newer updates` : ""].filter(Boolean);
+  return bits.length ? `<div class="meta lib-status">${esc(bits.join(" · "))}</div>` : "";
+}
+
+/** Excel workbooks go straight in (RulesForge workbooks say what they are); PDFs ask what they are. */
 async function addLibraryFiles(files) {
   const excel = files.filter(isExcelFile), pdfs = files.filter(f => !isExcelFile(f));
   if (excel.length) await importFiles(excel, "faction", "");

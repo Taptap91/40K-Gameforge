@@ -1,15 +1,16 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=5.3";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=5.3";
-import { exportDocToExcel } from "./excel.js?v=5.3";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=5.3";
-import * as core from "./core.js?v=5.3";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=5.3";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=5.3";
-import { buildIndex } from "./search.js?v=5.3";
-import { openDataViewer } from "./viewer.js?v=5.3";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=5.5";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=5.5";
+import { exportDocToExcel } from "./excel.js?v=5.5";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=5.5";
+import * as core from "./core.js?v=5.5";
+import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=5.5";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=5.5";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=5.5";
+import { buildIndex } from "./search.js?v=5.5";
+import { openDataViewer } from "./viewer.js?v=5.5";
 
 function renderAll() {
   renderScope();
@@ -17,13 +18,16 @@ function renderAll() {
   renderChat();
   renderSaved();
   renderAIStatus();
+  if (!$("#view-factions").classList.contains("hidden")) renderFactionsPage();
   $("#factionList").innerHTML = [...new Set([...factionsInLibrary(), ...KNOWN_FACTIONS])].sort().map(f => `<option value="${esc(f)}">`).join("");
 }
 
 function showView(name) {
-  if (!["rules", "lists", "library"].includes(name)) name = "library"; // the old Get Data page now lives in Library
-  for (const v of ["rules", "lists", "library"]) $("#view-" + v).classList.toggle("hidden", v !== name);
+  const views = ["rules", "lists", "factions", "library"];
+  if (!views.includes(name)) name = "library"; // the old Get Data page now lives in Library
+  for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
+  if (name === "factions") renderFactionsPage();
   $$(".nav-item").forEach(b => b.dataset.view === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   store.set("rf.view", name);
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
@@ -112,6 +116,7 @@ function showView(name) {
 
   // Lists
   wireListBuilder();
+  wireFactionsPage();
 }(async function init() {
   window.rfStarted = true;
   wireEvents();

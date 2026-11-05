@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=5.3";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=5.3";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=5.3";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=5.5";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=5.5";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=5.5";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -190,6 +190,8 @@ const SUBHEAD = "\u0001";
 /** An army rule's text, with sub-titled parts as their own paragraphs (bold in the rich version). */
 function armyRuleWithSubheads(e) {
   const blocks = [];
+  // Web-page leftovers at the end of a rule ("FAQ / ERRATA Show") aren't rules text.
+  e = { ...e, lines: e.lines.map(l => l.replace(/\s*\bFAQ\s*\/\s*ERRATA\b(\s*(Show|Hide)\b)?\s*$/i, "")).filter(l => l.trim() && !/^(Show|Hide)$/i.test(l.trim())) };
   for (const l of e.lines) {
     if (l.startsWith(SUBHEAD)) blocks.push({ head: l.slice(1), lines: [] });
     else (blocks[blocks.length - 1] || blocks[blocks.push({ head: "", lines: [] }) - 1]).lines.push(l);
@@ -252,6 +254,18 @@ function mergeArmyRules(found, fromLayout) {
   const key = n => normName(String(n).replace(/\(.*?\)/g, ""));
   const have = new Set(found.map(r => key(r.name)));
   return [...found, ...fromLayout.filter(r => !have.has(key(r.name)))];
+}
+
+/** Drops browser print headers and footers (date, page title, web address, "2/39") that repeat at the top or bottom of most pages. */
+function dropPageFurniture(items) {
+  const edge = i => i.ph && (i.py < 32 || i.py > i.ph - 32);
+  const shape = i => cleanGlyphs(i.t).replace(/\d+/g, "#").trim();
+  const pages = new Set(items.map(i => Math.round(i.y - i.py)));
+  if (pages.size < 3) return items;
+  const seen = new Map();
+  for (const i of items) if (edge(i)) { const k = shape(i); if (!seen.has(k)) seen.set(k, new Set()); seen.get(k).add(Math.round(i.y - i.py)); }
+  const repeated = new Set([...seen].filter(([, ps]) => ps.size >= Math.max(3, pages.size * 0.15)).map(([k]) => k));
+  return repeated.size ? items.filter(i => !(edge(i) && repeated.has(shape(i)))) : items;
 }
 
 const EXCLUDED_GROUPS = /^(boarding actions|boarding strike|pilum strike team)\b/i;
@@ -451,7 +465,7 @@ function parseFactionPdf(allItems) {
         }
         if (sectionItem) { heads.push({ y: line.y, col: colIndex, name: sectionItem.t.toUpperCase() }); entry = null; continue; }
         if (/^(ERRATA( Show)?|Show|Hide)$/i.test(line.text)) continue;
-        const nameItems = line.items.filter(i => Math.abs(i.s - entrySize) < 1.2 && letterCount(i.t) >= 3 && !/^[.\s]+$/.test(i.t.replace(/\d|PTS/gi, "")));
+        const nameItems = line.items.filter(i => Math.abs(i.s - entrySize) < 1.2 && letterCount(i.t) >= 3 && !/^UPGRADE$/i.test(i.t.trim()) && !/^[.\s]+$/.test(i.t.replace(/\d|PTS/gi, "")));
         if (nameItems.length && !/^ERRATA$/i.test(nameItems[0].t)) {
           const dots = line.items.find(i => /\.\s*\./.test(i.t));
           const ptsItem = line.items.find(i => /^\d+\s*PTS$/i.test(i.t));
@@ -459,7 +473,8 @@ function parseFactionPdf(allItems) {
           // The CP cost can sit a little below the name, in the same column.
           const cp = line.items.find(i => /^\d+\s*CP$/i.test(i.t)) ||
             col.find(i => /^\d+\s*CP$/i.test(i.t) && Math.abs(i.y - line.y) < 14 && i.x > line.items[0].x);
-          entry = { y: line.y, col: colIndex, name: titleCase(cleanGlyphs(nameItems.map(i => i.t.replace(/[.\s]{3,}.*$/, "")).join(" "))), points: pts ? +pts[1] : null, cp: cp ? cp.t.replace(/\s+/g, "") : "", lines: [] };
+          entry = { y: line.y, col: colIndex, name: titleCase(cleanGlyphs(nameItems.map(i => i.t.replace(/[.\s]{3,}.*$/, "")).join(" "))), points: pts ? +pts[1] : null, cp: cp ? cp.t.replace(/\s+/g, "") : "", lines: [],
+            upgrade: line.items.some(i => /^UPGRADE$/i.test(i.t.trim())) };
           entries.push(entry);
           continue;
         }
@@ -494,7 +509,7 @@ function parseFactionPdf(allItems) {
     for (const e of entries) {
       const text = joinParagraphs(e.lines);
       if (sec.kind === "army") { if (!/^(faq|errata)\b/i.test(e.name)) result.armyRules.push(armyRuleWithSubheads(e)); }
-      else if (/ENHANCEMENT/.test(e.section)) det.enhancements.push({ name: e.name, points: e.points, text });
+      else if (/ENHANCEMENT/.test(e.section)) det.enhancements.push({ name: e.name, points: e.points, text, ...(e.upgrade ? { upgrade: true } : {}) });
       else if (/STRATAGEM/.test(e.section)) det.stratagems.push({ name: e.name, cp: e.cp, text: text.includes("WHEN:") ? text.slice(text.indexOf("WHEN:")) : text });
       else if (/^unique\b/i.test(e.name)) det.unique = titleCase(cleanGlyphs((e.name.replace(/^unique\s*:?\s*/i, "") || text.split("\n")[0] || "").trim()));
       else det.rules.push({ name: e.name, text });
@@ -831,8 +846,8 @@ function parsePrintedFactionPdf(allItems) {
       if (Math.abs(first.s - entrySize) < 1.2 && isUpperText(cleanGlyphs(first.t)) && letterCount(first.t) >= 3) {
         if (/^(UNIQUE\b|ERRATA\b)/i.test(line.raw)) { entry = null; continue; }
         const pts = line.plain.match(/(\d+)\s*PTS\b/i), cp = line.plain.match(/(\d+)\s*CP\b/i);
-        const name = titleCase(cleanGlyphs(line.items.filter(i => Math.abs(i.s - entrySize) < 1.2).map(i => i.t.replace(/(\s*\.\s*){3,}/g, " ")).join(" ")).replace(/\d+\s*(PTS|CP)\b/gi, "").trim());
-        entry = { section, name, points: pts ? +pts[1] : null, cp: cp ? +cp[1] : null, lines: [], x: null };
+        const name = titleCase(cleanGlyphs(line.items.filter(i => Math.abs(i.s - entrySize) < 1.2 && !/^UPGRADE$/i.test(i.t.trim())).map(i => i.t.replace(/(\s*\.\s*){3,}/g, " ")).join(" ")).replace(/\d+\s*(PTS|CP)\b/gi, "").replace(/\s+UPGRADE$/i, "").trim());
+        entry = { section, name, points: pts ? +pts[1] : null, cp: cp ? +cp[1] : null, lines: [], x: null, upgrade: /\bUPGRADE\b/.test(line.raw || line.plain || "") };
         entries.push(entry);
         continue;
       }
@@ -853,7 +868,7 @@ function parsePrintedFactionPdf(allItems) {
       const baseX = ls.length ? Math.min(...ls.map(l => l.x)) : 0;
       const rich = regionText(ls, baseX);
       const out = { name: e.name, rich, text: stripRich(rich) };
-      if (/ENHANCEMENT/.test(e.section) || e.points != null) det.enhancements.push({ ...out, points: e.points });
+      if (/ENHANCEMENT/.test(e.section) || e.points != null) det.enhancements.push({ ...out, points: e.points, ...(e.upgrade ? { upgrade: true } : {}) });
       else if (/STRATAGEM/.test(e.section) || e.cp != null) det.stratagems.push({ ...out, cp: e.cp != null ? `${e.cp}CP` : "", category });
       else det.rules.push(out);
     }
@@ -899,4 +914,4 @@ function parsePrintedFactionPdf(allItems) {
   return result;
 }
 
-export { armyRulesFromLayout, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
+export { armyRulesFromLayout, dropPageFurniture, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };

@@ -1,18 +1,18 @@
 /* RulesForge · viewer.js
  * Library → View: the faction viewer (datasheets, detachments, army rules).
  */
-import { $, $$, esc, openSheet, state } from "./core.js?v=5.3";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.3";
-import { keywordList, normName, richHTML } from "./text.js?v=5.3";
+import { $, $$, esc, openSheet, state } from "./core.js?v=5.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=5.5";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=5.5";
 
 function openDataViewer(docId) {
   const doc = state.docs.find(d => d.id === docId);
-  if (!doc?.structured) return;
+  if (!doc?.structured?.datasheets) return;
   const d = doc.structured;
   const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const row = (name, value, bodyHTML, opts = {}) => `
     <details class="fv-row${opts.sub ? " fv-sub" : ""}${opts.dim ? " fv-dim" : ""}" data-name="${esc(normName(name))}">
-      <summary><span class="fv-name">${esc(name)}</span><span class="fv-val">${esc(value || "")}</span></summary>
+      <summary><span class="fv-name">${esc(softenCaps(name))}</span><span class="fv-val">${esc(value || "")}</span></summary>
       <div class="fv-body">${bodyHTML}</div>
     </details>`;
   const panel = (title, inner, extraClass = "") => panelHTML(esc(title), inner, extraClass);
@@ -44,7 +44,7 @@ function openDataViewer(docId) {
     const rivals = uq ? d.detachments.filter(o => o !== det && normName(detUnique(o)) === normName(uq)).map(o => o.name) : [];
     const inner = [
       uq ? `<div class="fv-unique"><b>Unique: ${esc(uq)}</b><span>${rivals.length ? `Can't be taken in the same army as ${esc(rivals.join(", "))}.` : "No other detachment in your army may share this tag."}</span></div>` : "",
-      det.rules.some(r => !/^unique\b/i.test(r.name)) ? panel("Detachment Rules", det.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => `<div class="fv-ab"><div class="fv-ab-name">${esc(r.name)}</div><div class="fv-rich">${richHTML(r.rich || r.text)}</div></div>`).join("")) : "",
+      det.rules.some(r => !/^unique\b/i.test(r.name)) ? panel("Detachment Rules", det.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(r.name))}</div><div class="fv-rich">${richHTML(r.rich || r.text)}</div></div>`).join("")) : "",
       det.enhancements.length ? panel("Enhancements", `<div class="fv-sublist">${det.enhancements.map(e => row(e.name, e.points != null ? `${e.points} Points` : "", `<div class="fv-rich">${richHTML(e.rich || e.text)}</div>`, { sub: true })).join("")}</div>`) : "",
       det.stratagems.length ? panel("Stratagems", `<div class="fv-sublist">${det.stratagems.map(st => row(st.name, String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), `<div class="fv-rich">${richHTML(st.rich || st.text)}</div>`, { sub: true })).join("")}</div>`) : "",
     ].join("");
@@ -54,8 +54,8 @@ function openDataViewer(docId) {
   // Army rules: main rules first, special move rules after
   const main = d.armyRules.filter(r => !r.special), moves = d.armyRules.filter(r => r.special).sort((a, b) => a.name.localeCompare(b.name));
   const armyPane = `<div class="fv-group"><div class="fv-group-title">Army Rules</div><div class="fv-list">${[
-    ...main.map(r => row(r.name, "", panel("", `<div class="fv-rich">${richHTML(r.rich || r.text)}</div>`))),
-    ...moves.map(r => row(r.name, "Special Move Rule", panel("", `<div class="fv-rich">${richHTML(r.rich || r.text)}</div>`), { dim: true })),
+    ...main.map(r => row(r.name, "", panel("", `<div class="fv-rich fv-army">${richHTML(r.rich || r.text)}</div>`))),
+    ...moves.map(r => row(r.name, "Special Move Rule", panel("", `<div class="fv-rich fv-army">${richHTML(r.rich || r.text)}</div>`), { dim: true })),
   ].join("")}</div></div>`;
 
   const name = doc.faction || doc.title;

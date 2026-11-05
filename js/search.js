@@ -1,9 +1,10 @@
 /* RulesForge · search.js
  * Rules search: finds the passages that answer a question, and works out which units and factions it's about.
  */
-import { KNOWN_FACTIONS, state } from "./core.js?v=5.3";
-import { scopeLabel } from "./rules-chat.js?v=5.3";
-import { normName, tokens } from "./text.js?v=5.3";
+import { KNOWN_FACTIONS, state } from "./core.js?v=5.5";
+import { scopeLabel } from "./rules-chat.js?v=5.5";
+import { normName, tokens } from "./text.js?v=5.5";
+import { editionLabel, effectiveRules, isRulesDoc, sectionChunks } from "./rules-doc.js?v=5.5";
 
 const SHORTHAND = {
   fnp: "feel no pain", ds: "deep strike", oc: "objective control", mw: "mortal wounds", mws: "mortal wounds",
@@ -39,10 +40,21 @@ const GENERIC_WORDS = new Set(tokens(
 function buildIndex() {
   const chunks = [];
   for (const doc of state.docs) {
+    if (isRulesDoc(doc)) continue;   // added below, as the rules currently in force
     doc.chunks.forEach((c, ordinal) => chunks.push({
       text: c.text, page: c.page, ordinal, docId: doc.id, docTitle: doc.title, kind: doc.kind, faction: doc.faction || "", cite: c.cite,
     }));
   }
+  // Core Rules and updates: one passage per rule section, using the newest version of each rule only,
+  // so a replaced rule is never quoted. Each passage says which document (and version) it comes from.
+  const eff = effectiveRules();
+  eff.sections.forEach(s => {
+    const label = `${s.source.title}${editionLabel(s.source.edition) ? ` (${editionLabel(s.source.edition)})` : ""}`;
+    const note = s.replaces.length ? `\n[This ${s.source.kind === "updates" ? "update" : "version"} replaces the rule in ${s.replaces.map(r => r.title).join(", ")}.]` : "";
+    sectionChunks([s]).forEach((c, ordinal) => chunks.push({
+      text: c.text + (ordinal === 0 ? note : ""), page: c.page, ordinal, docId: s.source.docId, docTitle: label, kind: s.source.kind, faction: "", cite: c.cite,
+    }));
+  });
   const tf = [], df = new Map(), lengths = [];
   for (const c of chunks) {
     const toks = tokens(c.text);
@@ -201,7 +213,7 @@ function planRetrieval(question) {
   const units = detectUnits(question);
   const factions = detectFactions(question);
   const ruleQuery = stripNames(question, units, factions) || question;
-  const hasCore = state.docs.some(d => isCoreOrUpdate(d));
+  const hasCore = state.docs.some(d => d.kind === "core" || d.kind === "updates");
 
   if (units.length) {
     const sheets = units.map(u => ({ label: `DATASHEET — ${u.name}`, hits: datasheetHits(u, question) })).filter(g => g.hits.length);

@@ -1,22 +1,25 @@
 /* RulesForge · army.js
  * Army rules and list legality (battle sizes, detachments, enhancements, attachments), and the list generator.
  */
-import { DB, state, toast, uid } from "./core.js?v=5.3";
-import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=5.3";
-import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=5.3";
-import { factionMatches } from "./search.js?v=5.3";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=5.3";
+import { DB, state, toast, uid } from "./core.js?v=5.5";
+import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=5.5";
+import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=5.5";
+import { factionMatches } from "./search.js?v=5.5";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=5.5";
+import { battleSizes, compareEditions } from "./rules-doc.js?v=5.5";
 
 /* Lists are built from the structured faction data (converted faction PDFs).
-   11th edition army rules as currently reported; adjust BATTLE_SIZES if your event pack differs. */
+   Battle sizes (points, detachment points, enhancement and unit limits) come from the Core Rules in the Library,
+   with any newer update laid over them (Core Rules 25.03); without them, the 11th edition table is used. */
 
-const BATTLE_SIZES = [
-  { max: 1000, name: "Incursion", dp: 2, enh: 2, dup: 2 },
-  { max: 2000, name: "Strike Force", dp: 3, enh: 4, dup: 3 },
-  { max: Infinity, name: "Onslaught", dp: 3, enh: 4, dup: 3 },
-];
-const sizeRules = pts => BATTLE_SIZES.find(s => pts <= s.max);
-const POINT_SIZES = [500, 1000, 1500, 2000, 2500, 3000];
+/** The battle size a points total plays at: the smallest that fits, or the largest if it's over every size. */
+function sizeRules(pts) {
+  const sizes = battleSizes();
+  const s = sizes.find(b => pts <= b.points) || sizes[sizes.length - 1];
+  return { name: s.name, points: s.points, dp: s.dp, enh: s.enh, dup: s.units, over: pts > s.points };
+}
+/** Points totals offered when creating a list: one per battle size. */
+const pointSizes = () => battleSizes().map(b => b.points);
 /* Keywords too common to say anything about a unit's role. */
 const GENERIC_KW = new Set(["ADEPTUS ASTARTES", "IMPERIUM", "DARK ANGELS", "EXPLOSIVES", "CHARACTER", "EPIC HERO", "SMOKE", "GRENADES"]);
 
@@ -64,6 +67,14 @@ function keywordsCover(alt, unit) {
   return !rest.trim();
 }
 
+/** How many of the same enhancement an army can include (Core Rules 25.04): one, or three for an Upgrade,
+ *  unless its own text says otherwise ("up to 2 units per army"). */
+function enhLimit(enh) {
+  const t = stripRich(enh?.text || "");
+  const m = t.match(/\bup to (\d+) (?:times|units|models)\b/i) || t.match(/\b(\d+) (?:times|units|models) per army\b/i) || t.match(/\blimit(?: of)?:?\s*(\d+)\b/i);
+  return m ? Math.max(1, +m[1]) : enh?.upgrade ? 3 : 1;
+}
+
 function canTakeEnhancement(unit, enh) {
   if (unit.epic) return false;
   // Keywords given by the enhancement's own detachment count too.
@@ -71,9 +82,10 @@ function canTakeEnhancement(unit, enh) {
   if (extra.length && !unit._granted?.has(extra.join("|"))) {
     unit = { ...unit, all: new Set([...unit.all, ...extra]), kws: [...unit.kws, ...extra], _granted: new Set([extra.join("|")]) };
   }
+  // Only Characters take enhancements; Upgrades can also go on other units (Core Rules 25.04).
   const req = enh.req;
-  if (!req) return unit.character;
-  if (!req.upgrade && !unit.character) return false;
+  if (!enh.upgrade && !unit.character) return false;
+  if (!req) return true;
   if (req.excluding && unit.kws.some(k => req.excluding.includes(k.replace(/S$/, "")))) return false;
   if (req.ability && !unit.core.some(c => c.startsWith(req.ability))) return false;
   return req.alts.some(a => keywordsCover(a, unit));
@@ -81,7 +93,7 @@ function canTakeEnhancement(unit, enh) {
 
 /** Units and detachments for one faction, from the converted faction documents. */
 function armyData(faction) {
-  const docs = state.docs.filter(d => d.structured && (!faction || factionMatches(d.faction, faction)));
+  const docs = state.docs.filter(d => d.structured?.datasheets && (!faction || factionMatches(d.faction, faction)));
   const units = new Map(), dets = new Map();
   for (const doc of docs) {
     for (const ds of doc.structured.datasheets) {
@@ -114,10 +126,61 @@ function armyData(faction) {
       const text = [det.description, ...det.rules.map(r => r.text), ...det.enhancements.map(e => e.text), ...det.stratagems.map(s => s.text)].join(" ").toUpperCase();
       const grants = keywordGrants(det);
       dets.set(key, { key, name: det.name, dp: parseInt(det.dp, 10) || 1, unique: detUnique(det), det, text, grants,
-        enhancements: det.enhancements.map(e => ({ name: e.name, points: e.points || 0, text: e.text, detachment: det.name, req: parseRestriction(e.text), grants })) });
+        enhancements: det.enhancements.map(e => {
+          const req = parseRestriction(e.text);
+          // Packs tag Upgrades ("UPGRADE"); older data only says "… unit only".
+          const upgrade = e.upgrade != null ? !!e.upgrade : !!req?.upgrade;
+          return { name: e.name, points: e.points || 0, text: e.text, detachment: det.name, req, grants, upgrade };
+        }) });
     }
   }
+  // Points from the newest Munitorum Field Manual replace the faction pack's.
+  const mfm = pointsOverrides(faction);
+  for (const u of units.values()) {
+    const p = mfm.units.get(u.key);
+    if (p) { u.options = p.rows; u.pointsFrom = p.from; }
+  }
+  for (const d of dets.values()) for (const e of d.enhancements) {
+    const p = mfm.enh.get(normName(e.name));
+    if (p != null) { e.points = p.points; e.pointsFrom = p.from; }
+  }
   return { units: [...units.values()], detachments: [...dets.values()] };
+}
+
+/** Unit and enhancement points from Munitorum Field Manuals in the Library, newest last so it wins. */
+function pointsOverrides(faction) {
+  const docs = state.docs.filter(d => d.kind === "points" && d.points?.length).sort(compareEditions);
+  const units = new Map(), enh = new Map();
+  for (const d of docs) {
+    const rows = d.points.filter(p => !p.section || !faction || factionMatches(p.section, faction) || factionMatches(d.faction || "", faction));
+    const byUnit = new Map();
+    for (const p of rows) {
+      if (p.enh) { enh.set(normName(p.name), { points: p.points, from: d.title }); continue; }
+      if (!(p.models > 0) || !(p.points >= 0)) continue;
+      const k = normName(p.name);
+      if (!byUnit.has(k)) byUnit.set(k, []);
+      if (!byUnit.get(k).some(o => o.models === p.models)) byUnit.get(k).push({ models: p.models, points: p.points });
+    }
+    for (const [k, list] of byUnit) units.set(k, { rows: list.sort((a, b) => a.models - b.models), from: d.title });
+  }
+  return { units, enh };
+}
+
+/** A unit and the units attached to it count as one unit for enhancements (Core Rules 25.04). */
+function attachedGroup(entries, x) {
+  const host = x.attachTo ? entries.find(h => h.id === x.attachTo) || x : x;
+  return [host, ...entries.filter(o => o.attachTo === host.id)];
+}
+
+/** Enhancements counted against the battle size's limit: every enhancement, but only the first copy of each Upgrade. */
+function enhancementsCounted(picks) {
+  const seen = new Set();
+  let n = 0;
+  for (const p of picks) {
+    if (p.upgrade) { if (seen.has(p.name)) continue; seen.add(p.name); }
+    n++;
+  }
+  return n;
 }
 
 /** Which slot a character fills when attached: "leader" or "support". */
@@ -149,7 +212,7 @@ function evaluateList(list, data = armyData(list.faction)) {
     const opt = unit.options.find(o => o.models === e.models) || unit.options[0];
     const copy = copies[e.key];
     const cost = copy >= 3 && opt.later ? opt.later : opt.points;
-    // An enhancement (one model) and an upgrade (the whole unit) can each be taken.
+    // Stored as enh (enhancement) or upg (Upgrade); a unit should only have one of them.
     const picks = [e.enh, e.upg].filter(Boolean).map(n => enhPool.find(x => x.name === n) || { name: n, missing: true, points: 0 });
     const enhCost = picks.reduce((s, p) => s + (p.points || 0), 0);
     return { ...e, unit, opt, copy, cost, picks, enhObj: picks.find(p => !p.missing && p.name === e.enh) || null, enhCost, total: cost + enhCost };
@@ -179,22 +242,37 @@ function evaluateList(list, data = armyData(list.faction)) {
   // Copy limits
   for (const [key, n] of Object.entries(copies)) {
     const u = byKey.get(key);
-    const max = u.epic ? 1 : u.transport ? 6 : u.battleline ? rules.dup * 2 : rules.dup;
+    const max = unitMax(u, rules);
     if (n > max) { issues.push(`${n}× ${u.name}: the limit is ${max}.`); for (const x of entries.filter(x => x.key === key).slice(max)) x.problems?.push(`Over the limit of ${max}.`); }
   }
-  const transports = entries.filter(x => x.unit?.transport).length;
-  if (transports > 6) issues.push(`${transports} Dedicated Transports: the limit is 6.`);
+  if (rules.over) issues.push(`${list.points} points is more than the largest battle size (${rules.name}, ${rules.points} points).`);
 
-  // Enhancements and upgrades
+  // Enhancements and upgrades (Core Rules 25.04)
   const enhs = entries.flatMap(x => (x.picks || []).map(p => ({ x, p })));
-  if (enhs.length > rules.enh) issues.push(`${enhs.length} enhancements and upgrades: ${rules.name} allows ${rules.enh}.`);
-  const seenEnh = new Set();
+  const counted = enhancementsCounted(enhs.map(e => e.p));
+  if (counted > rules.enh) issues.push(`${counted} enhancements: ${rules.name} allows ${rules.enh} (extra copies of an Upgrade don't count).`);
+  const groupsDone = new Set();
+  for (const x of entries.filter(x => x.unit)) {
+    const group = attachedGroup(entries, x);
+    if (groupsDone.has(group[0].id)) continue;
+    groupsDone.add(group[0].id);
+    const held = group.flatMap(o => (o.picks || []).map(p => ({ o, p })));
+    if (held.length > 1) {
+      const msg = group.length > 1
+        ? `${group.map(o => o.unit?.name).join(" + ")} form one attached unit, which can only have one enhancement (${held.map(h => h.p.name).join(", ")}).`
+        : `${x.unit.name} can only have one enhancement (${held.map(h => h.p.name).join(", ")}).`;
+      issues.push(msg);
+      for (const h of held) h.o.problems.push("Only one enhancement per unit (attached units count as one).");
+    }
+  }
+  const seenEnh = new Map();
   for (const { x, p } of enhs) {
     const flag = msg => { issues.push(msg); x.problems?.push(msg); };
     if (p.missing) flag(`${p.name} isn't from your chosen detachments.`);
     else if (!canTakeEnhancement(x.unit, p)) flag(`${x.unit.name} can't take ${p.name}.`);
-    if (seenEnh.has(p.name)) flag(`${p.name} is taken more than once.`);
-    seenEnh.add(p.name);
+    const n = (seenEnh.get(p.name) || 0) + 1, max = enhLimit(p);
+    if (n > max) flag(max === 1 ? `${p.name} is taken more than once.` : `${p.name} is taken ${n} times: the most is ${max}.`);
+    seenEnh.set(p.name, n);
   }
 
   // Attachments
@@ -213,7 +291,7 @@ function evaluateList(list, data = armyData(list.faction)) {
   if (!chars.length && entries.length) issues.push("Add at least one Character to be your Warlord.");
   else if (chars.length && entries.filter(x => x.warlord).length !== 1) issues.push("Choose one Character as your Warlord.");
 
-  return { entries, total, left: list.points - total, issues, rules, dets, enhPool, dpUsed };
+  return { entries, total, left: list.points - total, issues, rules, dets, enhPool, dpUsed, enhCount: counted };
 }const VIBE_GROUPS = [
   [/terminator|deathwing|elite|first company/, ["TERMINATOR", "DEATHWING"]],
   [/ravenwing|bikes?\b|biker|fast|speed|mobile|speeders?/, ["MOUNTED", "RAVENWING", "FLY"]],
@@ -304,10 +382,9 @@ function generateList({ faction, points, vibe, detachments }) {
   const list = { id: uid(), version: 2, name: "", faction, points, detachments: dets.map(d => d.name), units: [], createdAt: Date.now(), updatedAt: Date.now() };
   const ev = () => evaluateList(list, data);
   const count = key => list.units.filter(e => e.key === key).length;
-  const maxCopies = u => (u.epic ? 1 : u.transport ? 6 : u.battleline ? rules.dup * 2 : rules.dup);
+  const maxCopies = u => unitMax(u, rules);
   const nextCost = (u, opt) => (count(u.key) + 1 >= 3 && opt.later ? opt.later : opt.points);
-  const fits = (u, opt) => count(u.key) < maxCopies(u) && nextCost(u, opt) <= ev().left &&
-    (!u.transport || list.units.filter(e => data.units.find(x => x.key === e.key)?.transport).length < 6);
+  const fits = (u, opt) => count(u.key) < maxCopies(u) && nextCost(u, opt) <= ev().left;
   const add = (u, opt) => { const e = { id: uid(), key: u.key, models: opt.models, enh: null, attachTo: null, slot: null, warlord: false }; list.units.push(e); return e; };
   const sizeFor = u => {
     const opts = u.options;
@@ -381,16 +458,23 @@ function generateList({ faction, points, vibe, detachments }) {
   // 7. Enhancements and upgrades
   const enhPool = dets.flatMap(d => d.enhancements).filter(e => e.points > 0 || e.points === 0);
   const enhScore = (e, u) => (1 + (e.text.toUpperCase().match(new RegExp(`\\b(${[...prefs.want.keys()].join("|") || "Ω"})\\b`, "g")) || []).length * 0.5) * (u.character ? 1.3 : 1) * (0.9 + Math.random() * 0.2);
-  for (let i = 0; i < rules.enh; i++) {
-    const usedNames = new Set(list.units.map(e => e.enh).filter(Boolean));
+  // One per attached unit, at most the battle size's limit, Upgrades up to their copy limit.
+  for (let i = 0; i < rules.enh + 6; i++) {
+    const r0 = ev();
+    const used = new Map();
+    for (const x of r0.entries) for (const p of x.picks || []) used.set(p.name, (used.get(p.name) || 0) + 1);
     const options = [];
-    for (const e of list.units.filter(x => !x.enh)) {
-      const u = data.units.find(x => x.key === e.key);
-      for (const en of enhPool) if (!usedNames.has(en.name) && canTakeEnhancement(u, en) && en.points <= ev().left) options.push({ e, en, s: enhScore(en, u) });
+    for (const x of r0.entries.filter(x => x.unit)) {
+      if (attachedGroup(r0.entries, x).some(o => o.enh || o.upg)) continue;
+      for (const en of enhPool) {
+        if ((used.get(en.name) || 0) >= enhLimit(en) || !canTakeEnhancement(x.unit, en) || en.points > r0.left) continue;
+        if (!(en.upgrade && used.has(en.name)) && r0.enhCount >= rules.enh) continue;
+        options.push({ e: list.units.find(o => o.id === x.id), en, s: enhScore(en, x.unit) });
+      }
     }
     if (!options.length) break;
     options.sort((a, b) => b.s - a.s);
-    options[0].e.enh = options[0].en.name;
+    options[0].e[options[0].en.upgrade ? "upg" : "enh"] = options[0].en.name;
   }
 
   // 8. Spend what's left: bigger units first, then anything that fits
@@ -450,6 +534,7 @@ function saveList(list, now = false) {
 }
 
 /** Highest number of copies allowed for a unit. */
-const unitMax = (u, rules) => (u.epic ? 1 : u.battleline ? rules.dup * 2 : rules.dup);
+/** Copies of one datasheet allowed: doubled for Battleline and Dedicated Transports, one for an Epic Hero (Core Rules 25.03). */
+const unitMax = (u, rules) => (u.epic ? 1 : u.battleline || u.transport ? rules.dup * 2 : rules.dup);
 
-export { armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, POINT_SIZES, saveList, sizeRules, unitMax };
+export { attachedGroup, enhancementsCounted, enhLimit, pointSizes, armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, saveList, sizeRules, unitMax };
