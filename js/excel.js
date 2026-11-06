@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=6.9";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.9";
-import { rulesToSheets } from "./rules-doc.js?v=6.9";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.9";
+import { formatGB, toast } from "./core.js?v=7.0";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=7.0";
+import { rulesToSheets } from "./rules-doc.js?v=7.0";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=7.0";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -91,6 +91,8 @@ function structuredToSheets(data, faction, theme = null) {
     const kwOrder = k => keywordList(k).map(x => titleCase(x.toUpperCase())).join(", ");   // keep the datasheet's order
     unitRows.push([ds.name, ds.unitType || "", kwOrder(ds.keywords), kwOrder(ds.factionKeywords), ds.invuln || "",
       lines(ds.coreAbilities || v.ruleNames.filter(n => !(ds.armyRuleNames || []).includes(n))), lines(ds.armyRuleNames || []),
+      // Keywords that differ between models, one line per model: "Ancient: ANCIENT, CHARACTER". Blank when all models share them.
+      (ds.modelKeywords || []).map(m => `${m.model}: ${m.keywords}`).join("\n"),
       lead(/^leader$/i).length ? lines(lead(/^leader$/i)) : "", lines(lead(/^led by$/i)), lines(lead(/^support$/i)), lines(lead(/^supported by$/i)),
       lines(ds.detachmentAbilities),
       // Stratagems that apply to the unit, one per line: "Group | Name | CP"
@@ -108,7 +110,7 @@ function structuredToSheets(data, faction, theme = null) {
   const W = (header, width, extra = {}) => ({ header, width, ...extra });
   return [
     { name: "Units", columns: [W("Unit", 32), W("Unit type", 22), W("Keywords", 40), W("Faction keywords", 24), W("Invulnerable save", 10),
-        W("Core abilities", 24), W("Army rules", 22), W("Can lead", 30), W("Led by", 30), W("Can support", 26), W("Supported by", 26), W("Detachment abilities", 26), W("Stratagems", 40)],
+        W("Core abilities", 24), W("Army rules", 22), W("Model keywords", 40), W("Can lead", 30), W("Led by", 30), W("Can support", 26), W("Supported by", 26), W("Detachment abilities", 26), W("Stratagems", 40)],
       rows: unitRows },
     { name: "Profiles", columns: [W("Unit", 32), W("Model", 30), W("M", 6), W("T", 6), W("SV", 6), W("W", 6), W("LD", 6), W("OC", 6)], rows: profileRows },
     { name: "Weapons", columns: [W("Unit", 30), W("Type", 8), W("Weapon", 34), W("Range", 7), W("A", 6), W("BS/WS", 7), W("S", 5), W("AP", 5), W("D", 6), W("Keywords", 40)],
@@ -249,6 +251,7 @@ function structuredFromWorkbook(book) {
         : (strats.get(k) || []).map(s => ({ name: s.stratagem || "", cp: num(s.cp) ?? s.cp, group: s.group || "" })),
       abilities: (abilities.get(k) || []).map(a => ({ name: a.ability || "", text: a.rules || "", rich: richOr(a.formatted, a.rules || ""), wargear: /^(yes|true|y|1)$/i.test(a["wargear ability"] || "") })),
       coreAbilities: list(u["core abilities"]), armyRuleNames: list(u["army rules"]), leader,
+      modelKeywords: String(u["model keywords"] || "").split("\n").map(l => l.match(/^([^:]+):\s*(.+)$/)).filter(Boolean).map(m => ({ model: m[1].trim(), keywords: kwList(m[2]) })),
       detachmentAbilities: list(u["detachment abilities"]),
       enhancementOptions: (enhOpts.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points) })),
       unsorted: (unsorted.get(k) || []).map(r => r.text).filter(Boolean),

@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=6.9";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.9";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.9";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=7.0";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=7.0";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=7.0";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -758,6 +758,8 @@ function parsePrintedFactionPdf(allItems) {
         if (!plain || /^(C|BA|BS)$/.test(plain)) continue;
         const kw = plain.match(/^(FACTION KEYWORDS|KEYWORDS)\s*:\s*(.*)$/i);
         if (kw) { cur = { heading: kw[1].toUpperCase(), lines: [], x: line.x }; sections.push(cur); if (kw[2]) cur.lines.push({ ...line, text: kw[2], plain: kw[2] }); continue; }
+        // "KEYWORDS – ALL MODELS: …; Ancient: …; Company Champion: …" — keywords that differ between the unit's models.
+        if (/^KEYWORDS\s*[–—-]\s*ALL MODELS\s*:/i.test(plain)) { cur = { heading: "KEYWORDS", perModel: true, lines: [line], x: line.x }; sections.push(cur); continue; }
         if (COST_HEADING.test(plain)) { cur = { heading: "COSTS", lines: [], x: line.x, tier: /3RD|THIRD/i.test(plain) }; sections.push(cur); continue; }
         const first = line.items[0];
         if (headingLike(first)) {
@@ -867,6 +869,27 @@ function parsePrintedFactionPdf(allItems) {
     }
     ds.abilities = ds.abilities.filter(ab => ab.name || ab.lines.length);
     for (const ab of ds.abilities) { ab.name = ab.name.replace(/\bInSv\b/g, "Invulnerable Save"); ab.rich = linesToRich(ab.lines, Math.min(...ab.lines.map(l => l.x), Infinity)); ab.text = stripRich(ab.rich); delete ab.lines; }
+    // Unplaced text, tidied (faction pack ruleset, rule 13):
+    //  • the standard reminder printed under multi-profile weapons ("Before selecting targets for this weapon, select one
+    //    of its eligible profiles…") isn't kept — the profiles already show it;
+    //  • a "Name: …" rule among the weapons about "this weapon" or "the bearer" is a wargear ability.
+    if (ds.unsorted?.length) {
+      const paras = [];
+      for (const raw of ds.unsorted) {
+        const t = String(raw).trim();
+        if (/^[A-Z][\w’' -]{2,40}:\s/.test(t) && !/^KEYWORDS/i.test(t) || !paras.length) paras.push(t);
+        else paras[paras.length - 1] += " " + t;
+      }
+      const keep = [];
+      for (const p of paras) {
+        if (/^Before selecting targets for this weapon, select one of its eligible profiles/i.test(p)) continue;
+        if (/^\(?\s*⌀\s*[\d.]+\s*(x\s*[\d.]+\s*)?mm\s*\)?$/i.test(p)) continue;   // a stray base size
+        const m = p.match(/^([A-Z][\w’' -]{2,40}):\s+(.+)$/);
+        if (m && /\b(this weapon|the bearer)\b/i.test(m[2])) { ds.abilities.push({ name: m[1].trim(), wargear: true, text: m[2], rich: m[2] }); continue; }
+        keep.push(p);
+      }
+      ds.unsorted = keep;
+    }
 
     // Leader / support
     for (const s of sec(/^(LEADER|SUPPORT|LED BY|SUPPORTED BY)$/)) {
@@ -910,7 +933,28 @@ function parsePrintedFactionPdf(allItems) {
       return { name: (m ? m[1] : t).replace(/\s+(C|BA|BS)$/, "").trim(), points: m ? +m[2] : null };
     }).filter(e => letterCount(e.name) >= 3);
 
-    ds.keywords = upperKeywords(plainLines(sec(/^KEYWORDS$/)).join(" ").replace(/;/g, ","));
+    const perModel = sec(/^KEYWORDS$/).find(x => x.perModel);
+    if (perModel) {
+      // Model names are normal text ending in a colon; keywords are bold. The first group is "All models".
+      const groups = []; let label = "", g = null;
+      for (const it of perModel.lines.flatMap(l => l.items)) {
+        const t = cleanGlyphs(it.t);
+        if (!t || /^[;,]+$/.test(t)) continue;
+        if (!it.b) {
+          label = (label + " " + t).trim();
+          if (/:\s*$/.test(label)) {
+            const name = label.replace(/:\s*$/, "").replace(/^KEYWORDS\s*[–—-]\s*/i, "").trim();
+            g = { model: /^ALL MODELS$/i.test(name) ? "All models" : name, keywords: [] }; groups.push(g); label = "";
+          }
+          continue;
+        }
+        if (!g) { g = { model: "All models", keywords: [] }; groups.push(g); }
+        for (const k of t.split(/\s*;\s*/)) if (k.trim()) g.keywords.push(k.trim().toUpperCase());
+      }
+      ds.modelKeywords = groups.filter(x => x.keywords.length).map(x => ({ model: x.model, keywords: x.keywords.join(", ") }));
+      // The unit's keywords are every keyword any of its models has, so one CHARACTER model makes it a Character unit.
+      ds.keywords = [...new Set(ds.modelKeywords.flatMap(x => x.keywords.split(", ")))].join(", ");
+    } else ds.keywords = upperKeywords(plainLines(sec(/^KEYWORDS$/)).join(" ").replace(/;/g, ","));
     ds.factionKeywords = upperKeywords(plainLines(sec(/^FACTION KEYWORDS$/)).join(" ").replace(/;/g, ","));
     if (!ds.unitType && ds.keywords) {
       const kws = ds.keywords.split(/\s*,\s*/);

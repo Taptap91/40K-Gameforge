@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=6.9";
-import { armyData } from "./army.js?v=6.9";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=6.9";
-import { factionMatches } from "./search.js?v=6.9";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=6.9";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=6.9";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=7.0";
+import { armyData } from "./army.js?v=7.0";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.0";
+import { factionMatches } from "./search.js?v=7.0";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.0";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.0";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };

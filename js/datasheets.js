@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=6.9";
-import { wargearOf } from "./loadout.js?v=6.9";
-import { factionMatches } from "./search.js?v=6.9";
-import { coreAbilityRule } from "./rules-doc.js?v=6.9";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.9";
+import { esc, state, uid } from "./core.js?v=7.0";
+import { wargearOf } from "./loadout.js?v=7.0";
+import { factionMatches } from "./search.js?v=7.0";
+import { coreAbilityRule } from "./rules-doc.js?v=7.0";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=7.0";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -348,7 +348,7 @@ function datasheetDetailsHTML(ds, armyRules, opts = {}) {
     ...v.extras.map(s => panelHTML(esc(titleCase(s.heading)), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)),
     ...attachLists(ds, opts.siblings).map(l => panelHTML(l.heading,
       `${l.intro ? `<div class="fv-intro">${esc(l.intro)}</div>` : ""}<ul class="fv-units">${l.units.sort((a, b) => a.localeCompare(b)).map(n => `<li>${unitName(n)}</li>`).join("")}</ul>`)),
-    kws || fkws ? panelHTML("Keywords", (kws ? `<div class="fv-kh">Keywords</div><div class="fv-kv">${esc(kws)}</div>` : "") + (fkws ? `<div class="fv-kh">Faction Keywords</div><div class="fv-kv">${esc(fkws)}</div>` : "")) : "",
+    kws || fkws ? panelHTML("Keywords", (ds.modelKeywords?.length ? `<div class="fv-kh">Keywords</div>${ds.modelKeywords.map(m => `<div class="fv-kv"><span class="fv-kmodel">${esc(m.model)}:</span> ${esc(niceKeywords(m.keywords))}</div>`).join("")}` : kws ? `<div class="fv-kh">Keywords</div><div class="fv-kv">${esc(kws)}</div>` : "") + (fkws ? `<div class="fv-kh">Faction Keywords</div><div class="fv-kv">${esc(fkws)}</div>` : "")) : "",
     // Text the PDF reader couldn't place, folded away at the bottom so it can be moved to the right place in Excel.
     ds.unsorted?.length ? panelHTML("", `<details class="fv-unsorted"><summary>Unsorted text <span class="fv-ab-count">${ds.unsorted.length} line${ds.unsorted.length === 1 ? "" : "s"} the PDF reader couldn't place</span></summary>
       <p class="lb-subtle">This is also in the "Unsorted text" sheet of the faction's Excel download. Copy it into the right sheet, then add the file back in Library.</p>
@@ -415,9 +415,20 @@ function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
   const heads = melee ? ["A", "Ws", "S", "Ap", "D"] : ["Range", "A", mixed ? "Bs/Ws" : "Bs", "S", "Ap", "D"];
   const mine = buffs.filter(b => !b.type || b.type === type || mixed);
   const statKey = { A: "A", S: "S", D: "D", AP: "AP" };
+  // Profiles of one weapon ("Plasma Gun – Standard", "– Supercharge") are grouped: no dash, and when the table has other
+  // weapons too, a light line above the first profile and below the last.
+  const baseOf = w => isProfileName(w.name) ? w.name.split(/\s+[–—-]\s+/)[0].toLowerCase() : null;
+  const bases = ws.map(baseOf);
+  const grouped = i => bases[i] && (bases[i - 1] === bases[i] || bases[i + 1] === bases[i]);
+  const others = i => bases.some((b, j) => b !== bases[i] || (j !== i && !grouped(j)));
+  let lastSep = -2;
+  const sep = i => { lastSep = i; return `<span class="fv-wsep" aria-hidden="true"></span>`; };
   return `<div class="fv-weapons ${melee ? "melee" : "ranged"}">
     ${withHead ? `<span class="fv-wh">${withHead === "profile" ? "Profile" : mixed ? "Weapons" : melee ? "Melee Weapons" : "Ranged Weapons"}</span>${heads.map(h => `<span class="fv-wh c">${h}</span>`).join("")}<span></span>` : ""}
-    ${ws.map(w => {
+    ${ws.map((w, i) => {
+      const inGroup = grouped(i) && others(i);
+      const before = inGroup && bases[i - 1] !== bases[i] && i > 0 && lastSep !== i - 1 ? sep(i - 0.5) : "";
+      const after = inGroup && bases[i + 1] !== bases[i] && i < ws.length - 1 ? sep(i) : "";
       const vals = keys.map(k => {
         const b = mine.filter(b => b.stat && statKey[b.stat] === k);
         if (!b.length) return `<span class="c">${esc(w[k])}</span>`;
@@ -432,13 +443,13 @@ function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
       const tags = [...own.map(k => `<span class="fv-kw">${esc(k)}</span>`), ...extra.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"')), ...statNotes.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"'))];
       // Under a weapon's own bar (list building) its name is already shown, so a profile is labelled by what differs:
       // "Standard" / "Supercharge", otherwise "Ranged" or "Melee".
-      let label = capWords(w.name.replace(/\s+non-?\s*$/i, "")), dash = isProfileName(w.name);
+      let label = capWords(w.name.replace(/\s+non-?\s*$/i, "")), dash = false;
       if (baseName) {
         const rest = w.name.slice(0, baseName.length).toLowerCase() === baseName.toLowerCase() ? w.name.slice(baseName.length).replace(/^\s*[–—-]\s*/, "").trim() : "";
         label = rest ? capWords(rest) : w.type; dash = false;
       }
-      return `<span class="fv-wname">${dash ? `<span class="fv-dash">–</span>` : ""}${esc(label)}</span>${vals.join("")}<span></span>
-        ${tags.length ? `<span class="fv-wkw fv-kws">${tags.join("")}</span>` : ""}`;
+      return `${before}<span class="fv-wname">${dash ? `<span class="fv-dash">–</span>` : ""}${esc(label)}</span>${vals.join("")}<span></span>
+        ${tags.length ? `<span class="fv-wkw fv-kws">${tags.join("")}</span>` : ""}${after}`;
     }).join("")}
   </div>`;
 }

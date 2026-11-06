@@ -346,7 +346,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-stats.named > span:first-child { display: none; }
   .fv-weapons.ranged { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .fv-weapons > span:empty { display: none; }
+  .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-weapons .fv-wname, .fv-weapons .fv-wkw { grid-column: 1 / -1; }
   .fv-weapons .fv-wkl { display: none; }
 }
@@ -389,7 +389,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   /* Weapons: name on its own line, values in equal columns beneath */
   .fv-weapons.ranged { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .fv-weapons > span:empty { display: none; }
+  .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-wname, .fv-wkw { grid-column: 1 / -1; }
   .fv-wkl { display: none; }
   .fv-wkw { padding-bottom: 10px; }
@@ -854,3 +854,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-unsorted:not([open]) > summary::before { transform: rotate(-90deg); }
 .fv-unsorted p { margin: 10px 0 8px; font-size: 12.5px; }
 .fv-unsorted-text { font-size: 13px; line-height: 1.6; color: var(--text-2); padding: 10px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; user-select: text; }
+.fv-kmodel { color: var(--text); font-weight: 600; }
+/* A light line above and below the profiles of one weapon, when other weapons share the table. */
+.fv-weapons .fv-wsep { grid-column: 1 / -1; height: 0; border-top: 1px solid rgba(255,255,255,.10); margin: 6px 0; }
