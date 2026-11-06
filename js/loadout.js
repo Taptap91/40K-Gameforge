@@ -1,7 +1,7 @@
 /* RulesForge · loadout.js
  * Wargear: model groups, default weapons, swap options and limits read from datasheets, and weapon changes in the list builder.
  */
-import { normName, stripRich, titleCase } from "./text.js?v=7.7";
+import { normName, stripRich, titleCase } from "./text.js?v=7.8";
 
 /** "Bolt Rifle - Focused Fire" → "Bolt Rifle". */
 const weaponBase = name => String(name || "").split(/\s+[-–—]\s+/)[0].replace(/\s+non-?\s*$/i, "").trim();/** Loose name key for matching wargear text to weapons ("Lightning Claws" → "lightning claw"). */
@@ -292,7 +292,7 @@ function swapFor(gr, w) {
   return opts.map(info).sort((a, b) => b.score - a.score)[0];
 }
 
-/** Checking, unchecking and +/− on a weapon. Checking never checks anything else; it only unchecks what it replaces. */
+/** − / + on a weapon (how is +1 or −1): adding a swap-in takes it from the weapons it replaces, and the other way round. */
 function setWeapon(gr, w, how) {
   const c = { ...gr.counts };
   const N = gr.N, isDefault = gr.defaults.includes(w);
@@ -305,21 +305,6 @@ function setWeapon(gr, w, how) {
   const fitDefault = r => { const over = carried(r) - N; if (over > 0) c[r] = Math.max(0, (c[r] ?? 0) - over); };
   // …and the other way round: re-adding a default trims a replacement only when there's no room.
   const fitSwaps = r => { let over = carried(r) - N; for (const x of [...new Set(swapsOf(r))]) { if (over <= 0) break; const k = Math.min(over, c[x] ?? 0); c[x] = (c[x] ?? 0) - k; over -= k; } };
-  if (how === "on") {
-    if (isDefault) { c[w] = N; for (const x of swapsOf(w)) c[x] = 0; return c; }
-    const s = swapFor(gr, w);
-    c[w] = Math.min(max, Math.max(cur, 1));
-    if (s) {
-      if (N === 1 || (!s.o.max.all && !s.o.max.per && s.o.max.n === 1)) for (const x of s.others) c[x] = 0;
-      for (const r of s.out) fitDefault(r);
-    }
-    return c;
-  }
-  if (how === "off") {
-    if (!isDefault && N > 1) { const s = swapFor(gr, w); for (const r of s?.out || []) if ((c[r] ?? 0) > 0) c[r] = Math.min(N, c[r] + cur); }
-    c[w] = 0;
-    return c;
-  }
   // +1 / −1
   if (how > 0) {
     if (cur >= max) return c;

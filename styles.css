@@ -101,18 +101,15 @@ a.btn { text-decoration: none; color: var(--text); }
 
 /* ---------- Army list builder ---------- */
 .lb-toolbar { display: flex; gap: 8px; align-items: center; }
-.lb-back { font-size: 15px; padding: 2px 6px; margin-left: -6px; }
+
 .lb-left { font-size: 13px; color: var(--text-2); white-space: nowrap; }
 .lb-left span { font-size: 20px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; margin-right: 2px; }
 .lb-left.over span { color: var(--red); }
-.lb-listrow .lb-open { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0; color: inherit; }
-.lb-listrow .lb-open:hover .title { color: var(--accent); }
+
 .lb-warn { color: var(--orange); }
 
 .lb-namebar { display: flex; align-items: center; gap: 8px; }
 
-.lb-dets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.lb-chip { background: var(--accent-soft); color: #64aaff; border-radius: 12px; padding: 3px 10px; font-size: 12.5px; }
 .lb-ok { font-size: 12.5px; color: var(--green); }
 .lb-notes { margin: 8px 0 0; padding-left: 18px; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
 
@@ -122,7 +119,6 @@ a.btn { text-decoration: none; color: var(--text); }
 .lb-detpick { margin-top: 8px; }
 .lb-blocked { opacity: .45; }
 
-.btn.danger { color: var(--red); }
 @media (max-width: 720px) {
 
   .lb-left span { font-size: 17px; }
@@ -145,7 +141,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-colL { border-right: 1px solid var(--border); background: var(--bg); }
 .lb-colC { display: flex; flex-direction: column; gap: 8px; padding-left: 20px; padding-right: 20px; }
 .lb-colR { border-left: 1px solid var(--border); background: var(--bg); padding-top: 0; }
-.segmented.lb-panes { display: none; }
+
 .lb-subtle { font-size: 12px; color: var(--text-2); font-weight: 400; }
 .lb-listhead { display: flex; flex-direction: column; gap: 8px; padding-bottom: 6px; }
 .lb-listhead h2 { margin: 0; font-size: 18px; min-width: 0; overflow-wrap: anywhere; }
@@ -172,7 +168,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-ctags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .lb-tag.enh { background: var(--accent-soft); color: #64aaff; }
 .lb-tag.upg { background: rgba(48,209,88,.14); color: var(--green); }
-.lb-card { position: relative; padding-right: 36px; cursor: pointer; }
+.lb-card { position: relative; cursor: pointer; }
 .lb-card.bad { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); background: rgba(255,69,58,.08); }
 .lb-card.bad.sel { box-shadow: inset 0 0 0 1px var(--red), 0 0 0 2px var(--accent-soft); }
 .lb-cerr { font-size: 12px; color: var(--red); }
@@ -194,9 +190,9 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-wtype:first-child { margin-top: 0; }
 .lb-wkws { flex-basis: 100%; font-size: 12px; color: var(--text-2); font-weight: 400; padding-top: 4px; }
 .lb-pcount { margin-left: 20px; font-weight: 400; }
-.lb-count { display: flex; align-items: center; gap: 6px; padding-top: 7px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.lb-count span { min-width: 38px; text-align: center; }
-.lb-step { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--control); color: var(--text); display: grid; place-items: center; padding: 0; font-size: 15px; line-height: 1; }
+.lb-count { display: flex; align-items: center; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lb-count span { text-align: center; }
+.lb-step { border: 1px solid var(--border-strong); background: var(--control); color: var(--text); display: grid; place-items: center; padding: 0; line-height: 1; }
 .lb-step:disabled { opacity: .35; cursor: not-allowed; }
 .lb-addgrp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0; }
 .lb-addgrp > summary::-webkit-details-marker { display: none; }
@@ -204,7 +200,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-addgrp:not([open]) > summary::before { transform: rotate(-90deg); }
 .lb-attached { margin-left: 28px; height: 24px; display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left; color: inherit; background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; }
 .lb-attached:hover { border-color: var(--border-strong); background: var(--control); }
-.lb-arrow { color: var(--text-3); }
+
 .lb-attached .lb-aname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-empty { color: var(--text-2); text-align: center; padding: 40px 10px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
 /* Centre: unit datasheet */
@@ -218,10 +214,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-field { display: flex; flex-direction: column; gap: 6px; }
 .lb-field + .lb-field { margin-top: 12px; }
 .lb-label { font-size: 12px; color: var(--text-2); font-weight: 600; letter-spacing: .03em; }
-.lb-select { width: 100%; }
-.lb-enhdesc { background: var(--panel); border-radius: 8px; padding: 10px 12px; }
-.lb-enhname { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
-.lb-enhname span { font-weight: 400; color: var(--text-2); font-size: 12px; margin-left: 6px; }
+
 .lb-hosts { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
 .lb-host { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; text-align: left; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
 .lb-host:hover { background: var(--panel-2); }
@@ -230,7 +223,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-tick { margin-left: auto; color: var(--check, var(--green)); }
 .lb-buffnote { font-size: 12px; color: var(--text-2); padding: 0 4px; }
 .lb-buffkw { color: #64aaff; }
-.lb-sep { color: var(--text-2); }
+
 .lb-buffed { color: #64aaff; font-weight: 700; }
 .lb-wopts { display: flex; flex-direction: column; gap: 6px; }
 .lb-wopt { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 12px; align-items: start; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0 10px 0 12px; }
@@ -244,16 +237,12 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-arrow::before { content: "▾"; }
 .lb-wopt details:not([open]) .lb-arrow { transform: rotate(-90deg); }
 /* A faint divider halfway along the bar: left half opens the details, right half equips. */
-.lb-split::before { content: ""; position: absolute; left: 50%; top: 11px; height: 18px; width: 1px; background: var(--border-strong); pointer-events: none; }
-.lb-split::after { content: ""; position: absolute; top: 0; height: var(--barh, 40px); width: 50%; border-radius: 8px; pointer-events: none; opacity: 0; transition: opacity .12s; }
-.lb-split.hov-l::after { left: 0; opacity: 1; background: linear-gradient(90deg, rgba(255,255,255,.035), rgba(255,255,255,.02)); }
-.lb-split.hov-r::after { left: 50%; opacity: 1; background: var(--on-tint, linear-gradient(90deg, rgba(48,209,88,.05), rgba(48,209,88,.09))); }
-.lb-split.hov-r { cursor: pointer; }
+
 .lb-wtitle { font-weight: 700; font-size: 14px; }
 .lb-wopt .fv-weapons { padding-bottom: 10px; }
 .lb-wopt details[open] { padding-bottom: 12px; }
-.lb-wopt .fv-wkl, .lb-wopt .fv-wkw { padding-bottom: 6px; }
-.lb-wopt .fv-weapons > .fv-wkw:last-child, .lb-wopt .fv-weapons > .fv-wkl:nth-last-child(2) { padding-bottom: 0; }
+.lb-wopt .fv-wkw { padding-bottom: 6px; }
+.lb-wopt .fv-weapons > .fv-wkw:last-child { padding-bottom: 0; }
 /* Right: add units */
 .lb-addhead { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 16px 0 10px; display: flex; flex-direction: column; gap: 8px; }
 .lb-addtitle { font-weight: 700; }
@@ -271,8 +260,8 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .lb-shell[data-pane="add"] .lb-colC { display: none; }
   .lb-shell:not([data-pane="add"]) .lb-colR { display: none; }
   .lb-colR { border-left: 0; }
-  .segmented.lb-panes { display: inline-flex; }
-  .lb-panes .lb-pane-list { display: none; }
+  
+  
 }
 @media (max-width: 760px) {
   .lb-shell { grid-template-columns: minmax(0, 1fr); }
@@ -280,7 +269,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .lb-shell[data-pane="list"] .lb-colL, .lb-shell[data-pane="unit"] .lb-colC, .lb-shell[data-pane="add"] .lb-colR { display: block !important; }
   .lb-shell[data-pane="unit"] .lb-colC { display: flex !important; }
   .lb-col { padding-left: 16px; padding-right: 16px; border: 0; }
-  .lb-panes .lb-pane-list { display: inline-flex; }
+  
   .lb-left .lb-w { display: none; }
   #view-lists.lb-editing .toolbar { flex-wrap: wrap; gap: 8px; }
   .lb-insp-cost { font-size: 20px; }
@@ -328,14 +317,14 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-wname { font-size: 14px; font-weight: 700; padding-top: 6px; }
 .fv-dash { margin-right: 10px; flex: none; }
 .fv-wname { display: flex; }
-.fv-wkl { font-size: 12px; color: var(--text-2); padding: 0 0 8px 15px; }
+
 .fv-wkw { grid-column: 2 / -1; font-size: 12px; color: var(--text-2); padding-bottom: 8px; }
 /* Keywords as outlined tags, starting under the weapon's name (same corner rounding as the faction buttons). */
 .fv-kws { display: flex; flex-wrap: wrap; gap: 4px 6px; }
 .fv-weapons .fv-wkw.fv-kws { grid-column: 1 / -1; padding: 4px 0 10px; }
 .fv-kw { display: inline-block; font-size: 11.5px; line-height: 1.5; color: var(--kw-t, var(--text-2)); padding: 1px 8px; border: 1px solid var(--kw-b, var(--border-strong)); border-radius: 5px; white-space: nowrap; }
 .fv-kw.lb-buffkw { color: #64aaff; border-color: rgba(100,170,255,.45); }
-.fv-rules { display: flex; flex-wrap: wrap; gap: 6px 32px; font-size: 14px; color: var(--text-2); padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border-strong); }
+
 /* Abilities: name in its own column so it's easy to find, rules text aligned beside it. */
 .fv-panel { container-type: inline-size; }
 /* Any datasheet column too narrow for the full tables (phones, tablets in portrait) uses the compact tables:
@@ -348,7 +337,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-weapons .fv-wname, .fv-weapons .fv-wkw { grid-column: 1 / -1; }
-  .fv-weapons .fv-wkl { display: none; }
+  
 }
 .fv-ab { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); column-gap: 18px; row-gap: 4px; align-items: baseline; padding: 10px 0; }
 .fv-ab + .fv-ab { border-top: 1px solid var(--border); }
@@ -378,7 +367,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 @media (max-width: 720px) {
   .fv { padding: 18px 16px 0; }
   .fv-scroll { margin: 0 -16px; padding: 0 16px 20px; }
-  .fv-tabs button { padding: 5px 10px; font-size: 13px; }
+  
   .fv-row > summary { grid-template-columns: 18px minmax(0, 60%) 1fr; }
   .fv-stats, .fv-stats.named { grid-template-columns: repeat(6, minmax(34px, 1fr)); }
   .fv-stats.named .model { grid-column: 1 / -1; padding-top: 6px; }
@@ -391,7 +380,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-wname, .fv-wkw { grid-column: 1 / -1; }
-  .fv-wkl { display: none; }
+  
   .fv-wkw { padding-bottom: 10px; }
   .fv-ab-name, .fv-intro, .fv-kh { padding-left: 0; }
 }
@@ -593,14 +582,14 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .composer { padding-left: 24px; padding-right: 24px; }
 }
 
-.version-warn{position:sticky;top:0;z-index:50;padding:10px 16px;background:#7a2a1f;color:#fff;font-size:13px;text-align:center}
+.version-warn {position:sticky;top:0;z-index:50;padding:10px 16px;background:#7a2a1f;color:#fff;font-size:13px;text-align:center}
 
 /* Enhancements and upgrades: a checklist like the weapons, with each one's rules under its name. */
 .lb-enhopt { grid-template-columns: 18px minmax(0, 1fr); padding: 0 12px 0 12px; }
 .lb-enhmore { display: flex; flex-direction: column; gap: 4px; padding: 0 0 12px 22px; }
 .lb-enhopt .lb-enhtaken { margin: 0 0 10px 22px; }
 .lb-enhopt.on { border-color: var(--on-b, rgba(48,209,88,.5)); }
-.lb-enhopt.taken.hov-r { cursor: not-allowed; }
+
 .lb-enhopt.taken .lb-check { cursor: not-allowed; opacity: .4; }
 .lb-enhopt.taken .lb-enhhead, .lb-enhopt.taken .lb-enhdet, .lb-enhopt.taken .lb-enhtext { opacity: .45; }
 .lb-enhbody { display: flex; flex-direction: column; min-width: 0; }
@@ -710,7 +699,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-link { all: unset; cursor: pointer; color: var(--accent); }
 .fv-link:hover, .fv-link:focus-visible { text-decoration: underline; }
 .lb-none { padding: 2px 2px 4px; }
-.lb-alsolead { margin-top: 2px; line-height: 1.45; }
+
 @media (max-width: 760px) {
   .fp-toolbar { flex-wrap: wrap; row-gap: 0; position: relative; }
   .fp-bar { flex-basis: 100%; }
@@ -808,7 +797,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* Weapon rows: the count sits in the top-right corner, so an opened weapon's table can use the row's full width. */
 .lb-wopt > .lb-count { position: absolute; right: 10px; top: 2px; }
 .lb-wopt summary { padding-right: 56px; }
-.lb-wopt.stepper summary { padding-right: 128px; }
+
 /* An opened weapon's table starts at the row's left edge (under the checkbox) for the most room. */
 .lb-wopt .fv-weapons { margin: 0 0 4px -30px; padding-left: 14px; padding-right: 12px; }
 
@@ -876,7 +865,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-grp[open] > summary { margin-bottom: 8px; }
   .fp-grp { margin-top: 8px; }
   /* Back: a bordered button in white. */
-  .btn.plain.fp-back, .btn.lb-paneback { align-items: center; gap: 4px; padding: 8px 14px; border: 1px solid var(--border-strong) !important; border-radius: 10px; color: var(--text) !important; background: var(--panel) !important; margin-bottom: 12px; }
+  .btn.plain.fp-back { align-items: center; gap: 4px; padding: 8px 14px; border: 1px solid var(--border-strong) !important; border-radius: 10px; color: var(--text) !important; background: var(--panel) !important; margin-bottom: 12px; }
 }
 @media (max-width: 380px) { .fp-groupbtn { font-size: 13px; padding: 0 6px; } .fp-groupn { display: none; } }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
@@ -887,16 +876,14 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fv-units .fv-link:hover { text-decoration: none; background: var(--panel-2); }
 }
 /* ---------- List builder on phones and tablets ---------- */
-.lb-swipe { position: relative; }
-.lb-swdel { display: none; }
-.lb-paneback, .lb-fab { display: none; }
-.lb-panes { display: none !important; }
+
+.lb-fab { display: none; }
+
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  .lb-swipe { overflow: hidden; border-radius: 10px; }
-  .lb-swipe .lb-card { position: relative; z-index: 1; transition: transform .2s ease; touch-action: pan-y; }
+  
+  
   /* The red delete button sits behind the right 20% of the card, the same height and shape. */
-  .lb-swdel { display: grid; place-items: center; position: absolute; top: 0; bottom: 0; right: 0; width: calc(20% - 6px); border: 0; border-radius: 10px;
-    background: var(--red, #ff453a); color: #fff; cursor: pointer; }
+  
   .lb-card .lb-trash { display: none; }
   .lb-card { padding-right: 12px; }
   /* Floating + button to add units, above the bottom bar on the right. */
@@ -905,10 +892,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
     font: 300 34px/1 var(--font); box-shadow: 0 8px 24px rgba(0,0,0,.45); z-index: 30; cursor: pointer; }
   .lb-fab.hidden { display: none; }
   #view-lists:not(.lb-editing) .lb-fab { display: none; }
-  .lb-colR .lb-paneback { display: inline-flex; margin-bottom: 12px; }
+  
   .lb-col { padding-bottom: 96px; }
 }
-@media (max-width: 760px) { .lb-colC .lb-paneback { display: inline-flex; margin-bottom: 12px; } }
 
 /* Bigger − / + buttons for weapon counts (every screen size). */
 .lb-step { width: 36px; height: 36px; border-radius: 8px; font-size: 20px; font-weight: 500; }
@@ -917,7 +903,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-wopt.stepper summary { padding-right: 150px; }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   .lb-step { width: 42px; height: 42px; font-size: 22px; }
-  .lb-wopt.stepper summary { padding-right: 162px; min-height: 52px; }
+  
 }
 .fv-nolink { color: inherit; cursor: default; } .fv-nolink:hover { text-decoration: none; }
 
@@ -950,7 +936,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
 /* 3: text that was 11.5–12.5px is 14px on phones and tablets. */
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  .lb-chip { font-size: 14px; }
+  
   .lb-ok { font-size: 14px; }
   .lb-notes { font-size: 14px; }
   .lb-subtle { font-size: 14px; }
@@ -960,16 +946,16 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .lb-cmeta { font-size: 14px; }
   .lb-cerr { font-size: 14px; }
   .lb-problems { font-size: 14px; }
-  .lb-switch button { font-size: 14px; }
+  
   .lb-wtype { font-size: 14px; }
   .lb-wkws { font-size: 14px; }
   .lb-attached { font-size: 14px; }
   .lb-insp-cost span { font-size: 14px; }
   .lb-label { font-size: 14px; }
-  .lb-enhname span { font-size: 14px; }
+  
   .lb-buffnote { font-size: 14px; }
   .fv-meta { font-size: 14px; }
-  .fv-wkl { font-size: 14px; }
+  
   .fv-wkw { font-size: 14px; }
   .fv-kw { font-size: 14px; }
   .fv-rich { font-size: 14px; }
@@ -1024,7 +1010,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .lb-switch { min-height: 44px; }
   .lb-switch button { min-height: 44px; min-width: 64px; font-size: 17px; font-weight: 600; }
   /* Weapon rows: the whole bar opens the details (no divider); − / + centred on the name; keywords below, full width. */
-  .lb-split::before { display: none; }
+  
   .lb-wopt { grid-template-columns: 32px minmax(0, 1fr); align-items: start; }
   .lb-check { width: 32px; height: 32px; margin: 11px 0 0; }
   .lb-wopt summary, .lb-wopt.stepper summary { align-items: flex-start; padding: 0 0 10px; min-height: 0; }
@@ -1057,7 +1043,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-statrow .fv-stats .val { font-size: 17px; font-weight: 600; }
 .fv-invshield { flex: 0 0 auto; position: relative; width: 52px; height: 60px; margin: 0 auto; padding: 0 12px; box-sizing: content-box; display: grid; place-items: center; }
 .fv-invshield svg { position: absolute; inset: 0; margin: auto; width: 52px; height: 60px; fill: color-mix(in srgb, var(--kw-b, var(--accent)) 18%, transparent); stroke: var(--kw-b, var(--border-strong)); stroke-width: 2.2; }
-.fv-invshield span { position: relative; font: 700 17px/1 var(--font); color: var(--text); margin-top: -4px; font-variant-numeric: tabular-nums; }
+.fv-invshield span { position: relative; font: 700 17px/1 var(--font); color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   .fv-statrow .fv-stats, .fv-statrow .fv-stats.named { grid-template-columns: repeat(6, auto); max-width: none; }
 }
@@ -1075,7 +1061,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
 /* List builder: Duplicate and Remove on the right; folded Wargear Options at the bottom; whole weapon bar opens details. */
 .lb-insp-acts { margin-left: auto; display: flex; gap: 10px; }
-.lb-split::before, .lb-split::after { display: none !important; }
+
 .lb-wgfold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 .lb-wgfold > summary::-webkit-details-marker { display: none; }
 .lb-wgfold > summary::before { content: "▸"; color: var(--text-2); transition: transform .15s; }
@@ -1096,12 +1082,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-lc-dets { font-size: 14px; color: var(--text-2); }
 .lb-lc-pts { margin-top: 14px; font-size: 14px; color: var(--text-2); }
 .lb-lc-pts b { color: var(--text); font-size: 16px; }
-.lb-lc-mark { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c1) 55%, transparent)); pointer-events: none; }
-.lb-listcard.has-mark .lb-lc-fac, .lb-listcard.has-mark .lb-lc-dets, .lb-listcard.has-mark .lb-lc-pts { max-width: calc(100% - 104px); }
-.lb-lc-trash { position: absolute; right: 8px; bottom: 8px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; }
-.lb-lc-trash:hover { color: var(--red); background: rgba(255,69,58,.12); }
-.lb-listswipe .lb-swdel { border-radius: 12px; }
-@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) { .lb-lc-trash { display: none; } }
+.lb-lc-mark { position: absolute; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c1) 55%, transparent)); pointer-events: none; }
 
 /* 7.3: "Inv" over the save in the shield; hazard sign on army lists; weapon rows without options. */
 .fv-invshield span { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 14px; margin-top: -3px; }
@@ -1121,7 +1102,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-wopt.lb-nocheck .fv-weapons { margin-left: -14px; }
 .lb-wopt.lb-nocheck.on { border-color: var(--on-b, rgba(48,209,88,.6)); background: var(--on-tint, linear-gradient(90deg, rgba(48,209,88,.07), rgba(48,209,88,.13))); }
 /* Unit boxes in a list: a red trash button on the right, the cost moved left of it. No swiping. */
-.lb-card { padding-right: 56px; }
+
 .lb-card .lb-trash { display: grid !important; top: 50%; bottom: auto; right: 8px; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 10px; color: var(--red); }
 .lb-card .lb-trash svg { width: 20px; height: 20px; }
 .lb-card .lb-trash:hover { background: rgba(255,69,58,.14); }
@@ -1137,8 +1118,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
 /* A unit's own name: the datasheet name sits under it, small, with a small gap above and the usual gap below. */
 .lb-insp-title h2 { display: flex; align-items: center; gap: 6px; }
-.lb-insp-orig { margin-top: 3px; font-size: 14px; color: var(--text-2); }
-.lb-corig { display: block; margin-top: 2px; margin-bottom: 2px; font-size: 14px; color: var(--text-2); }
+.lb-insp-orig { font-size: 14px; color: var(--text-2); }
+.lb-corig { display: block; font-size: 14px; color: var(--text-2); }
 @media (min-width: 1280px) { .lb-corig { font-size: 12px; } }
 /* 7.5: tighter gap under a custom name; cost and trash centred down the unit box. */
 .lb-corig { margin-top: -3px; margin-bottom: 2px; line-height: 1.25; }

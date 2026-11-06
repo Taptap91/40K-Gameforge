@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.7";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.7";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.7";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.7";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.7";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.7";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.8";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.8";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.8";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.8";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.8";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.8";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -307,20 +307,19 @@ const KEBAB_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="
 const TRASH_MID = TRASH_SVG.replace('width="14" height="14"', 'width="22" height="22"');
 /** Duplicate: a rounded square with a plus, with a second square behind it, up and to the right. */
 const DUP_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5V5a2.5 2.5 0 0 1 2.5-2.5H19A2.5 2.5 0 0 1 21.5 5v8.5A2.5 2.5 0 0 1 19 16h-.5"/><rect x="2.5" y="8" width="13.5" height="13.5" rx="2.5"/><path d="M9.25 11.5v6.5M6 14.75h6.5"/></svg>`;
-const TRASH_BIG = TRASH_SVG.replace('width="14" height="14"', 'width="26" height="26"');
 function lbListColumn(list, r) {
   const chip = (target, label) => `<button type="button" class="lb-attached${target.problems?.length ? " bad" : ""}" data-lb-jump="${target.id}" title="Show ${esc(target.unit.name)} in the list"><span class="lb-arrow">${label}</span><span class="lb-aname">${esc(target.unit.name)}</span><span class="lb-ccost">${target.total}</span></button>`;
   const card = x => {
     const sel = listUI.sel === x.id ? " sel" : "";
     // ⋮ opens a small menu with Duplicate and Delete (the same menu as an army list's box).
     const trash = `<button type="button" class="lb-trash lb-unitkebab" data-lb-unitmenu="${x.id}" title="More" aria-label="More options for ${esc(x.unit?.name || x.key)}" aria-haspopup="menu">${KEBAB_SVG}</button>`;
-    if (!x.unit) return `<div class="lb-cardwrap"><div class="lb-swipe"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div></div>`;
+    if (!x.unit) return `<div class="lb-cardwrap"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div>`;
     const host = x.attachTo ? r.entries.find(h => h.id === x.attachTo && h.unit) : null;
     const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     // A unit lists the characters attached to it; a character lists the unit it's attached to.
     const chips = x.unit.character ? (host ? [chip(host, "↳")] : []) : r.entries.filter(c => c.attachTo === x.id && c.unit).map(c => chip(c, "↳"));
     const bad = x.problems?.length ? " bad" : "";
-    return `<div class="lb-cardwrap"><div class="lb-swipe">
+    return `<div class="lb-cardwrap">
       <div role="button" tabindex="0" class="lb-card${sel}${bad}" id="lbc-${x.id}" data-lb-sel="${x.id}">
         <span class="lb-ctop"><span class="lb-cname">${esc(unitLabel(list, x) || x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
         ${unitLabel(list, x) ? `<span class="lb-corig">${esc(x.unit.name)}</span>` : ""}
@@ -328,7 +327,7 @@ function lbListColumn(list, r) {
         ${tags ? `<span class="lb-ctags">${tags}</span>` : ""}
         ${bad ? `<span class="lb-cerr">⚠︎ ${esc(x.problems[0])}${x.problems.length > 1 ? ` (+${x.problems.length - 1} more)` : ""}</span>` : ""}
         ${trash}
-      </div></div>
+      </div>
       ${chips.join("")}
     </div>`;
   };
@@ -530,42 +529,19 @@ function wireListBuilder() {
   /* Phones and tablets: swipe a unit card left to reveal its delete button; swipe right (or tap elsewhere) to close it.
      Swipe right on a datasheet or the add screen to go back to the list. */
   // Swipe right on a datasheet or the add screen to go back to the list (phones), or from adding to the unit (tablets).
-  onSwipeRight(view, e => !e.target.closest(".lb-swipe") && !!e.target.closest(".lb-colC, .lb-colR"), () => {
+  onSwipeRight(view, e => !!e.target.closest(".lb-colC, .lb-colR"), () => {
     const list = state.lists.find(l => l.id === listUI.id);
     if (!list || listUI.mode !== "edit" || listUI.pane === "list") return;
     listUI.pane = "list"; renderListEditor(list);
   });
-  // Weapon, enhancement and upgrade rows: the left half of the bar shows or hides the details,
-  // the right half equips or unequips (same as the checkbox).
-  const splitSide = (row, e) => {
-    const bar = row.querySelector("summary")?.getBoundingClientRect(), box = row.getBoundingClientRect();
-    if (bar) row.style.setProperty("--barh", `${Math.round(bar.bottom - box.top + 2)}px`);
-    if (!bar || e.clientY < box.top || e.clientY > bar.bottom + 2) return "";
-    // Rows with a − / + counter: the whole bar shows or hides the details; only the buttons change the count.
-    return "l";   // the whole bar shows or hides the details; only the buttons and the checkbox change the weapon
-  };
+  // Weapon, enhancement and upgrade rows: a tap anywhere on the bar (not on its buttons or checkbox) opens or closes the details.
   view.addEventListener("click", e => {
     const t = e.target, row = t.closest("[data-split]");
-    if (!row || t.closest("input, button, a, [data-lb-warn], .lb-enhtaken")) return;
-    const side = splitSide(row, e);
-    if (side === "r") {
-      e.preventDefault(); e.stopImmediatePropagation();
-      const cb = row.querySelector(".lb-check");
-      if (cb.disabled) return toast(row.querySelector("[data-block]")?.dataset.block || "This can't be equipped to this unit.");
-      cb.checked = !cb.checked;
-      cb.dispatchEvent(new Event("change", { bubbles: true }));
-    } else if (side === "l" && !t.closest("summary")) {
-      const d = row.querySelector("details"); if (d) d.open = !d.open;
-    }
+    if (!row || t.closest("input, button, a, summary, [data-lb-warn], .lb-enhtaken")) return;
+    const bar = row.querySelector("summary")?.getBoundingClientRect();
+    if (!bar || e.clientY > bar.bottom + 2) return;
+    const d = row.querySelector("details"); if (d) d.open = !d.open;
   }, true);
-  view.addEventListener("pointermove", e => {
-    const row = e.target.closest?.("[data-split]");
-    view.querySelectorAll(".lb-split.hov-l, .lb-split.hov-r").forEach(r => { if (r !== row) r.classList.remove("hov-l", "hov-r"); });
-    if (!row) return;
-    const side = e.target.closest("input, button, [data-lb-warn], .lb-enhtaken") ? "" : splitSide(row, e);
-    row.classList.toggle("hov-l", side === "l"); row.classList.toggle("hov-r", side === "r");
-  });
-  view.addEventListener("pointerleave", () => view.querySelectorAll(".hov-l, .hov-r").forEach(r => r.classList.remove("hov-l", "hov-r")));
   view.addEventListener("click", async e => {
     const t = e.target;
     const act = t.closest("[data-lb]")?.dataset.lb;
@@ -745,12 +721,10 @@ function wireListBuilder() {
     const list = state.lists.find(l => l.id === listUI.id);
     if (!list) return;
     const entry = id => list.units.find(u => u.id === id);
-    if (t.dataset.lbSize) { entry(t.dataset.lbSize).models = +t.value; }
-    else if (t.matches("[data-lb-enhcheck]")) {
+    if (t.matches("[data-lb-enhcheck]")) {
       if (t.checked) return lbEquipEnh(list, t.dataset.lbEnhcheck, t.dataset.slot, t.dataset.name);
       const u = entry(t.dataset.lbEnhcheck); if (u.enh === t.dataset.name) u.enh = null; if (u.upg === t.dataset.name) u.upg = null;
     }
-    else if (t.matches("[data-lb-wcheck]")) return lbChangeWeapon(list, t.dataset, t.checked ? "on" : "off");
     else if (t.matches("[data-lb-attach]")) {
       const c = entry(t.dataset.lbAttach);
       const u = armyData(list.faction).units.find(x => x.key === c.key);
