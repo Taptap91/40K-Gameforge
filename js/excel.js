@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=6.8";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.8";
-import { rulesToSheets } from "./rules-doc.js?v=6.8";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.8";
+import { formatGB, toast } from "./core.js?v=6.9";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=6.9";
+import { rulesToSheets } from "./rules-doc.js?v=6.9";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=6.9";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -83,7 +83,7 @@ function structuredToSheets(data, faction, theme = null) {
   const YES = v => (v ? "Yes" : "");
   const lines = arr => (arr || []).join("\n");
   const rich = (r, t) => (r && stripRich(r) !== r ? r : "");   // keep formatting only where it adds bold text
-  const unitRows = [], abilityRows = [], sectionRows = [], profileRows = [], stratRows = [], enhOptRows = [];
+  const unitRows = [], abilityRows = [], sectionRows = [], profileRows = [], stratRows = [], enhOptRows = [], unsortedRows = [];
   for (const ds of data.datasheets) {
     tidyDatasheet(ds);
     const v = viewerDatasheet(ds);
@@ -103,6 +103,7 @@ function structuredToSheets(data, faction, theme = null) {
       sectionRows.push([ds.name, s.heading, s.text || "", printed && printed !== String(s.text || "").split(/\n+/).map(t => t.trim()).filter(Boolean).join("\n") ? printed : "", rich(s.rich)]);
     }
     for (const e of ds.enhancementOptions || []) enhOptRows.push([ds.name, e.name, e.points ?? ""]);
+    for (const t of ds.unsorted || []) unsortedRows.push([ds.name, t]);
   }
   const W = (header, width, extra = {}) => ({ header, width, ...extra });
   return [
@@ -117,6 +118,8 @@ function structuredToSheets(data, faction, theme = null) {
     { name: "Abilities", columns: [W("Unit", 30), W("Ability", 32), W("Wargear ability", 10), W("Rules", 90), W("Formatted", 20)], rows: abilityRows },
     { name: "Unit sections", columns: [W("Unit", 30), W("Section", 26), W("Text", 90), W("Lines as printed", 60), W("Formatted", 20)], rows: sectionRows },
     { name: "Unit enhancements", columns: [W("Unit", 30), W("Enhancement", 34), W("Points", 8)], rows: enhOptRows },
+    // Text the PDF reader couldn't place on a datasheet. Kept so nothing is lost; the app doesn't show it.
+    { name: "Unsorted text", columns: [W("Unit", 30), W("Text", 100)], rows: unsortedRows },
     { name: "Detachments", columns: [W("Detachment", 30), W("Detachment points", 10), W("Unique keyword", 16), W("Can't be taken with", 34), W("Description", 50), W("Rules", 90)],
       rows: data.detachments.map(d => {
         // A Unique keyword stops two detachments that share it from being in the same army; blank when the pack gives none.
@@ -223,7 +226,7 @@ function structuredFromWorkbook(book) {
   const byUnit = (rows, col = "unit") => { const m = new Map(); for (const r of rows) { const k = normName(r[col] || ""); if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
   const profiles = byUnit(sheet("Profiles")), weapons = byUnit(sheet("Weapons")), points = byUnit(sheet("Points"));
   const abilities = byUnit(sheet("Abilities")), sections = byUnit(sheet("Unit sections"));
-  const strats = byUnit(sheet("Unit stratagems")), enhOpts = byUnit(sheet("Unit enhancements"));
+  const strats = byUnit(sheet("Unit stratagems")), enhOpts = byUnit(sheet("Unit enhancements")), unsorted = byUnit(sheet("Unsorted text"));
   const kwList = s => String(s || "").split(/\s*[,\n]\s*/).map(k => k.trim()).filter(Boolean).map(k => k.toUpperCase()).join(", ");
   const datasheets = units.filter(u => u.unit).map(u => {
     const k = normName(u.unit);
@@ -248,6 +251,7 @@ function structuredFromWorkbook(book) {
       coreAbilities: list(u["core abilities"]), armyRuleNames: list(u["army rules"]), leader,
       detachmentAbilities: list(u["detachment abilities"]),
       enhancementOptions: (enhOpts.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points) })),
+      unsorted: (unsorted.get(k) || []).map(r => r.text).filter(Boolean),
     };
   });
   const detRules = byUnit(sheet("Detachment rules"), "detachment"), enhs = byUnit(sheet("Enhancements"), "detachment"), detStrats = byUnit(sheet("Stratagems"), "detachment");

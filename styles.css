@@ -846,3 +846,11 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); animation: ab-sheet-in .18s ease-out; }
 @keyframes ab-sheet-in { from { transform: translateY(24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ab-pop, .ab-pop-sheet { animation: none; } }
+
+/* Unsorted text: folded at the bottom of a datasheet. */
+.fv-unsorted > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-2); }
+.fv-unsorted > summary::-webkit-details-marker { display: none; }
+.fv-unsorted > summary::before { content: "▾"; font-size: 13px; transition: transform .15s; }
+.fv-unsorted:not([open]) > summary::before { transform: rotate(-90deg); }
+.fv-unsorted p { margin: 10px 0 8px; font-size: 12.5px; }
+.fv-unsorted-text { font-size: 13px; line-height: 1.6; color: var(--text-2); padding: 10px 12px; border: 1px dashed var(--border-strong); border-radius: 8px; user-select: text; }

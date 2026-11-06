@@ -31,11 +31,14 @@
  *          top to bottom), then every name is checked: one that matches the pack's own Army Rules is a faction ability,
  *          one that matches the game's core abilities (Deep Strike, Leader, Scouts 6"...) is a core ability, and two
  *          names run together ("Leader Combat Doctrines") are split. The same check runs for every faction.
+ *  Rule 12 Datasheet abilities are read by layout, not punctuation: a name is the bold text at the start of a
+ *          paragraph, read across lines up to its colon or to where normal text begins. Text the reader can't place
+ *          is kept with the datasheet (and its Excel file's "Unsorted text" sheet) but not shown in the app.
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=6.8";
-import { normName } from "./text.js?v=6.8";
+import { KNOWN_FACTIONS } from "./core.js?v=6.9";
+import { normName } from "./text.js?v=6.9";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";

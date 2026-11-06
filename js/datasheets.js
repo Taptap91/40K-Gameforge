@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=6.8";
-import { wargearOf } from "./loadout.js?v=6.8";
-import { factionMatches } from "./search.js?v=6.8";
-import { coreAbilityRule } from "./rules-doc.js?v=6.8";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.8";
+import { esc, state, uid } from "./core.js?v=6.9";
+import { wargearOf } from "./loadout.js?v=6.9";
+import { factionMatches } from "./search.js?v=6.9";
+import { coreAbilityRule } from "./rules-doc.js?v=6.9";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=6.9";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -164,7 +164,8 @@ function viewerDatasheet(ds) {
       .map(l => { const m = l.match(/^([^:]{2,80}):\s*(.*)$/); return m ? { name: m[1], text: m[2], rich: m[2], wargear: false } : null; }).filter(Boolean);
   }
   const fromSection = re => ds.sections.filter(s => re.test(s.heading)).flatMap(s => s.text.split(/\s*[,\n]\s*/)).map(t => t.trim()).filter(Boolean);
-  const coreNames = (ds.coreAbilities || fromSection(/^CORE ABILIT/)).filter(n => !/^(Leader|Support)$/i.test(n));
+  // Every core ability printed on the datasheet, Leader and Support included (each opens its Core Rules text).
+  const coreNames = ds.coreAbilities || fromSection(/^CORE ABILIT/);
   const factionNames = (ds.armyRuleNames || fromSection(/^(ARMY RULES?|FACTION ABILIT\w*)$/)).filter(n => !/^(Leader|Support)$/i.test(n));
   const ruleNames = [...coreNames, ...factionNames];
   let leader = ds.leader;
@@ -348,6 +349,10 @@ function datasheetDetailsHTML(ds, armyRules, opts = {}) {
     ...attachLists(ds, opts.siblings).map(l => panelHTML(l.heading,
       `${l.intro ? `<div class="fv-intro">${esc(l.intro)}</div>` : ""}<ul class="fv-units">${l.units.sort((a, b) => a.localeCompare(b)).map(n => `<li>${unitName(n)}</li>`).join("")}</ul>`)),
     kws || fkws ? panelHTML("Keywords", (kws ? `<div class="fv-kh">Keywords</div><div class="fv-kv">${esc(kws)}</div>` : "") + (fkws ? `<div class="fv-kh">Faction Keywords</div><div class="fv-kv">${esc(fkws)}</div>` : "")) : "",
+    // Text the PDF reader couldn't place, folded away at the bottom so it can be moved to the right place in Excel.
+    ds.unsorted?.length ? panelHTML("", `<details class="fv-unsorted"><summary>Unsorted text <span class="fv-ab-count">${ds.unsorted.length} line${ds.unsorted.length === 1 ? "" : "s"} the PDF reader couldn't place</span></summary>
+      <p class="lb-subtle">This is also in the "Unsorted text" sheet of the faction's Excel download. Copy it into the right sheet, then add the file back in Library.</p>
+      <div class="fv-unsorted-text">${ds.unsorted.map(t => `<div>${esc(t)}</div>`).join("")}</div></details>`) : "",
   ].join("");
 }
 

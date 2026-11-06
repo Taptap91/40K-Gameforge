@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=6.8";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.8";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.8";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=6.9";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=6.9";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=6.9";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -779,7 +779,10 @@ function parsePrintedFactionPdf(allItems) {
     // A label's list is centred on the label, so a three-line list starts above the stats row; read from a little higher.
     walk(R, a.header.y - 2 - 1.6 * body);
     sideLabelLists(sections);
-    for (let k = sections.length - 1; k >= 0; k--) if (!sections[k].heading) sections.splice(k, 1);
+    for (let k = sections.length - 1; k >= 0; k--) if (!sections[k].heading) {
+      for (const l of sections[k].lines) { const t = stripRich(l.plain || "").trim(); if (t) (ds.unsorted ||= []).push(t); }
+      sections.splice(k, 1);
+    }
 
     const sec = re => sections.filter(s => re.test(s.heading));
     const plainLines = list => list.flatMap(s => s.lines.map(l => l.plain.trim())).filter(Boolean);
@@ -787,24 +790,82 @@ function parsePrintedFactionPdf(allItems) {
     ds.coreAbilities = commaList(sec(/^CORE ABILIT/));
     ds.armyRuleNames = commaList(sec(/^ARMY RULES?$/));
 
-    // Abilities: "Name: text" entries; an indented name is a wargear ability.
+    // Abilities, read by layout rather than punctuation (faction pack ruleset, rule 12):
+    //  • an ability starts with bold text at the start of a paragraph (after the wider gap between abilities), or with
+    //    a "Name:" line in packs that don't use bold names;
+    //  • its name is the bold text from there, across lines, up to the colon, or up to where normal text begins;
+    //    bold words after normal text has started (keywords like "readied") belong to the description;
+    //  • a bold name with no colon that runs on past a closing bracket ends at the bracket;
+    //  • an indented name is a wargear ability;
+    //  • text that can't be placed is kept on the datasheet (ds.unsorted), never thrown away.
     for (const s of sec(/^(ABILITIES|FACTION ABILIT)/)) {
-      let cur = null;
-      for (const l of s.lines) {
-        const first = l.items[0];
-        const m = l.plain.match(/^([A-Z][^:]{1,80}?(\([^)]*\))?):\s*(.*)$/);
-        const boldStart = first?.b && /:\s*$/.test(cleanGlyphs(first.t));
-        if (m && (boldStart || !l.items.some(i => i.b))) {
-          const restItems = l.items.slice(boldStart ? 1 : 0);
-          cur = { name: m[1].trim(), wargear: l.x - s.x > 8, lines: [] };
+      const ls = s.lines, topOf = l => Math.min(...l.items.map(i => i.y));
+      const gaps = ls.slice(1).map((l, k) => topOf(l) - topOf(ls[k])).filter(g => g > 0).sort((a, b) => a - b);
+      const lineGap = gaps.length ? gaps[Math.floor((gaps.length - 1) / 3)] : body * 1.35;
+      let cur = null, naming = null;
+      const textOf = it => cleanGlyphs(it.t);
+      // Reads a name from the start of `items`: bold text up to a colon, or up to the first normal text.
+      const takeName = (items, boldNames) => {
+        let name = "";
+        for (let k = 0; k < items.length; k++) {
+          const it = items[k], t = it.t;
+          if (boldNames && !it.b) return { name, done: true, colon: false, rest: items.slice(k) };
+          const c = t.indexOf(":");
+          if (c >= 0) {
+            const after = t.slice(c + 1);
+            const rest = [...(after.trim() ? [{ ...it, t: after.replace(/^\s+/, ""), b: it.b && !boldNames ? it.b : false }] : []), ...items.slice(k + 1)];
+            return { name: name + t.slice(0, c), done: true, colon: true, rest };
+          }
+          name += (name && !/\s$/.test(name) && !/^\s/.test(t) ? " " : "") + t;
+        }
+        return { name, done: false, colon: false, rest: [] };
+      };
+      const finish = (ab, r) => {
+        ab.name = cleanGlyphs(ab.name).replace(/\s+/g, " ").trim();
+        // No colon: a bold name that ran on past its closing bracket ends at the bracket.
+        if (!r.colon) {
+          const m = ab.name.match(/^(.*\))\s+(\S.*)$/);
+          if (m && m[1].length >= 3) { ab.name = m[1]; ab.lines.unshift({ x: s.x, items: [], text: m[2], plain: m[2] }); }
+        }
+      };
+      for (let k = 0; k < ls.length; k++) {
+        const l = ls[k], items = l.items, gap = k ? topOf(l) - topOf(ls[k - 1]) : Infinity;
+        if (naming) {                          // the name carries on from the line above
+          const r = takeName(items, true);
+          naming.name += " " + r.name;
+          if (r.done || r.name.length > 140) {
+            finish(naming, r);
+            if (r.rest.length) naming.lines.push({ ...l, items: r.rest, x: s.x, text: lineRich(r.rest), plain: stripRich(lineRich(r.rest)) });
+            naming = null;
+          }
+          continue;
+        }
+        const startsBold = items[0]?.b && letterCount(textOf(items[0])) >= 1;
+        const colonLine = /^([A-Z][^:]{1,80}?(\([^)]*\))?):\s*(.*)$/.test(l.plain);
+        const newPara = gap > lineGap * 1.3;
+        const plainName = !items.some(i => i.b) && colonLine && (newPara || !cur);
+        // Guards: a new ability never starts mid-sentence (the line above must have finished one), and a bold keyword
+        // in capitals ("AIRCRAFT", "PSYKER", "BS") with no colon after it is part of the text, not a name.
+        const prevText = k ? stripRich(ls[k - 1].plain || "").trim() : "";
+        const sentenceDone = !cur || !prevText || /[.:!?)\]”"’']$/.test(prevText);
+        const firstBold = []; for (const it of items) { if (!it.b) break; firstBold.push(textOf(it)); }
+        const capsKeyword = isUpperText(firstBold.join(" ")) && !/:/.test(firstBold.join(" "));
+        if (((startsBold && (newPara || !cur || colonLine)) || plainName) && sentenceDone && !capsKeyword) {
+          const r = takeName(items, !plainName);
+          cur = { name: r.name, wargear: l.x - s.x > 8, lines: [] };
           ds.abilities.push(cur);
-          const restRich = boldStart ? lineRich(restItems) : lineRich(l.items).replace(/^[^:]+:\s*/, "");
-          if (restRich) cur.lines.push({ ...l, x: s.x, text: restRich });
+          if (r.done) {
+            finish(cur, r);
+            if (r.rest.length) cur.lines.push({ ...l, items: r.rest, x: s.x, text: lineRich(r.rest), plain: stripRich(lineRich(r.rest)) });
+          } else naming = cur;
           continue;
         }
         if (cur) cur.lines.push({ ...l, x: s.x });
+        else (ds.unsorted ||= []).push(stripRich(l.plain || l.text || ""));
       }
+      if (naming) finish(naming, { colon: false });
     }
+    ds.abilities = ds.abilities.filter(ab => ab.name || ab.lines.length);
     for (const ab of ds.abilities) { ab.name = ab.name.replace(/\bInSv\b/g, "Invulnerable Save"); ab.rich = linesToRich(ab.lines, Math.min(...ab.lines.map(l => l.x), Infinity)); ab.text = stripRich(ab.rich); delete ab.lines; }
 
     // Leader / support
