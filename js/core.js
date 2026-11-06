@@ -110,7 +110,7 @@ function askText(title, label, value) {
       <div class="sheet-foot"><button class="btn" type="button" id="askNo">Cancel</button><button class="btn primary" type="button" id="askYes">Save</button></div>`);
     let done = false;
     const finish = v => { if (done) return; done = true; if (d.open) d.close(); resolve(v); };
-    $("#askYes").onclick = () => finish($("#askInput").value.trim() || null);
+    $("#askYes").onclick = () => finish($("#askInput").value.trim());
     $("#askNo").onclick = () => finish(null);
     $("#askInput").onkeydown = e => { if (e.key === "Enter") $("#askYes").click(); };
     d.addEventListener("close", () => finish(null), { once: true });
@@ -119,6 +119,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "7.4";
+const APP_VERSION = "7.5";
 
 export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, settingsTabsHTML, state, store, toast, uid };

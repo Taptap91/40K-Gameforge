@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.4";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.4";
-import { exportDocToExcel } from "./excel.js?v=7.4";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.4";
-import * as core from "./core.js?v=7.4";
-import { openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.4";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.4";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.4";
-import { buildIndex } from "./search.js?v=7.4";
-import { openDataViewer } from "./viewer.js?v=7.4";
-import { fixApostrophes } from "./text.js?v=7.4";
-import { groupArmyRules } from "./faction-parser.js?v=7.4";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.4";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.5";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.5";
+import { exportDocToExcel } from "./excel.js?v=7.5";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.5";
+import * as core from "./core.js?v=7.5";
+import { openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.5";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.5";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.5";
+import { buildIndex } from "./search.js?v=7.5";
+import { openDataViewer } from "./viewer.js?v=7.5";
+import { fixApostrophes } from "./text.js?v=7.5";
+import { groupArmyRules } from "./faction-parser.js?v=7.5";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.5";
 
 function renderAll() {
   renderScope();

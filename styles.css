@@ -1134,3 +1134,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-menu button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 15px/1 var(--font); text-align: left; cursor: pointer; }
 .lb-menu button:hover { background: var(--panel-2); }
 .lb-menu button.danger { color: var(--red); }
+
+/* A unit's own name: the datasheet name sits under it, small, with a small gap above and the usual gap below. */
+.lb-insp-title h2 { display: flex; align-items: center; gap: 6px; }
+.lb-insp-orig { margin-top: 3px; font-size: 14px; color: var(--text-2); }
+.lb-corig { display: block; margin-top: 2px; margin-bottom: 2px; font-size: 14px; color: var(--text-2); }
+@media (min-width: 1280px) { .lb-corig { font-size: 12px; } }

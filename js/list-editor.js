@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.4";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.4";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.4";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.4";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.4";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.4";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.5";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.5";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.5";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.5";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.5";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.5";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -273,7 +273,7 @@ function lbInspector(list, r, data) {
   const enhHTML = lbEnhChecklist(x, r, false) + lbEnhChecklist(x, r, true);
   return `
     <div class="lb-insp-head">
-      <div class="lb-insp-title"><h2>${esc(u.name)}</h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>
+      <div class="lb-insp-title"><h2>${esc(unitLabel(list, x) || u.name)}<button class="lb-pencil" type="button" data-lb-unitname="${x.id}" title="Rename unit" aria-label="Rename unit">${PENCIL_SVG}</button></h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>${unitLabel(list, x) ? `<div class="lb-insp-orig">${esc(u.name)}</div>` : ""}
       <div class="lb-insp-bar">${size}
         ${u.character ? `<button class="btn${x.warlord ? " lb-on" : ""}" type="button" data-lb-warlord="${x.id}">${x.warlord ? "★ Warlord" : "☆ Make Warlord"}</button>` : ""}
         <span class="lb-insp-acts"><button class="btn lb-iconbtn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""} title="Duplicate" aria-label="Duplicate">${DUP_SVG}<span class="lb-btntext">Duplicate</span></button>
@@ -288,6 +288,9 @@ function lbInspector(list, r, data) {
     ${datasheetDetailsHTML(ds, factionArmyRules(list.faction), { siblings: (data?.units || []).map(o => o.ds) })}
     ${(w => w ? w.replace('<section class="fv-panel"><div class="fv-panel-head">Wargear Options</div>', '<details class="fv-panel lb-wgfold"><summary class="fv-panel-head">Wargear Options</summary>').replace(/<\/section>$/, "</details>") : "")(wargearOptionsHTML(ds))}`;
 }
+
+/** The player's own name for a unit in a list ("" when it has none). */
+const unitLabel = (list, x) => list?.units?.find(o => o.id === x.id)?.label || "";
 
 function lbAtMax(u, r) {
   const n = r.entries.filter(e => e.key === u.key).length;
@@ -317,7 +320,8 @@ function lbListColumn(list, r) {
     const bad = x.problems?.length ? " bad" : "";
     return `<div class="lb-cardwrap"><div class="lb-swipe">
       <div role="button" tabindex="0" class="lb-card${sel}${bad}" id="lbc-${x.id}" data-lb-sel="${x.id}">
-        <span class="lb-ctop"><span class="lb-cname">${esc(x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
+        <span class="lb-ctop"><span class="lb-cname">${esc(unitLabel(list, x) || x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
+        ${unitLabel(list, x) ? `<span class="lb-corig">${esc(x.unit.name)}</span>` : ""}
         <span class="lb-cmeta">${x.models} model${x.models === 1 ? "" : "s"}${host ? ` · ${x.slot === "support" ? "supporting" : "leading"} the unit below` : ""}${x.copy >= 3 && x.opt?.later ? " · 3rd+ cost" : ""}</span>
         ${tags ? `<span class="lb-ctags">${tags}</span>` : ""}
         ${bad ? `<span class="lb-cerr">⚠︎ ${esc(x.problems[0])}${x.problems.length > 1 ? ` (+${x.problems.length - 1} more)` : ""}</span>` : ""}
@@ -570,6 +574,16 @@ function wireListBuilder() {
     }
     const open = !t.closest("[data-lb-delete], [data-lb-listmenu], .lb-menu") && t.closest("[data-lb-open]");
     if (open) { listUI.mode = "edit"; listUI.id = open.dataset.lbOpen; listUI.sel = null; listUI.pane = isPhone() ? "list" : "unit"; return renderListsPage(); }
+    const uren = t.closest("[data-lb-unitname]");
+    if (uren && list) {
+      // A name of the player's own for a unit in this list; left empty, the unit goes back to its datasheet name.
+      const e = list.units.find(o => o.id === uren.dataset.lbUnitname);
+      if (!e) return;
+      const name = await askText("Rename unit", "Name (leave empty to use the datasheet name)", e.label || "");
+      if (name === null) return;
+      e.label = String(name).trim() || undefined;
+      saveList(list, true); return renderListEditor(list);
+    }
     const ren = t.closest("[data-lb-rename]");
     if (ren) {
       const l = state.lists.find(x => x.id === ren.dataset.lbRename);
