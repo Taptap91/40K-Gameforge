@@ -920,3 +920,128 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .lb-wopt.stepper summary { padding-right: 162px; min-height: 52px; }
 }
 .fv-nolink { color: inherit; cursor: default; } .fv-nolink:hover { text-decoration: none; }
+
+/* ---------- 7.2: settings in the bottom bar; unit header on phones and tablets ---------- */
+.nav-settings { display: none; }
+.set-tabs { display: flex; gap: 4px; padding: 4px; margin: 0 0 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); }
+.set-tab { flex: 1; min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: 600 14px/1 var(--font); cursor: pointer; }
+.set-tab.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .nav-settings { display: flex; }
+  .ai-status, .fp-style { display: none !important; }
+  #view-factions.fp-unitmode .fp-toolbar { display: none; }
+  .fp-unitbanner, .fp-unitbanner.has-art { min-height: 0; padding-top: 12px; padding-bottom: 14px; transition: padding .28s ease; }
+  .fp-unitbanner .fp-banner-text { gap: 6px; }
+  .fp-unitbanner .fp-banner-mark { transition: width .28s ease, right .28s ease; }
+  .fp-unitbanner .fp-banner-name { font-size: 26px; transition: font-size .28s ease; }
+  .fp-unitbanner .fp-banner-kicker { font-size: 12px; max-height: 20px; transition: max-height .28s ease, opacity .2s ease, margin .28s ease; overflow: hidden; color: var(--c1); filter: brightness(1.35); }
+  .fp-unitbanner .fp-banner-counts { font-size: 14px; flex-direction: column; gap: 2px; }
+  .fp-bannerback { align-self: flex-start; min-height: 36px; padding: 6px 14px; border: 1px solid rgba(255,255,255,.55); border-radius: 10px; background: rgba(0,0,0,.25); color: #fff; font-size: 14px; transition: min-height .28s ease, padding .28s ease; }
+  .fp-unitbanner.compact { padding-top: 8px; padding-bottom: 9px; }
+  .fp-unitbanner.compact .fp-banner-text { gap: 3px; }
+  .fp-unitbanner.compact .fp-banner-kicker { max-height: 0; opacity: 0; margin: -3px 0; }
+  .fp-unitbanner.compact .fp-banner-name { font-size: 19px; }
+  .fp-unitbanner.compact .fp-bannerback { min-height: 30px; padding: 3px 12px; }
+  .fp-unitbanner.compact { --mark-w: 72px; }
+  .fp-unitbanner.compact:has(> .fp-banner-mark) { padding-right: calc(16px + 72px + 12px); }
+  .fp-unitbanner:has(> .fp-banner-mark) { transition: padding .28s ease; }
+  #view-factions.fp-unitmode .fp-shell.show-detail .fp-right { padding-top: 14px; }
+}
+
+/* 3: text that was 11.5–12.5px is 14px on phones and tablets. */
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .lb-chip { font-size: 14px; }
+  .lb-ok { font-size: 14px; }
+  .lb-notes { font-size: 14px; }
+  .lb-subtle { font-size: 14px; }
+  .lb-meta { font-size: 14px; }
+  .lb-issues { font-size: 14px; }
+  .lb-grp-title { font-size: 14px; }
+  .lb-cmeta { font-size: 14px; }
+  .lb-cerr { font-size: 14px; }
+  .lb-problems { font-size: 14px; }
+  .lb-switch button { font-size: 14px; }
+  .lb-wtype { font-size: 14px; }
+  .lb-wkws { font-size: 14px; }
+  .lb-attached { font-size: 14px; }
+  .lb-insp-cost span { font-size: 14px; }
+  .lb-label { font-size: 14px; }
+  .lb-enhname span { font-size: 14px; }
+  .lb-buffnote { font-size: 14px; }
+  .fv-meta { font-size: 14px; }
+  .fv-wkl { font-size: 14px; }
+  .fv-wkw { font-size: 14px; }
+  .fv-kw { font-size: 14px; }
+  .fv-rich { font-size: 14px; }
+  .fv-units { font-size: 14px; }
+  .fv-kv { font-size: 14px; }
+  .fv-tabs button { font-size: 14px; }
+  pre.code { font-size: 14px; }
+  .field > label { font-size: 14px; }
+  .hint { font-size: 14px; }
+  .bubble code { font-size: 14px; }
+  .sources > summary { font-size: 14px; }
+  .source { font-size: 14px; }
+  .searched { font-size: 14px; }
+  .hints { font-size: 14px; }
+  .status-line { font-size: 14px; }
+  .step-text span { font-size: 14px; }
+  .group-title { font-size: 14px; }
+  .list-row .meta { font-size: 14px; }
+  .check { font-size: 14px; }
+  pre.saved { font-size: 14px; }
+  .choice span { font-size: 14px; }
+  table.points th { font-size: 14px; }
+  .lb-enhpts { font-size: 14px; }
+  .lb-enhdet { font-size: 14px; }
+  .lb-enhtaken { font-size: 14px; }
+  .lb-enhmove { font-size: 14px; }
+  .lb-enhnote { font-size: 14px; }
+  .lb-why { font-size: 14px; }
+  .fv-ab-ref { font-size: 14px; }
+  .fp-imeta { font-size: 14px; }
+  .fp-fac { font-size: 14px; }
+  .fp-dp { font-size: 14px; }
+  .fp-banner-counts { font-size: 14px; }
+  .fv-ab-count { font-size: 14px; }
+  .fv-army .fv-part-name .fv-ab-ref { font-size: 14px; }
+  .lb-detdp { font-size: 14px; }
+  .fv-kw-btn { font-size: 14px; }
+  .ab-pop-ref { font-size: 14px; }
+  .fv-unsorted p { font-size: 14px; }
+}
+
+/* ---------- 7.2: list builder unit screen on phones and tablets ---------- */
+.lb-szshort, .lb-iconbtn svg { display: none; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  /* Size switch "x5" (the cost shows top right), icon-only Duplicate and Remove, all 44px tall. */
+  .lb-szlong, .lb-btntext { display: none; }
+  .lb-szshort { display: inline; }
+  .lb-iconbtn svg { display: block; }
+  .lb-insp-bar { gap: 10px; }
+  .lb-insp-bar .btn { min-height: 44px; font-size: 16px; }
+  .lb-iconbtn { width: 52px; padding: 0; justify-content: center; }
+  .lb-switch { min-height: 44px; }
+  .lb-switch button { min-height: 44px; min-width: 64px; font-size: 17px; font-weight: 600; }
+  /* Weapon rows: the whole bar opens the details (no divider); − / + centred on the name; keywords below, full width. */
+  .lb-split::before { display: none; }
+  .lb-wopt { grid-template-columns: 32px minmax(0, 1fr); align-items: start; }
+  .lb-check { width: 32px; height: 32px; margin: 11px 0 0; }
+  .lb-wopt summary, .lb-wopt.stepper summary { align-items: flex-start; padding: 0 0 10px; min-height: 0; }
+  .lb-wopt summary .lb-arrow { margin-top: 23px; }
+  .lb-wtitle { min-height: 54px; display: flex; align-items: center; flex-wrap: wrap; gap: 0 8px; padding-right: 150px; font-size: 15px; }
+  .lb-wopt > .lb-count { top: 6px; }
+  .lb-wkws { padding-top: 2px; gap: 8px; }
+  .lb-wkws .fv-kw { font-size: 14px; line-height: 1.2; padding: 7px 12px; border-radius: 8px; min-height: 34px; display: inline-flex; align-items: center; }
+  .lb-enhopt { grid-template-columns: 32px minmax(0, 1fr); }
+}
+
+/* 4: unit names that don't open anything are muted (and on phones and tablets, not boxed like a button). */
+.fv-link.fv-nolink, .fv-units .fv-link.fv-nolink { color: var(--text-3, var(--text-2)); cursor: default; text-decoration: none; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .fv-units .fv-link.fv-nolink { border-style: dashed; border-color: var(--border); background: transparent; }
+}
+/* Tablets: the + sits at the bottom of the list column, clear of the unit's − / + buttons. */
+@media (min-width: 761px) and (max-width: 1279px), (min-width: 761px) and (pointer: coarse) and (max-width: 1400px) {
+  .lb-fab { right: auto; left: 242px; }
+}

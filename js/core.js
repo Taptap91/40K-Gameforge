@@ -96,6 +96,10 @@ function openSheet(html, wide = false) {
   return d;
 }
 
+/** Phones and tablets: the settings pop-up has two screens (faction colours and the AI model), switched with this toggle. */
+const TOUCH_MQ = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
+const settingsTabsHTML = active => matchMedia(TOUCH_MQ).matches ? `<div class="set-tabs" role="tablist" aria-label="Settings">${[["colours", "Colours"], ["ai", "AI model"]].map(([k, l]) => `<button type="button" role="tab" class="set-tab${k === active ? " on" : ""}" aria-selected="${k === active}" data-set-tab="${k}">${l}</button>`).join("")}</div>` : "";
+
 const formatGB = bytes => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 
 function askText(title, label, value) {
@@ -115,6 +119,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "7.1";
+const APP_VERSION = "7.2";
 
-export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, state, store, toast, uid };
+export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, settingsTabsHTML, state, store, toast, uid };

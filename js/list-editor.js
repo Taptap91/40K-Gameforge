@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.1";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.1";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.1";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.1";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.1";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.1";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.2";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.2";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.2";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.2";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.2";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.2";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -110,14 +110,14 @@ function lbLoadout(x, buffs) {
       const extra = [...mine.filter(b => b.keyword && !own.some(k => normName(k).startsWith(normName(b.keyword.split(" (")[0])))).map(b => `${b.keyword} – ${b.source}`),
         ...mine.filter(b => b.stat).map(b => `${b.delta > 0 ? "+" : ""}${b.delta} ${b.stat} – ${b.source}`)];
       // Keywords as outlined tags under the name (bonuses from attached characters in their own colour).
-      const kw = [...own.map(k => `<span class="fv-kw">${esc(k)}</span>`), ...extra.map(e => `<span class="fv-kw lb-buffkw">${esc(e)}</span>`)].join("");
+      const kw = [...own.map(k => `<button type="button" class="fv-kw fv-kw-btn" data-core="${esc(k)}" aria-haspopup="dialog">${esc(k)}</button>`), ...extra.map(e => `<span class="fv-kw lb-buffkw">${esc(e)}</span>`)].join("");
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
-      return `<div class="lb-wopt lb-split${n > 0 ? " on" : ""}${gr.N > 1 ? " stepper" : ""}" data-split title="Left half: show or hide details · Right half: equip or unequip">
+      return `<div class="lb-wopt lb-split${n > 0 ? " on" : ""} stepper" data-split title="Left half: show or hide details · Right half: equip or unequip">
         <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="Equip ${esc(w)}">
         <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-arrow" aria-hidden="true"></span><span class="lb-whead"><span class="lb-wtitle">${esc(capWords(w))}${ps.length > 1 ? `<span class="lb-subtle lb-pcount">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
           ${kw ? `<span class="lb-wkws fv-kws">${kw}</span>` : ""}</span></summary>
           ${weaponGridHTML(ps, type, buffs, "profile", w)}</details>
-        <div class="lb-count">${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button>` : ""}<span>${n}/${room}</span>${gr.N > 1 ? `<button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>` : ""}</div>
+        <div class="lb-count"><button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button><span>${n}/${room}</span><button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button></div>
       </div>`;
     };
     const all = [...gr.reach.keys()];
@@ -229,7 +229,7 @@ function lbInspector(list, r, data) {
         const i = Math.max(0, u.options.findIndex(o => o.models === x.models));
         return `<div class="lb-switch" role="radiogroup" aria-label="Unit size" style="--n:${u.options.length};--i:${i}">
           <span class="lb-thumb" aria-hidden="true"></span>
-          ${u.options.map((o, k) => `<button type="button" role="radio" aria-checked="${k === i}" data-lb-setsize="${x.id}" data-v="${o.models}" data-i="${k}">${o.models} Model${o.models === 1 ? "" : "s"} - ${o.points} pts</button>`).join("")}
+          ${u.options.map((o, k) => `<button type="button" role="radio" aria-checked="${k === i}" data-lb-setsize="${x.id}" data-v="${o.models}" data-i="${k}" aria-label="${o.models} model${o.models === 1 ? "" : "s"}, ${o.points} points"><span class="lb-szlong">${o.models} Model${o.models === 1 ? "" : "s"} - ${o.points} pts</span><span class="lb-szshort">x${o.models}</span></button>`).join("")}
         </div>`;
       })()
     : `<span class="lb-subtle">${x.models} model${x.models === 1 ? "" : "s"}</span>`;
@@ -271,8 +271,8 @@ function lbInspector(list, r, data) {
       <div class="lb-insp-title"><h2>${esc(u.name)}</h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>
       <div class="lb-insp-bar">${size}
         ${u.character ? `<button class="btn${x.warlord ? " lb-on" : ""}" type="button" data-lb-warlord="${x.id}">${x.warlord ? "★ Warlord" : "☆ Make Warlord"}</button>` : ""}
-        <button class="btn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""}>Duplicate</button>
-        <button class="btn danger" type="button" data-lb-remove="${x.id}">Remove</button></div>
+        <button class="btn lb-iconbtn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""} title="Duplicate" aria-label="Duplicate">${DUP_SVG}<span class="lb-btntext">Duplicate</span></button>
+        <button class="btn danger lb-iconbtn" type="button" data-lb-remove="${x.id}" title="Remove" aria-label="Remove">${TRASH_MID}<span class="lb-btntext">Remove</span></button></div>
     </div>
     ${attach}
     ${statsHTML(ds)}
@@ -295,6 +295,9 @@ function lbGroupOf(u) { return DATASHEET_GROUPS.findIndex(([, test]) => test(u.k
 const PENCIL_SVG = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M11.3 1.3a1.5 1.5 0 0 1 2.1 0l1.3 1.3a1.5 1.5 0 0 1 0 2.1l-8.6 8.6a1 1 0 0 1-.46.26l-3.4.9a.6.6 0 0 1-.74-.74l.9-3.4a1 1 0 0 1 .26-.46l8.64-8.56Zm-.6 2.3-7.1 7.1-.5 1.9 1.9-.5 7.1-7.1-1.4-1.4Zm1.5-1.4-.6.6 1.4 1.4.6-.6-1.4-1.4Z"/></svg>`;
 const TRASH_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4a1 1 0 0 1 1 1V3h3a.75.75 0 0 1 0 1.5h-.6l-.7 9.1A1.5 1.5 0 0 1 11.2 15H4.8a1.5 1.5 0 0 1-1.5-1.4L2.6 4.5H2A.75.75 0 0 1 2 3h3v-.5a1 1 0 0 1 1-1Zm-1.9 3 .7 9h6.4l.7-9H4.1Zm2.15 1.75a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Zm3.5 0a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Z"/></svg>`;
 
+const TRASH_MID = TRASH_SVG.replace('width="14" height="14"', 'width="22" height="22"');
+/** Duplicate: a rounded square with a plus, with a second square behind it, up and to the right. */
+const DUP_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5V5a2.5 2.5 0 0 1 2.5-2.5H19A2.5 2.5 0 0 1 21.5 5v8.5A2.5 2.5 0 0 1 19 16h-.5"/><rect x="2.5" y="8" width="13.5" height="13.5" rx="2.5"/><path d="M9.25 11.5v6.5M6 14.75h6.5"/></svg>`;
 const TRASH_BIG = TRASH_SVG.replace('width="14" height="14"', 'width="26" height="26"');
 function lbListColumn(list, r) {
   const chip = (target, label) => `<button type="button" class="lb-attached${target.problems?.length ? " bad" : ""}" data-lb-jump="${target.id}" title="Show ${esc(target.unit.name)} in the list"><span class="lb-arrow">${label}</span><span class="lb-aname">${esc(target.unit.name)}</span><span class="lb-ccost">${target.total}</span></button>`;
@@ -389,7 +392,7 @@ function renderListEditor(list) {
     <div class="lb-col lb-colC" data-col="C"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbInspector(list, r, data)}</div>
     <div class="lb-col lb-colR" data-col="R"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbAddColumn(list, r, data)}</div>
   </div>
-  <button type="button" class="lb-fab${listUI.pane === "add" ? " hidden" : ""}" data-lb-pane="add" aria-label="Add a unit" title="Add a unit">+</button>`;
+  <button type="button" class="lb-fab${listUI.pane === "add" || (listUI.pane === "unit" && isPhone()) ? " hidden" : ""}" data-lb-pane="add" aria-label="Add a unit" title="Add a unit">+</button>`;
   for (const c of host.querySelectorAll(".lb-col")) if (keep[c.dataset.col] != null) c.scrollTop = keep[c.dataset.col];
   lbApplyFilter();
   if (filterFocused) { const f = $("#lbAddFilter"); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
@@ -535,7 +538,7 @@ function wireListBuilder() {
     if (bar) row.style.setProperty("--barh", `${Math.round(bar.bottom - box.top + 2)}px`);
     if (!bar || e.clientY < box.top || e.clientY > bar.bottom + 2) return "";
     // Rows with a − / + counter: the whole bar shows or hides the details; only the buttons change the count.
-    if (row.classList.contains("stepper") || row.querySelector(".lb-step")) return "l";
+    if (row.classList.contains("stepper") || row.querySelector(".lb-step") || matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) return "l";
     return e.clientX > box.left + box.width / 2 ? "r" : "l";
   };
   view.addEventListener("click", e => {

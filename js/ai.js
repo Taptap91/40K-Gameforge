@@ -1,8 +1,8 @@
 /* RulesForge · ai.js
  * The on-device AI model (Chrome's built-in model or WebLLM) and its setup sheet.
  */
-import { $, confirmSheet, esc, formatGB, openSheet, state, store, toast } from "./core.js?v=7.1";
-import { renderChat } from "./rules-chat.js?v=7.1";
+import { $, confirmSheet, esc, formatGB, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.2";
+import { renderChat } from "./rules-chat.js?v=7.2";
 
 const WEBLLM_URL = "https://esm.run/@mlc-ai/web-llm";
 
@@ -207,7 +207,7 @@ function openAISheet() {
   }));
   if (AI.chromeAvailable) options.unshift({ value: "chrome", name: "Chrome built-in AI" + (useChrome ? " (recommended)" : ""), desc: "Built into Chrome on this computer — nothing for this site to download. Chrome may fetch its model once if it hasn't already." });
   const selected = choice.kind === "chrome" ? "chrome" : modelFamily(choice.modelId);
-  openSheet(`
+  openSheet(`${settingsTabsHTML("ai")}
     <div class="sheet-head">
       <h2>Set up the AI model</h2>
       <p>The model downloads once and is saved in this browser. After that it runs entirely on this device and never looks anything up online.</p>

@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.1";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.1";
-import { exportDocToExcel } from "./excel.js?v=7.1";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.1";
-import * as core from "./core.js?v=7.1";
-import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.1";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.1";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.1";
-import { buildIndex } from "./search.js?v=7.1";
-import { openDataViewer } from "./viewer.js?v=7.1";
-import { fixApostrophes } from "./text.js?v=7.1";
-import { groupArmyRules } from "./faction-parser.js?v=7.1";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.1";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.2";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.2";
+import { exportDocToExcel } from "./excel.js?v=7.2";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.2";
+import * as core from "./core.js?v=7.2";
+import { openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.2";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.2";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.2";
+import { buildIndex } from "./search.js?v=7.2";
+import { openDataViewer } from "./viewer.js?v=7.2";
+import { fixApostrophes } from "./text.js?v=7.2";
+import { groupArmyRules } from "./faction-parser.js?v=7.2";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.2";
 
 function renderAll() {
   renderScope();
@@ -35,13 +35,17 @@ function showView(name) {
   store.set("rf.view", name);
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
 }function wireEvents() {
-  $$(".nav-item").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+  $$(".nav-item[data-view]").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
   $("#aiStatusBtn").addEventListener("click", openAISheet);
+  // Phones and tablets: the gear in the bottom bar opens settings, starting on the faction colours when there's a faction.
+  $("#settingsBtn").addEventListener("click", () => openStyleSheet() || openAISheet());
 
   document.addEventListener("click", e => {
     const t = e.target;
     if (t.closest("[data-close]")) $("#sheet").close();
     if (t.closest("[data-ai-setup]")) openAISheet();
+    const tab = t.closest("[data-set-tab]");
+    if (tab && !tab.classList.contains("on")) { if (tab.dataset.setTab === "ai") openAISheet(); else if (!openStyleSheet()) toast("Add a faction in Library to set its colours."); }
     const go = t.closest("[data-go]");
     if (go) showView(go.dataset.go);
     const ex = t.closest("[data-example]");

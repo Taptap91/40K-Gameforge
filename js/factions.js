@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=7.1";
-import { armyData } from "./army.js?v=7.1";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.1";
-import { factionMatches } from "./search.js?v=7.1";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.1";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.1";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.2";
+import { armyData } from "./army.js?v=7.2";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.2";
+import { factionMatches } from "./search.js?v=7.2";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.2";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.2";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -102,8 +102,19 @@ function renderFactionBar(names) {
 
 /* ---------- The faction banner (full width, above both columns, always in view) ---------- */
 const newestDoc = f => factionDocs(f).sort((a, b) => b.importedAt - a.importedAt)[0];
+/** Phones and tablets with a unit open: the banner becomes the unit's header (Back, faction, unit name, models and points). */
+const unitMode = () => isTouchLayout() && fUI.sel?.t === "unit" && (fUI.open || !isPhone());
 function bannerHTML(f, c) {
   const st = factionStyle(f), art = newestDoc(f)?.banner || "";
+  const ds = unitMode() && c.datasheets.find(x => normName(x.name) === fUI.sel.k);
+  if (ds) {
+    const u = c.priced.get(normName(ds.name)), opts = u?.options || ds.points || [];
+    const cost = opts.map(o => `<span><b>${o.models}</b> model${o.models === 1 ? "" : "s"} – <b>${o.points}</b> pts</span>`).join("") || "<span>No points listed</span>";
+    return `<div class="fp-banner fp-unitbanner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
+    ${!art && st.img ? `<img class="fp-banner-mark" src="${esc(st.img)}" alt="">` : ""}
+    <div class="fp-banner-text"><button type="button" class="btn fp-bannerback" data-fp-back>‹ Back</button><div class="fp-banner-kicker">${esc(f)}</div><div class="fp-banner-name">${esc(ds.name)}</div><div class="fp-banner-counts">${cost}</div></div>
+  </div>`;
+  }
   const counts = [[c.topRules.length, "Army Rule"], [c.detachments.length, "Detachment"], [c.datasheets.length, "Datasheet"]]
     .filter(([n]) => n).map(([n, w]) => `<span><b>${n}</b> ${w}${n === 1 ? "" : "s"}</span>`).join("");
   return `<div class="fp-banner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
@@ -113,11 +124,12 @@ function bannerHTML(f, c) {
 }
 
 /** A sheet for choosing the faction's symbol (an image of your own) and its two colours. */
-function openStyleSheet(f) {
+function openStyleSheet(f = fUI.faction || factionNames()[0]) {
+  if (!f) return false;
   const draw = () => {
     const st = factionStyle(f);
     const d = openSheet(`
-      <div class="sheet-head"><h2>${esc(f)}: symbol, banner and colours</h2><p>Shown on the faction's button when it's selected. The symbol comes from the faction's PDF (the icon beside its name in the Books table), or you can choose your own image (PNG, JPG, SVG or WebP); Your own image, banner and colours are kept only in this browser; everyone who adds the same faction pack starts from the same symbol and colours.</p></div>
+      ${settingsTabsHTML("colours")}<div class="sheet-head"><h2>${esc(f)}: symbol, banner and colours</h2><p>Shown on the faction's button when it's selected. The symbol comes from the faction's PDF (the icon beside its name in the Books table), or you can choose your own image (PNG, JPG, SVG or WebP); Your own image, banner and colours are kept only in this browser; everyone who adds the same faction pack starts from the same symbol and colours.</p></div>
       <div class="sheet-body fp-stylebody">
         <div class="fp-stylepreview">${factionButton(f, true)}</div>
         <div class="field"><label>Symbol</label><div class="fp-stylerow">
@@ -172,6 +184,7 @@ function openStyleSheet(f) {
   };
   const repaint = () => { $("#factionsToolbar").dataset.key = ""; renderFactionBar(factionNames()); renderFactionsPage(); };
   draw();
+  return true;
 }
 /** Scales an image down (96×96 for symbols, 1800×600 for banners) so it stays small enough to keep in the browser. */
 function shrinkImage(file, maxW = 96, maxH = 96, type = "image/png") {
@@ -207,8 +220,20 @@ function renderFactionsPage() {
       <div class="fp-right" id="fpRight">${rightHTML(c)}</div>
     </div>`;
   host.classList.add("fp-has-wide");
+  $("#view-factions").classList.toggle("fp-unitmode", unitMode());
+  host.querySelector(".fp-right").onscroll = shrinkBanner;
   applyAccent(host, fUI.faction);
   applyFilter();
+}
+
+/** Unit header: shrinks once the datasheet is scrolled down, and grows again only when it's back near the top
+   (different points either way, so it doesn't flicker at the edge). */
+function shrinkBanner(e) {
+  const b = document.querySelector("#factionsHost .fp-unitbanner");
+  if (!b) return;
+  const y = e.target.scrollTop;
+  if (y > 48 && !b.classList.contains("compact")) b.classList.add("compact");
+  else if (y < 12 && b.classList.contains("compact")) b.classList.remove("compact");
 }
 
 function leftHTML(c) {
@@ -271,6 +296,7 @@ function rightHTML(c) {
   const u = c.priced.get(normName(ds.name));
   const opts = u?.options || ds.points || [];
 
+  if (unitMode()) return `${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
   return `${back}<div class="fp-head"><h2>${esc(ds.name)}</h2>
       <div class="fp-sub">${opts.map(o => `${o.models} model${o.models === 1 ? "" : "s"} – ${o.points} pts`).join(" · ") || "No points listed"}${u?.pointsFrom ? ` · points from ${esc(u.pointsFrom)}` : ""}</div></div>
     ${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
@@ -328,7 +354,7 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
-    if (e.target.closest("[data-fp-back]")) { fUI.open = false; renderFactionsPage(); return; }
+    if (e.target.closest("[data-fp-back]")) { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); return; }
     const fac = e.target.closest("[data-fac]");
     if (fac && fac.closest("#factionsToolbar")) {
       if (fac.dataset.fac === fUI.faction) return;
@@ -350,4 +376,4 @@ function wireFactionsPage() {
   }, true);
 }
 
-export { applyAccent, factionStyle, onSwipeRight, renderFactionsPage, wireFactionsPage };
+export { applyAccent, factionStyle, onSwipeRight, openStyleSheet, renderFactionsPage, wireFactionsPage };
