@@ -1,15 +1,16 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openSheet, state, toast, uid } from "./core.js?v=7.8";
-import { structuredToLibrary } from "./datasheets.js?v=7.8";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=7.8";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=7.8";
-import { renderAll } from "./main.js?v=7.8";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=7.8";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=7.8";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=7.8";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.8";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=7.9";
+import { factionStyle } from "./factions.js?v=7.9";
+import { structuredToLibrary } from "./datasheets.js?v=7.9";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=7.9";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=7.9";
+import { renderAll } from "./main.js?v=7.9";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=7.9";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=7.9";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=7.9";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.9";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;
@@ -151,31 +152,46 @@ function factionsInLibrary() {
     for (const p of d.points || []) if (KNOWN_FACTIONS.includes(p.section)) set.add(p.section);
   }
   return [...set].sort();
-}function renderLibrary() {
+}/* The library: each faction's PDF as a box in its colours with its symbol (tap to open the faction), then the Core Rules,
+   points and updates. ⋮ on a box: View data · Points · Download Excel · Remove. */
+const KEBAB = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>`;
+const libKebab = d => `<button type="button" class="lib-kebab" data-lib-menu="${d.id}" data-menu-key="d:${d.id}" title="More" aria-label="More options for ${esc(d.title)}" aria-haspopup="menu">${KEBAB}</button>`;
+function renderLibrary() {
   const host = $("#docList");
+  if (!host) return;
   if (!state.docs.length) {
-    host.innerHTML = `<div class="empty">No documents yet. Add the Core Rules first, then your faction's rules and the latest points.</div>`;
+    host.innerHTML = `<div class="empty">Nothing here yet. Add the Core Rules first, then your faction's rules and the latest points.</div>`;
     return;
   }
-  host.innerHTML = Object.entries(KINDS).map(([kind, info]) => {
-    const docs = state.docs.filter(d => d.kind === kind).sort((a, b) => b.importedAt - a.importedAt);
-    if (!docs.length) return "";
-    return `<div class="group-title">${esc(info.label)}</div>
-      <div class="list">${docs.map(d => `
-        <div class="list-row">
-          <div class="icon">${icon(info.icon)}</div>
-          <div class="main">
-            <div class="title">${esc(d.title)}</div>
-            <div class="meta">${docMeta(d).map(esc).join(" · ")}</div>
-            ${isRulesDoc(d) ? rulesStatus(d) : ""}
-          </div>
-          ${d.structured?.datasheets ? `<button class="btn" data-view-data="${d.id}" type="button">View</button>` : ""}
-          ${d.structured ? `<button class="btn" data-excel="${d.id}" type="button">Download Excel</button>` : ""}
-          ${kind === "faction" || kind === "points" ? `<button class="btn" data-points="${d.id}" type="button">Points</button>` : ""}
-          <button class="btn plain danger" data-delete="${d.id}" type="button">Remove</button>
-        </div>`).join("")}
-      </div>`;
-  }).join("");
+  const newest = (a, b) => b.importedAt - a.importedAt;
+  const facs = state.docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));
+  const rest = ["core", "updates", "points"].flatMap(k => state.docs.filter(d => d.kind === k).sort(newest));
+  const facCard = d => {
+    const st = factionStyle(d.faction || ""), meta = docMeta(d).filter(x => x !== d.faction);
+    const open = d.structured?.datasheets && d.faction ? ` role="button" tabindex="0" data-lib-open="${esc(d.faction)}"` : "";
+    return `<div class="lib-card lib-fac${st.img ? " has-mark" : ""}"${open} style="--c1:${st.c1};--c2:${st.c2}">
+      ${st.img ? `<img class="lib-mark" src="${esc(st.img)}" alt="">` : ""}
+      <div class="lib-text"><div class="lib-name">${esc(d.faction || d.title)}</div><div class="lib-meta">${esc(meta.slice(0, 1).join(" · "))}</div>
+        <div class="lib-meta2">${esc([d.title, ...meta.slice(1)].join(" · "))}</div></div>${libKebab(d)}</div>`;
+  };
+  const docCard = d => `<div class="lib-card">
+      <div class="lib-icon">${icon(KINDS[d.kind]?.icon || "book")}</div>
+      <div class="lib-text"><div class="lib-name">${esc(d.kind === "core" ? "Core Rules" : d.title)}</div>
+        <div class="lib-meta">${esc(d.kind === "core" ? d.title.replace(/^core rules\s*/i, "").replace(/^\[|\]$/g, "") || KINDS.core.desc : KINDS[d.kind]?.label || "")}</div>
+        <div class="lib-meta2">${esc(docMeta(d).join(" · "))}</div>${isRulesDoc(d) ? rulesStatus(d) : ""}</div>${libKebab(d)}</div>`;
+  host.innerHTML = (facs.length ? `<div class="group-title">Your factions · ${facs.length}</div><div class="lib-cards">${facs.map(facCard).join("")}</div>` : "")
+    + (rest.length ? `<div class="group-title">Rules</div><div class="lib-cards">${rest.map(docCard).join("")}</div>` : "");
+}
+/** The ⋮ menu for a document in the library. */
+function openLibraryMenu(btn) {
+  const d = state.docs.find(x => x.id === btn.dataset.libMenu);
+  if (!d) return;
+  const kind = d.kind;
+  openPopMenu(btn, "d:" + d.id, [
+    d.structured?.datasheets ? `<button type="button" role="menuitem" data-view-data="${d.id}">View data</button>` : "",
+    kind === "faction" || kind === "points" ? `<button type="button" role="menuitem" data-points="${d.id}">Points</button>` : "",
+    d.structured ? `<button type="button" role="menuitem" data-excel="${d.id}">Download Excel</button>` : "",
+    `<button type="button" role="menuitem" class="danger" data-delete="${d.id}">Remove</button>`].join(""));
 }
 
 function docMeta(d) {
@@ -306,4 +322,4 @@ function openPointsSheet(docId) {
   };
 }
 
-export { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary };
+export { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary };

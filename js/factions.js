@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.8";
-import { armyData } from "./army.js?v=7.8";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.8";
-import { factionMatches } from "./search.js?v=7.8";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=7.8";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.8";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.9";
+import { armyData } from "./army.js?v=7.9";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.9";
+import { factionMatches } from "./search.js?v=7.9";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=7.9";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.9";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
-const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
+const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -76,13 +76,30 @@ function factionButton(f, on) {
     ${st.img ? `<span class="fp-fac-sym" aria-hidden="true"><img src="${esc(st.img)}" alt=""></span>` : ""}</button>`;
 }
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+const BOOK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg>`;
+const ADDPDF_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/><path d="M14 2v6h6"/><path d="M20 8v5"/><path d="M18 16v6M15 19h6"/></svg>`;
+/** Opens the library: on phones and tablets it's the Factions home; on desktop a panel slides in from the right. */
+function openLibrary() {
+  if (isTouchLayout()) { fUI.home = true; fUI.open = false; return renderFactionsPage(); }
+  $("#view-factions").classList.add("lib-open");
+}
+const closeLibrary = () => $("#view-factions").classList.remove("lib-open");
+function openFactionFromLibrary(f) {
+  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.filter = ""; fUI.home = false;
+  closeLibrary(); renderFactionsPage();
+}
 function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
   // Desktop shows every faction's button; phones and tablets show three group buttons that open a picker.
   const groups = FACTION_GROUPS.map(([g]) => [g, names.filter(n => groupOf(n) === g)]).filter(([, l]) => l.length);
-  const html = names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
-    <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>
-    <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : "";
+  // Phones and tablets: "‹ Factions" (back to the Factions home, which is the library) and an Add PDF icon.
+  // Desktop: "Library" (slides in from the right) and "Add PDF" beside the gear.
+  const html = `<button type="button" class="btn fp-homeback" data-fp-home>‹ Factions</button>
+    ${names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
+    <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>` : `<div class="fp-facs"></div>`}
+    <button type="button" class="btn fp-libbtn" data-lib-show>${BOOK_SVG}Library</button>
+    <button type="button" class="btn primary fp-addpdf" data-lib-add title="Add PDF" aria-label="Add PDF">${ADDPDF_SVG}<span>Add PDF</span></button>
+    ${names.length ? `<button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : ""}`;
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
   if (tools.dataset.key !== key) { tools.dataset.key = key; tools.innerHTML = html; }
@@ -208,9 +225,12 @@ function shrinkImage(file, maxW = 96, maxH = 96, type = "image/png") {
 function renderFactionsPage() {
   const host = $("#factionsHost");
   const names = factionNames();
+  // Phones and tablets open on the Factions home (the library); picking a faction opens it.
+  $("#view-factions").classList.toggle("fp-home", isTouchLayout() && (fUI.home || !names.length));
   if (!names.length) {
     renderFactionBar([]);
-    host.innerHTML = `<div class="fp-empty">No factions yet. Add a faction pack PDF (or a RulesForge Excel file) in Library, and its army rules, detachments and units appear here.</div>`;
+    $("#view-factions").classList.remove("fp-unitmode");
+    host.innerHTML = `<div class="fp-empty">No factions yet. Use Add PDF to add a faction pack PDF (or a RulesForge Excel file), and its army rules, detachments and units appear here.</div>`;
     return;
   }
   if (!names.some(n => n === fUI.faction)) fUI.faction = names[0];
@@ -328,8 +348,8 @@ function openFactionPicker(group) {
     const b = e.target.closest("[data-fac]");
     if (!b) return;
     d.close();
-    if (b.dataset.fac === fUI.faction) return;
-    fUI.faction = b.dataset.fac; store.set("rf.faction", fUI.faction); fUI.sel = null; fUI.open = false; fUI.filter = "";
+    if (b.dataset.fac === fUI.faction) { if (fUI.home) { fUI.home = false; renderFactionsPage(); } return; }
+    fUI.home = false; fUI.faction = b.dataset.fac; store.set("rf.faction", fUI.faction); fUI.sel = null; fUI.open = false; fUI.filter = "";
     renderFactionsPage();
   };
 }
@@ -356,6 +376,11 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
+    if (e.target.closest("[data-fp-home]")) { fUI.home = true; fUI.open = false; return renderFactionsPage(); }
+    if (e.target.closest("[data-lib-show]")) return openLibrary();
+    if (e.target.closest("[data-lib-close]")) return closeLibrary();
+    const libFac = !e.target.closest(".lib-kebab") && e.target.closest("[data-lib-open]");
+    if (libFac) return openFactionFromLibrary(libFac.dataset.libOpen);
     if (e.target.closest("[data-fp-back]")) { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); return; }
     const fac = e.target.closest("[data-fac]");
     if (fac && fac.closest("#factionsToolbar")) {
@@ -371,6 +396,9 @@ function wireFactionsPage() {
   });
   // Phones and tablets: swipe right on the datasheet to go back to the list.
   onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) { fUI.open = false; renderFactionsPage(); } });
+  onSwipeRight(view, e => isTouchLayout() && !fUI.home && !fUI.open && !!e.target.closest(".fp-left"), () => { fUI.home = true; renderFactionsPage(); });
+  // Keyboard: Enter or Space on a faction's box in the library opens it.
+  view.addEventListener("keydown", e => { const c = e.target.matches?.("[data-lib-open]") && (e.key === "Enter" || e.key === " "); if (c) { e.preventDefault(); openFactionFromLibrary(e.target.dataset.libOpen); } });
   view.addEventListener("input", e => { if (e.target.id === "fpFilter") { fUI.filter = e.target.value; applyFilter(); } });
   view.addEventListener("toggle", e => {
     const g = e.target.dataset?.grp;
@@ -378,4 +406,4 @@ function wireFactionsPage() {
   }, true);
 }
 
-export { applyAccent, factionStyle, onSwipeRight, openStyleSheet, renderFactionsPage, wireFactionsPage };
+export { applyAccent, factionStyle, onSwipeRight, openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage };

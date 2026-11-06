@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.8";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.8";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.8";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.8";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.8";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.8";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.9";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=7.9";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.9";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.9";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.9";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.9";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -44,7 +44,7 @@ function renderListsPage() {
             <div class="lb-lc-pts"><b>${r.total.toLocaleString()}</b> / ${l.points.toLocaleString()} pts${r.issues.length ? ` <span class="lb-warn lb-hazard" title="${r.issues.length} to fix" aria-label="${r.issues.length} to fix"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3 2 20.5h20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.2" fill="currentColor"/></svg>${r.issues.length}</span>` : ""}</div>
           </div>
           ${st.img ? `<img class="lb-lc-mark" src="${esc(st.img)}" alt="">` : ""}
-          <button type="button" class="lb-lc-kebab" data-lb-listmenu="${esc(l.id)}" title="More" aria-label="More options for ${esc(l.name)}" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg></button>
+          <button type="button" class="lb-lc-kebab" data-lb-listmenu="${esc(l.id)}" data-menu-key="l:${esc(l.id)}" title="More" aria-label="More options for ${esc(l.name)}" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg></button>
         </div></div>`;
     }).join("")}</div>` : factions.length ? `<div class="empty">No lists yet. Create one yourself, or let the app generate one from a description.</div>` : ""}`;
 }
@@ -312,7 +312,7 @@ function lbListColumn(list, r) {
   const card = x => {
     const sel = listUI.sel === x.id ? " sel" : "";
     // ⋮ opens a small menu with Duplicate and Delete (the same menu as an army list's box).
-    const trash = `<button type="button" class="lb-trash lb-unitkebab" data-lb-unitmenu="${x.id}" title="More" aria-label="More options for ${esc(x.unit?.name || x.key)}" aria-haspopup="menu">${KEBAB_SVG}</button>`;
+    const trash = `<button type="button" class="lb-trash lb-unitkebab" data-lb-unitmenu="${x.id}" data-menu-key="u:${x.id}" title="More" aria-label="More options for ${esc(x.unit?.name || x.key)}" aria-haspopup="menu">${KEBAB_SVG}</button>`;
     if (!x.unit) return `<div class="lb-cardwrap"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div>`;
     const host = x.attachTo ? r.entries.find(h => h.id === x.attachTo && h.unit) : null;
     const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
@@ -496,33 +496,16 @@ function openCreateSheet() {
   };
 }
 
-/* The ⋮ menu on an army list's box: a small pop-up beside the button with Duplicate and Delete. */
-let listMenu = null;
-function closeListMenu() { listMenu?.remove(); listMenu = null; }
+/* The ⋮ menu on an army list's box or a unit's box: Duplicate and Delete. */
 function openListMenu(btn) {
-  const key = btn.dataset.lbListmenu || "u:" + btn.dataset.lbUnitmenu, was = listMenu?.dataset.for;
-  closeListMenu();
-  if (was === key) return;
-  const m = document.createElement("div");
-  m.className = "lb-menu"; m.setAttribute("role", "menu"); m.dataset.for = key;
+  const list = btn.dataset.lbListmenu, id = esc(list || btn.dataset.lbUnitmenu);
   const dupIcon = DUP_SVG.replace(/width="22" height="22"/, 'width="18" height="18"'), binIcon = TRASH_SVG.replace('width="14" height="14"', 'width="18" height="18"');
-  const id = esc(btn.dataset.lbListmenu || btn.dataset.lbUnitmenu);
-  m.innerHTML = btn.dataset.lbListmenu
+  openPopMenu(btn, list ? "l:" + list : "u:" + btn.dataset.lbUnitmenu, list
     ? `<button type="button" role="menuitem" data-lb-duplist="${id}">${dupIcon}Duplicate</button>
     <button type="button" role="menuitem" class="danger" data-lb-delete="${id}">${binIcon}Delete</button>`
     : `<button type="button" role="menuitem" data-lb-dup="${id}">${dupIcon}Duplicate</button>
-    <button type="button" role="menuitem" class="danger" data-lb-menuremove="${id}">${binIcon}Delete</button>`;
-  m.addEventListener("click", () => setTimeout(closeListMenu));
-  $("#view-lists").append(m);
-  const r = btn.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
-  const below = r.bottom + 6 + h < innerHeight - 90;
-  m.style.left = `${Math.max(12, r.right - w)}px`;
-  m.style.top = `${below ? r.bottom + 6 : r.top - 6 - h}px`;
-  listMenu = m;
+    <button type="button" role="menuitem" class="danger" data-lb-menuremove="${id}">${binIcon}Delete</button>`);
 }
-document.addEventListener("click", e => { if (listMenu && !e.target.closest(".lb-menu, [data-lb-listmenu], [data-lb-unitmenu]")) closeListMenu(); }, true);
-addEventListener("resize", closeListMenu);
-document.addEventListener("scroll", closeListMenu, true);
 
 function wireListBuilder() {
   const view = $("#view-lists");
@@ -579,7 +562,7 @@ function wireListBuilder() {
     if (menuBtn) return openListMenu(menuBtn);
     const dupL = t.closest("[data-lb-duplist]");
     if (dupL) {
-      closeListMenu();
+      closePopMenu();
       const l = state.lists.find(x => x.id === dupL.dataset.lbDuplist);
       if (!l) return;
       // An exact copy of the list and everything in it, named "Name (1)", "Name (2)", … so no two share a name.
@@ -592,7 +575,7 @@ function wireListBuilder() {
     }
     const del = t.closest("[data-lb-delete]");
     if (del) {
-      closeListMenu();
+      closePopMenu();
       const l = state.lists.find(x => x.id === del.dataset.lbDelete);
       if (!(await confirmSheet("Delete this list?", `“${l.name || l.title || "This list"}” will be deleted. This can't be undone.`, "Delete"))) return;
       await DB.del("lists", l.id);

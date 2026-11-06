@@ -100,6 +100,29 @@ function openSheet(html, wide = false) {
 const TOUCH_MQ = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
 const settingsTabsHTML = active => matchMedia(TOUCH_MQ).matches ? `<div class="set-tabs" role="tablist" aria-label="Settings">${[["colours", "Colours"], ["ai", "AI model"]].map(([k, l]) => `<button type="button" role="tab" class="set-tab${k === active ? " on" : ""}" aria-selected="${k === active}" data-set-tab="${k}">${l}</button>`).join("")}</div>` : "";
 
+/* A small pop-up menu beside a ⋮ button (army lists, units, library). Tapping the same button again, or anywhere else, closes it. */
+let popMenu = null;
+function closePopMenu() { popMenu?.remove(); popMenu = null; }
+function openPopMenu(btn, key, itemsHTML) {
+  const was = popMenu?.dataset.for;
+  closePopMenu();
+  if (was === key) return null;
+  const m = document.createElement("div");
+  m.className = "lb-menu"; m.setAttribute("role", "menu"); m.dataset.for = key; m.innerHTML = itemsHTML;
+  (btn.closest(".view, .lib-panel") || document.body).append(m);
+  const r = btn.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
+  const below = r.bottom + 6 + h < innerHeight - 90;
+  m.style.left = `${Math.max(12, r.right - w)}px`;
+  m.style.top = `${below ? r.bottom + 6 : r.top - 6 - h}px`;
+  m.addEventListener("click", () => setTimeout(closePopMenu));
+  return popMenu = m;
+}
+if (typeof document !== "undefined") {
+  document.addEventListener("click", e => { if (popMenu && !e.target.closest(".lb-menu") && !(e.target.closest("[data-menu-key]")?.dataset.menuKey === popMenu.dataset.for)) closePopMenu(); }, true);
+  addEventListener("resize", closePopMenu);
+  document.addEventListener("scroll", e => { if (popMenu && !popMenu.contains(e.target)) closePopMenu(); }, true);
+}
+
 const formatGB = bytes => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 
 function askText(title, label, value) {
@@ -119,6 +142,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "7.8";
+const APP_VERSION = "7.9";
 
-export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, settingsTabsHTML, state, store, toast, uid };
+export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, openPopMenu, closePopMenu, settingsTabsHTML, state, store, toast, uid };

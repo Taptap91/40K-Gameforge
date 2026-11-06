@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.8";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.8";
-import { exportDocToExcel } from "./excel.js?v=7.8";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.8";
-import * as core from "./core.js?v=7.8";
-import { openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.8";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.8";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.8";
-import { buildIndex } from "./search.js?v=7.8";
-import { openDataViewer } from "./viewer.js?v=7.8";
-import { fixApostrophes } from "./text.js?v=7.8";
-import { groupArmyRules } from "./faction-parser.js?v=7.8";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.8";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.9";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.9";
+import { exportDocToExcel } from "./excel.js?v=7.9";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=7.9";
+import * as core from "./core.js?v=7.9";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.9";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.9";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.9";
+import { buildIndex } from "./search.js?v=7.9";
+import { openDataViewer } from "./viewer.js?v=7.9";
+import { fixApostrophes } from "./text.js?v=7.9";
+import { groupArmyRules } from "./faction-parser.js?v=7.9";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.9";
 
 function renderAll() {
   renderScope();
@@ -26,8 +26,10 @@ function renderAll() {
 }
 
 function showView(name) {
-  const views = ["rules", "lists", "factions", "library"];
-  if (!views.includes(name)) name = "library"; // the old Get Data page now lives in Library
+  const views = ["rules", "lists", "factions"];
+  // Library now lives in Factions: the Factions home on phones and tablets, a panel on desktop.
+  if (name === "library") { name = "factions"; setTimeout(() => openLibrary(), 0); }
+  if (!views.includes(name)) name = "factions";
   for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
   if (name === "factions") renderFactionsPage();
@@ -89,8 +91,7 @@ function showView(name) {
   // Library
   const input = $("#fileInput");
   const pick = () => input.click();
-  $("#addPdfBtn").addEventListener("click", pick);
-  $("#dropzone").addEventListener("click", pick);
+  document.addEventListener("click", e => { if (e.target.closest("[data-lib-add]")) pick(); });
   input.addEventListener("change", () => {
     const files = [...input.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf" || isExcelFile(f));
     input.value = "";
@@ -103,7 +104,10 @@ function showView(name) {
     const files = [...e.dataTransfer.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf" || isExcelFile(f));
     if (files.length) addLibraryFiles(files);
   });
-  $("#docList").addEventListener("click", async e => {
+  document.addEventListener("click", async e => {
+    if (!e.target.closest(".lib-panel, .lb-menu")) return;
+    const menu = e.target.closest("[data-lib-menu]");
+    if (menu) return openLibraryMenu(menu);
     const pts = e.target.closest("[data-points]");
     if (pts) return openPointsSheet(pts.dataset.points);
     const view = e.target.closest("[data-view-data]");
