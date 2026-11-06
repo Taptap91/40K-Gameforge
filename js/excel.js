@@ -1,10 +1,11 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=8.1";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.1";
-import { rulesToSheets } from "./rules-doc.js?v=8.1";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.1";
+import { tidyApostrophes } from "./faction-parser.js?v=8.2";
+import { formatGB, toast } from "./core.js?v=8.2";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.2";
+import { rulesToSheets } from "./rules-doc.js?v=8.2";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.2";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -265,7 +266,7 @@ function structuredFromWorkbook(book) {
     // Older files only have the combined Rules column: "Name: text" paragraphs.
     if (!rules.length && d.rules) rules = d.rules.split(/\n{2,}/).map(p => { const m = p.match(/^([^:\n]{2,80}):\s*([\s\S]*)$/); return m ? { name: m[1].trim(), text: m[2].trim() } : { name: "", text: p.trim() }; });
     return {
-      name: d.detachment, dp: String(d["detachment points"] || "").replace(/\s+/g, "") || "1DP",
+      name: tidyApostrophes(d.detachment), dp: String(d["detachment points"] || "").replace(/\s+/g, "") || "1DP",
       unique: (d["unique keyword"] || "").trim(), description: d.description || "", rules,
       ...(d["force disposition"] ? { dispositions: String(d["force disposition"]).split(/\s*,\s*/).filter(Boolean) } : {}),
       // "Upgrade" column: Yes/No; workbooks made before it existed leave it to the rules text.

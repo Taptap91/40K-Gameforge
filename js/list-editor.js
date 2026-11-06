@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.1";
-import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.1";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.1";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=8.1";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.1";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.1";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.2";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.2";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.2";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=8.2";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.2";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.2";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;

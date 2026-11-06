@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=8.1";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.1";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.1";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=8.2";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.2";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.2";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -282,6 +282,9 @@ function groupArmyRules(rules) {
 /** Drops browser print headers and footers (date, page title, web address, "2/39") that repeat at the top or bottom of most pages. */
 /** A detachment's name: all the text on its title line, left to right, up to its Force Disposition symbol and DP cost
  *  (however many pieces the PDF split it into). Falls back to the title piece itself. */
+/** Apostrophes in names: no space either side, and the letters after it stay lower case ("EMPEROR ’ S" → "Emperor’s").
+ *  A one-letter start keeps its capital, as in N’Kari. */
+const tidyApostrophes = name => String(name).replace(/(\w\w)\s*([’'])\s*([A-Za-z]+)/g, (m, a, q, b) => a + q + b.toLowerCase());
 function detachmentName(title, dpItem, items) {
   if (!dpItem) return cleanGlyphs(title.t);
   const tol = Math.max(6, title.s * 0.45);
@@ -485,7 +488,7 @@ function parseFactionPdfRaw(allItems) {
     const split = rightSection.length ? Math.min(...rightSection.map(i => i.x)) - 10 : 460;
 
     const dpItem = items.find(o => isDP(o.t) && sameRow(o, sec.h, 8)), dp = dpItem?.t.replace(/\s+/g, "") || "";
-    const det = { name: titleCase(detachmentName(sec.h, dpItem, items)), dp, ...(dpItem?.fd?.length ? { dispositions: dpItem.fd } : {}), description: "", rules: [], enhancements: [], stratagems: [] };
+    const det = { name: tidyApostrophes(titleCase(detachmentName(sec.h, dpItem, items))), dp, ...(dpItem?.fd?.length ? { dispositions: dpItem.fd } : {}), description: "", rules: [], enhancements: [], stratagems: [] };
     const entries = [], heads = [];
     [region.filter(i => i.x < split), region.filter(i => i.x >= split)].forEach((col, colIndex) => {
       let entry = null;
@@ -1012,7 +1015,7 @@ function parsePrintedFactionPdfRaw(allItems) {
     const uniqueItem = items.find(i => /^UNIQUE\s*:/i.test(i.t) && t.y - i.y > 0 && t.y - i.y < 60);
     const unique = uniqueItem ? titleCase(cleanGlyphs(uniqueItem.t.replace(/^UNIQUE\s*:\s*/i, "") || items.find(o => sameRow(o, uniqueItem, 4) && o.x > uniqueItem.x)?.t || "")) : "";
     const dpIt = dpItems.find(d => sameRow(d, t, 10));
-    const det = { name: titleCase(detachmentName(t, dpIt, items)), dp: (dpIt?.t || "").replace(/\s+/g, ""), ...(dpIt?.fd?.length ? { dispositions: dpIt.fd } : {}), unique, description: "", rules: [], enhancements: [], stratagems: [] };
+    const det = { name: tidyApostrophes(titleCase(detachmentName(t, dpIt, items))), dp: (dpIt?.t || "").replace(/\s+/g, ""), ...(dpIt?.fd?.length ? { dispositions: dpIt.fd } : {}), unique, description: "", rules: [], enhancements: [], stratagems: [] };
     let section = "", entry = null;
     const entries = [];
     for (const line of lines(region)) {
@@ -1112,4 +1115,4 @@ function mergeDuplicateDetachments(data) {
 const parseFactionPdf = items => mergeDuplicateDetachments(parseFactionPdfRaw(items));
 const parsePrintedFactionPdf = items => mergeDuplicateDetachments(parsePrintedFactionPdfRaw(items));
 
-export { armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
+export { tidyApostrophes, armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
