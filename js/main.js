@@ -1,19 +1,21 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.9";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.9";
-import { exportDocToExcel } from "./excel.js?v=7.9";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=7.9";
-import * as core from "./core.js?v=7.9";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.9";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.9";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.9";
-import { buildIndex } from "./search.js?v=7.9";
-import { openDataViewer } from "./viewer.js?v=7.9";
-import { fixApostrophes } from "./text.js?v=7.9";
-import { groupArmyRules } from "./faction-parser.js?v=7.9";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.9";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.0";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.0";
+import { exportDocToExcel } from "./excel.js?v=8.0";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.0";
+import * as core from "./core.js?v=8.0";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.0";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.0";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.0";
+import { buildIndex } from "./search.js?v=8.0";
+import { openDataViewer } from "./viewer.js?v=8.0";
+import { openMissionViewer } from "./mission-viewer.js?v=8.0";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.0";
+import { fixApostrophes } from "./text.js?v=8.0";
+import { groupArmyRules } from "./faction-parser.js?v=8.0";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.0";
 
 function renderAll() {
   renderScope();
@@ -22,17 +24,19 @@ function renderAll() {
   renderSaved();
   renderAIStatus();
   if (!$("#view-factions").classList.contains("hidden")) renderFactionsPage();
+  if (!$("#view-battle").classList.contains("hidden")) renderBattlePage();
   $("#factionList").innerHTML = [...new Set([...factionsInLibrary(), ...KNOWN_FACTIONS])].sort().map(f => `<option value="${esc(f)}">`).join("");
 }
 
 function showView(name) {
-  const views = ["rules", "lists", "factions"];
+  const views = ["rules", "lists", "factions", "battle"];
   // Library now lives in Factions: the Factions home on phones and tablets, a panel on desktop.
   if (name === "library") { name = "factions"; setTimeout(() => openLibrary(), 0); }
   if (!views.includes(name)) name = "factions";
   for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
   if (name === "factions") renderFactionsPage();
+  if (name === "battle") renderBattlePage();
   $$(".nav-item").forEach(b => b.dataset.view === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   store.set("rf.view", name);
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
@@ -47,7 +51,7 @@ function showView(name) {
     if (t.closest("[data-close]")) $("#sheet").close();
     if (t.closest("[data-ai-setup]")) openAISheet();
     const tab = t.closest("[data-set-tab]");
-    if (tab && !tab.classList.contains("on")) { if (tab.dataset.setTab === "ai") openAISheet(); else if (!openStyleSheet()) toast("Add a faction in Library to set its colours."); }
+    if (tab && !tab.classList.contains("on")) { if (tab.dataset.setTab === "ai") openAISheet(); else if (tab.dataset.setTab === "account") openPlayerSheet(); else if (!openStyleSheet()) toast("Add a faction in Library to set its colours."); }
     const go = t.closest("[data-go]");
     if (go) showView(go.dataset.go);
     const ex = t.closest("[data-example]");
@@ -108,6 +112,8 @@ function showView(name) {
     if (!e.target.closest(".lib-panel, .lb-menu")) return;
     const menu = e.target.closest("[data-lib-menu]");
     if (menu) return openLibraryMenu(menu);
+    const mv = e.target.closest("[data-mission-view]");
+    if (mv) return openMissionViewer(mv.dataset.missionView);
     const pts = e.target.closest("[data-points]");
     if (pts) return openPointsSheet(pts.dataset.points);
     const view = e.target.closest("[data-view-data]");
@@ -128,6 +134,7 @@ function showView(name) {
   // Lists
   wireListBuilder();
   wireFactionsPage();
+  wireBattlePage();
 }(async function init() {
   window.rfStarted = true;
   wireEvents();
@@ -165,6 +172,7 @@ function showView(name) {
   buildIndex();
   renderAll();
   showView(store.get("rf.view", "rules"));
+  askForAccountOnce();   // the very first time the app is opened: Settings → Account, to add a username
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   AI.resume();
   // If the page and its script files come from different uploads, say so instead of quietly running old code.

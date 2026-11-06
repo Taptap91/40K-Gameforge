@@ -4,6 +4,7 @@
 const KINDS = {
   core:    { label: "Core Rules", desc: "The main rulebook", icon: "book" },
   faction: { label: "Faction rules", desc: "Codex, Index or faction pack", icon: "shield" },
+  missions: { label: "Mission Packs", desc: "Chapter Approved mission deck: missions, deployments and twists", icon: "flag" },
   points:  { label: "Points", desc: "Munitorum Field Manual", icon: "hash" },
   updates: { label: "Updates", desc: "FAQ, Balance Dataslate, mission pack", icon: "clock" },
 };
@@ -12,6 +13,7 @@ const ICONS = {
   shield: '<path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/>',
   hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 
@@ -98,7 +100,7 @@ function openSheet(html, wide = false) {
 
 /** Phones and tablets: the settings pop-up has two screens (faction colours and the AI model), switched with this toggle. */
 const TOUCH_MQ = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
-const settingsTabsHTML = active => matchMedia(TOUCH_MQ).matches ? `<div class="set-tabs" role="tablist" aria-label="Settings">${[["colours", "Colours"], ["ai", "AI model"]].map(([k, l]) => `<button type="button" role="tab" class="set-tab${k === active ? " on" : ""}" aria-selected="${k === active}" data-set-tab="${k}">${l}</button>`).join("")}</div>` : "";
+const settingsTabsHTML = active => `<div class="set-tabs" role="tablist" aria-label="Settings">${[["colours", "Colours"], ["ai", "AI model"], ["account", "Account"]].map(([k, l]) => `<button type="button" role="tab" class="set-tab${k === active ? " on" : ""}" aria-selected="${k === active}" data-set-tab="${k}">${l}</button>`).join("")}</div>`;
 
 /* A small pop-up menu beside a ⋮ button (army lists, units, library). Tapping the same button again, or anywhere else, closes it. */
 let popMenu = null;
@@ -142,6 +144,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "7.9";
+const APP_VERSION = "8.0";
 
 export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, openPopMenu, closePopMenu, settingsTabsHTML, state, store, toast, uid };

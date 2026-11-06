@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=7.9";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=7.9";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=7.9";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=8.0";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.0";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.0";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -473,8 +473,8 @@ function parseFactionPdf(allItems) {
     const rightSection = region.filter(i => i.x > 300 && Math.abs(i.s - sectionSize) < 1 || i.x > 300 && Math.abs(i.s - entrySize) < 1);
     const split = rightSection.length ? Math.min(...rightSection.map(i => i.x)) - 10 : 460;
 
-    const dp = items.find(o => isDP(o.t) && sameRow(o, sec.h, 8))?.t.replace(/\s+/g, "") || "";
-    const det = { name: titleCase(cleanGlyphs(sec.h.t)), dp, description: "", rules: [], enhancements: [], stratagems: [] };
+    const dpItem = items.find(o => isDP(o.t) && sameRow(o, sec.h, 8)), dp = dpItem?.t.replace(/\s+/g, "") || "";
+    const det = { name: titleCase(cleanGlyphs(sec.h.t)), dp, ...(dpItem?.fd?.length ? { dispositions: dpItem.fd } : {}), description: "", rules: [], enhancements: [], stratagems: [] };
     const entries = [], heads = [];
     [region.filter(i => i.x < split), region.filter(i => i.x >= split)].forEach((col, colIndex) => {
       let entry = null;
@@ -1000,7 +1000,8 @@ function parsePrintedFactionPdf(allItems) {
     // "UNIQUE: TERMINATOR" sits just above the title: no two detachments in an army may share it.
     const uniqueItem = items.find(i => /^UNIQUE\s*:/i.test(i.t) && t.y - i.y > 0 && t.y - i.y < 60);
     const unique = uniqueItem ? titleCase(cleanGlyphs(uniqueItem.t.replace(/^UNIQUE\s*:\s*/i, "") || items.find(o => sameRow(o, uniqueItem, 4) && o.x > uniqueItem.x)?.t || "")) : "";
-    const det = { name: titleCase(cleanGlyphs(t.t)), dp: (dpItems.find(d => sameRow(d, t, 10))?.t || "").replace(/\s+/g, ""), unique, description: "", rules: [], enhancements: [], stratagems: [] };
+    const dpIt = dpItems.find(d => sameRow(d, t, 10));
+    const det = { name: titleCase(cleanGlyphs(t.t)), dp: (dpIt?.t || "").replace(/\s+/g, ""), ...(dpIt?.fd?.length ? { dispositions: dpIt.fd } : {}), unique, description: "", rules: [], enhancements: [], stratagems: [] };
     let section = "", entry = null;
     const entries = [];
     for (const line of lines(region)) {

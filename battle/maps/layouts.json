@@ -1,0 +1,764 @@
+{
+ "source": "Warhammer Event Companion \u2014 Terrain Layouts",
+ "about": "Recommended terrain layouts. Each pairing of Force Dispositions has layouts A, B and C; a pairing works in either order. Some maps are used by more than one pairing.",
+ "dispositionOrder": [
+  "Take and Hold",
+  "Purge the Foe",
+  "Disruption",
+  "Reconnaissance",
+  "Priority Assets"
+ ],
+ "layouts": [
+  {
+   "id": "tipping-point-1",
+   "image": "tipping-point-1.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Take and Hold",
+     "layout": "A",
+     "missions": [
+      "Battlefield Dominance",
+      "Battlefield Dominance"
+     ],
+     "page": 9
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-2",
+   "image": "tipping-point-2.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Reconnaissance",
+     "layout": "A",
+     "missions": [
+      "Purge and Secure",
+      "Reconnaissance Sweep"
+     ],
+     "page": 18
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-3",
+   "image": "tipping-point-3.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Purge the Foe",
+     "layout": "B",
+     "missions": [
+      "Meatgrinder",
+      "Meatgrinder"
+     ],
+     "page": 25
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-4",
+   "image": "tipping-point-4.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Disruption",
+     "layout": "B",
+     "missions": [
+      "Punishment",
+      "Delaying Action"
+     ],
+     "page": 28
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-5",
+   "image": "tipping-point-5.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Disruption",
+     "layout": "B",
+     "missions": [
+      "Outmanoeuvre",
+      "Outmanoeuvre"
+     ],
+     "page": 37
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-6",
+   "image": "tipping-point-6.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Reconnaissance",
+     "layout": "A",
+     "missions": [
+      "Smoke and Mirrors",
+      "Surveil the Foe"
+     ],
+     "page": 39
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-7",
+   "image": "tipping-point-7.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Priority Assets",
+     "layout": "B",
+     "missions": [
+      "Locate and Deny",
+      "Extract Relic"
+     ],
+     "page": 43
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-8",
+   "image": "tipping-point-8.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Reconnaissance",
+     "opponent": "Reconnaissance",
+     "layout": "C",
+     "missions": [
+      "Gather Intel",
+      "Gather Intel"
+     ],
+     "page": 47
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-9",
+   "image": "tipping-point-9.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Reconnaissance",
+     "opponent": "Priority Assets",
+     "layout": "B",
+     "missions": [
+      "Search and Scour",
+      "Vanguard Operation"
+     ],
+     "page": 49
+    }
+   ]
+  },
+  {
+   "id": "tipping-point-10",
+   "image": "tipping-point-10.webp",
+   "deployment": "Tipping Point",
+   "uses": [
+    {
+     "you": "Priority Assets",
+     "opponent": "Priority Assets",
+     "layout": "C",
+     "missions": [
+      "Sabotage",
+      "Sabotage"
+     ],
+     "page": 53
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-1",
+   "image": "sweeping-engagement-1.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Purge the Foe",
+     "layout": "A",
+     "missions": [
+      "Immovable Object",
+      "Unstoppable Force"
+     ],
+     "page": 12
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-2",
+   "image": "sweeping-engagement-2.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Disruption",
+     "layout": "A",
+     "missions": [
+      "Determined Acquisition",
+      "Death Trap"
+     ],
+     "page": 15
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-3",
+   "image": "sweeping-engagement-3.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Purge the Foe",
+     "layout": "C",
+     "missions": [
+      "Meatgrinder",
+      "Meatgrinder"
+     ],
+     "page": 26
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-4",
+   "image": "sweeping-engagement-4.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Disruption",
+     "layout": "C",
+     "missions": [
+      "Punishment",
+      "Delaying Action"
+     ],
+     "page": 29
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-5",
+   "image": "sweeping-engagement-5.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Disruption",
+     "layout": "C",
+     "missions": [
+      "Outmanoeuvre",
+      "Outmanoeuvre"
+     ],
+     "page": 38
+    },
+    {
+     "you": "Reconnaissance",
+     "opponent": "Reconnaissance",
+     "layout": "A",
+     "missions": [
+      "Gather Intel",
+      "Gather Intel"
+     ],
+     "page": 45
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-6",
+   "image": "sweeping-engagement-6.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Priority Assets",
+     "layout": "A",
+     "missions": [
+      "Locate and Deny",
+      "Extract Relic"
+     ],
+     "page": 42
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-7",
+   "image": "sweeping-engagement-7.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Reconnaissance",
+     "opponent": "Priority Assets",
+     "layout": "C",
+     "missions": [
+      "Search and Scour",
+      "Vanguard Operation"
+     ],
+     "page": 50
+    }
+   ]
+  },
+  {
+   "id": "sweeping-engagement-8",
+   "image": "sweeping-engagement-8.webp",
+   "deployment": "Sweeping Engagement",
+   "uses": [
+    {
+     "you": "Priority Assets",
+     "opponent": "Priority Assets",
+     "layout": "A",
+     "missions": [
+      "Sabotage",
+      "Sabotage"
+     ],
+     "page": 51
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-1",
+   "image": "search-and-destroy-1.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Take and Hold",
+     "layout": "C",
+     "missions": [
+      "Battlefield Dominance",
+      "Battlefield Dominance"
+     ],
+     "page": 11
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-2",
+   "image": "search-and-destroy-2.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Purge the Foe",
+     "layout": "B",
+     "missions": [
+      "Immovable Object",
+      "Unstoppable Force"
+     ],
+     "page": 13
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-3",
+   "image": "search-and-destroy-3.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Reconnaissance",
+     "layout": "C",
+     "missions": [
+      "Purge and Secure",
+      "Reconnaissance Sweep"
+     ],
+     "page": 20
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-4",
+   "image": "search-and-destroy-4.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Purge the Foe",
+     "layout": "A",
+     "missions": [
+      "Meatgrinder",
+      "Meatgrinder"
+     ],
+     "page": 24
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-5",
+   "image": "search-and-destroy-5.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Disruption",
+     "layout": "A",
+     "missions": [
+      "Punishment",
+      "Delaying Action"
+     ],
+     "page": 27
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-6",
+   "image": "search-and-destroy-6.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Priority Assets",
+     "layout": "B",
+     "missions": [
+      "Destroyer's Wrath",
+      "Vital Link"
+     ],
+     "page": 34
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-7",
+   "image": "search-and-destroy-7.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Reconnaissance",
+     "layout": "C",
+     "missions": [
+      "Smoke and Mirrors",
+      "Surveil the Foe"
+     ],
+     "page": 41
+    }
+   ]
+  },
+  {
+   "id": "search-and-destroy-8",
+   "image": "search-and-destroy-8.webp",
+   "deployment": "Search and Destroy",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Priority Assets",
+     "layout": "C",
+     "missions": [
+      "Locate and Deny",
+      "Extract Relic"
+     ],
+     "page": 44
+    }
+   ]
+  },
+  {
+   "id": "hammer-and-anvil-1",
+   "image": "hammer-and-anvil-1.webp",
+   "deployment": "Hammer and Anvil",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Purge the Foe",
+     "layout": "C",
+     "missions": [
+      "Immovable Object",
+      "Unstoppable Force"
+     ],
+     "page": 14
+    }
+   ]
+  },
+  {
+   "id": "hammer-and-anvil-2",
+   "image": "hammer-and-anvil-2.webp",
+   "deployment": "Hammer and Anvil",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Disruption",
+     "layout": "C",
+     "missions": [
+      "Determined Acquisition",
+      "Death Trap"
+     ],
+     "page": 17
+    }
+   ]
+  },
+  {
+   "id": "hammer-and-anvil-3",
+   "image": "hammer-and-anvil-3.webp",
+   "deployment": "Hammer and Anvil",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Priority Assets",
+     "layout": "B",
+     "missions": [
+      "Inescapable Dominion",
+      "Secure Asset"
+     ],
+     "page": 22
+    }
+   ]
+  },
+  {
+   "id": "hammer-and-anvil-4",
+   "image": "hammer-and-anvil-4.webp",
+   "deployment": "Hammer and Anvil",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Reconnaissance",
+     "layout": "A",
+     "missions": [
+      "Consecrate",
+      "Triangulation"
+     ],
+     "page": 30
+    }
+   ]
+  },
+  {
+   "id": "hammer-and-anvil-5",
+   "image": "hammer-and-anvil-5.webp",
+   "deployment": "Hammer and Anvil",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Priority Assets",
+     "layout": "C",
+     "missions": [
+      "Destroyer's Wrath",
+      "Vital Link"
+     ],
+     "page": 35
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-1",
+   "image": "dawn-of-war-1.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Take and Hold",
+     "layout": "B",
+     "missions": [
+      "Battlefield Dominance",
+      "Battlefield Dominance"
+     ],
+     "page": 10
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-2",
+   "image": "dawn-of-war-2.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Reconnaissance",
+     "layout": "B",
+     "missions": [
+      "Purge and Secure",
+      "Reconnaissance Sweep"
+     ],
+     "page": 19
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-3",
+   "image": "dawn-of-war-3.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Priority Assets",
+     "layout": "C",
+     "missions": [
+      "Inescapable Dominion",
+      "Secure Asset"
+     ],
+     "page": 23
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-4",
+   "image": "dawn-of-war-4.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Reconnaissance",
+     "layout": "B",
+     "missions": [
+      "Consecrate",
+      "Triangulation"
+     ],
+     "page": 31
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-5",
+   "image": "dawn-of-war-5.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Priority Assets",
+     "layout": "A",
+     "missions": [
+      "Destroyer's Wrath",
+      "Vital Link"
+     ],
+     "page": 33
+    }
+   ]
+  },
+  {
+   "id": "dawn-of-war-6",
+   "image": "dawn-of-war-6.webp",
+   "deployment": "Dawn of War",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Reconnaissance",
+     "layout": "B",
+     "missions": [
+      "Smoke and Mirrors",
+      "Surveil the Foe"
+     ],
+     "page": 40
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-1",
+   "image": "crucible-of-battle-1.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Disruption",
+     "layout": "B",
+     "missions": [
+      "Determined Acquisition",
+      "Death Trap"
+     ],
+     "page": 16
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-2",
+   "image": "crucible-of-battle-2.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Take and Hold",
+     "opponent": "Priority Assets",
+     "layout": "A",
+     "missions": [
+      "Inescapable Dominion",
+      "Secure Asset"
+     ],
+     "page": 21
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-3",
+   "image": "crucible-of-battle-3.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Purge the Foe",
+     "opponent": "Reconnaissance",
+     "layout": "C",
+     "missions": [
+      "Consecrate",
+      "Triangulation"
+     ],
+     "page": 32
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-4",
+   "image": "crucible-of-battle-4.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Disruption",
+     "opponent": "Disruption",
+     "layout": "A",
+     "missions": [
+      "Outmanoeuvre",
+      "Outmanoeuvre"
+     ],
+     "page": 36
+    },
+    {
+     "you": "Reconnaissance",
+     "opponent": "Reconnaissance",
+     "layout": "B",
+     "missions": [
+      "Gather Intel",
+      "Gather Intel"
+     ],
+     "page": 46
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-5",
+   "image": "crucible-of-battle-5.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Reconnaissance",
+     "opponent": "Priority Assets",
+     "layout": "A",
+     "missions": [
+      "Search and Scour",
+      "Vanguard Operation"
+     ],
+     "page": 48
+    }
+   ]
+  },
+  {
+   "id": "crucible-of-battle-6",
+   "image": "crucible-of-battle-6.webp",
+   "deployment": "Crucible of Battle",
+   "uses": [
+    {
+     "you": "Priority Assets",
+     "opponent": "Priority Assets",
+     "layout": "B",
+     "missions": [
+      "Sabotage",
+      "Sabotage"
+     ],
+     "page": 52
+    }
+   ]
+  }
+ ]
+}

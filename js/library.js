@@ -1,16 +1,17 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=7.9";
-import { factionStyle } from "./factions.js?v=7.9";
-import { structuredToLibrary } from "./datasheets.js?v=7.9";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=7.9";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=7.9";
-import { renderAll } from "./main.js?v=7.9";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=7.9";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=7.9";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=7.9";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.9";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.0";
+import { factionStyle } from "./factions.js?v=8.0";
+import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.0";
+import { structuredToLibrary } from "./datasheets.js?v=8.0";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.0";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.0";
+import { renderAll } from "./main.js?v=8.0";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=8.0";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.0";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.0";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.0";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;
@@ -30,6 +31,17 @@ async function importFiles(files, pickedKind, faction) {
         $("#importBar").style.width = `${Math.round(((i + n / total) / files.length) * 100)}%`;
       });
       if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
+      // A Chapter Approved mission pack (whatever type was picked) becomes its cards: missions, deployments, twists.
+      if (looksLikeMissionPack(pages)) {
+        $("#importText").textContent = `Reading the mission cards in ${f.name}…`;
+        await new Promise(r => setTimeout(r, 30));
+        const pack = await parseMissionPack(pages, title);
+        const doc = { id: uid(), title: pack.name, kind: "missions", faction: "", pageCount, importedAt: Date.now(), edition: detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name), format: "structured", structured: { missionPack: pack }, chunks: missionChunks(pack), points: [] };
+        // A newer copy of the same pack replaces the old one.
+        for (const old of state.docs.filter(d => d.kind === "missions" && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase())) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
+        await DB.put("docs", doc); state.docs.push(doc);
+        continue;
+      }
       // Untagged faction PDFs are tagged from their title or file name ("Dark_Angels_Codex…" → Dark Angels).
       const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name);
       // Datasheet-style faction PDFs become compact structured records instead of raw page text.
@@ -166,6 +178,15 @@ function renderLibrary() {
   const newest = (a, b) => b.importedAt - a.importedAt;
   const facs = state.docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));
   const rest = ["core", "updates", "points"].flatMap(k => state.docs.filter(d => d.kind === k).sort(newest));
+  const packs = state.docs.filter(d => d.kind === "missions").sort(newest);
+  const packCard = d => {
+    const m = d.structured?.missionPack || {}, n = k => (m[k] || []).length;
+    const counts = [[n("primaries"), "primary"], [n("secondaries"), "secondary"], [n("deployments"), "deployment"], [n("twists"), "twist"]].filter(([c]) => c).map(([c, w]) => `${c} ${c === 1 ? w : { primary: "primaries", secondary: "secondaries" }[w] || w + "s"}`);
+    return `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-view="${d.id}">
+      <div class="lib-icon">${icon("flag")}</div>
+      <div class="lib-text"><div class="lib-name">${esc(d.title)}</div><div class="lib-meta">${esc(counts.join(" · "))}</div>
+        <div class="lib-meta2">${esc([n("dispositions") ? `${n("dispositions")} Force Dispositions` : "", n("faq") ? `${n("faq")} FAQs` : "", editionLabel(d.edition)].filter(Boolean).join(" · "))}</div></div>${libKebab(d)}</div>`;
+  };
   const facCard = d => {
     const st = factionStyle(d.faction || ""), meta = docMeta(d).filter(x => x !== d.faction);
     const open = d.structured?.datasheets && d.faction ? ` role="button" tabindex="0" data-lib-open="${esc(d.faction)}"` : "";
@@ -180,6 +201,7 @@ function renderLibrary() {
         <div class="lib-meta">${esc(d.kind === "core" ? d.title.replace(/^core rules\s*/i, "").replace(/^\[|\]$/g, "") || KINDS.core.desc : KINDS[d.kind]?.label || "")}</div>
         <div class="lib-meta2">${esc(docMeta(d).join(" · "))}</div>${isRulesDoc(d) ? rulesStatus(d) : ""}</div>${libKebab(d)}</div>`;
   host.innerHTML = (facs.length ? `<div class="group-title">Your factions · ${facs.length}</div><div class="lib-cards">${facs.map(facCard).join("")}</div>` : "")
+    + (packs.length ? `<div class="group-title">Mission Packs</div><div class="lib-cards">${packs.map(packCard).join("")}</div>` : "")
     + (rest.length ? `<div class="group-title">Rules</div><div class="lib-cards">${rest.map(docCard).join("")}</div>` : "");
 }
 /** The ⋮ menu for a document in the library. */
@@ -189,6 +211,7 @@ function openLibraryMenu(btn) {
   const kind = d.kind;
   openPopMenu(btn, "d:" + d.id, [
     d.structured?.datasheets ? `<button type="button" role="menuitem" data-view-data="${d.id}">View data</button>` : "",
+    kind === "missions" ? `<button type="button" role="menuitem" data-mission-view="${d.id}">View cards</button>` : "",
     kind === "faction" || kind === "points" ? `<button type="button" role="menuitem" data-points="${d.id}">Points</button>` : "",
     d.structured ? `<button type="button" role="menuitem" data-excel="${d.id}">Download Excel</button>` : "",
     `<button type="button" role="menuitem" class="danger" data-delete="${d.id}">Remove</button>`].join(""));

@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=7.9";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=7.9";
-import { rulesToSheets } from "./rules-doc.js?v=7.9";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=7.9";
+import { formatGB, toast } from "./core.js?v=8.0";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.0";
+import { rulesToSheets } from "./rules-doc.js?v=8.0";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.0";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -122,12 +122,12 @@ function structuredToSheets(data, faction, theme = null) {
     { name: "Unit enhancements", columns: [W("Unit", 30), W("Enhancement", 34), W("Points", 8)], rows: enhOptRows },
     // Text the PDF reader couldn't place on a datasheet. Kept so nothing is lost; the app doesn't show it.
     { name: "Unsorted text", columns: [W("Unit", 30), W("Text", 100)], rows: unsortedRows },
-    { name: "Detachments", columns: [W("Detachment", 30), W("Detachment points", 10), W("Unique keyword", 16), W("Can't be taken with", 34), W("Description", 50), W("Rules", 90)],
+    { name: "Detachments", columns: [W("Detachment", 30), W("Detachment points", 10), W("Force Disposition", 18), W("Unique keyword", 16), W("Can't be taken with", 34), W("Description", 50), W("Rules", 90)],
       rows: data.detachments.map(d => {
         // A Unique keyword stops two detachments that share it from being in the same army; blank when the pack gives none.
         const uq = detUnique(d);
         const rivals = uq ? data.detachments.filter(o => o !== d && normName(detUnique(o)) === normName(uq)).map(o => o.name).join(", ") : "";
-        return [d.name, d.dp, uq, rivals, d.description, d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => `${r.name}: ${r.text}`).join("\n\n")];
+        return [d.name, d.dp, (d.dispositions || []).join(", "), uq, rivals, d.description, d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => `${r.name}: ${r.text}`).join("\n\n")];
       }) },
     { name: "Detachment rules", columns: [W("Detachment", 30), W("Rule", 32), W("Rules", 90), W("Formatted", 20)],
       rows: data.detachments.flatMap(d => d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => [d.name, r.name, r.text, rich(r.rich)])) },
@@ -266,6 +266,7 @@ function structuredFromWorkbook(book) {
     return {
       name: d.detachment, dp: String(d["detachment points"] || "").replace(/\s+/g, "") || "1DP",
       unique: (d["unique keyword"] || "").trim(), description: d.description || "", rules,
+      ...(d["force disposition"] ? { dispositions: String(d["force disposition"]).split(/\s*,\s*/).filter(Boolean) } : {}),
       // "Upgrade" column: Yes/No; workbooks made before it existed leave it to the rules text.
       enhancements: (enhs.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points), text: e.rules || "", rich: richOr(e.formatted, e.rules || ""),
         ...(/^(yes|true|y|1)$/i.test(e.upgrade || "") ? { upgrade: true } : /^(no|false|n|0)$/i.test(e.upgrade || "") ? { upgrade: false } : {}) })),
