@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=7.0";
-import { wargearOf } from "./loadout.js?v=7.0";
-import { factionMatches } from "./search.js?v=7.0";
-import { coreAbilityRule } from "./rules-doc.js?v=7.0";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=7.0";
+import { esc, state, uid } from "./core.js?v=7.1";
+import { wargearOf } from "./loadout.js?v=7.1";
+import { factionMatches } from "./search.js?v=7.1";
+import { coreAbilityRule } from "./rules-doc.js?v=7.1";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=7.1";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -339,7 +339,7 @@ function datasheetDetailsHTML(ds, armyRules, opts = {}) {
   const v = viewerDatasheet(ds);
   const own = v.abilities.filter(a => !a.wargear), gear = v.abilities.filter(a => a.wargear);
   const kws = niceKeywords(ds.keywords), fkws = niceKeywords(ds.factionKeywords);
-  const unitName = n => opts.link ? `<button type="button" class="fv-link" data-fp="unit" data-k="${esc(normName(n))}">${esc(n)}</button>` : esc(n);
+  const unitName = n => opts.link ? `<button type="button" class="fv-link" data-fp="unit" data-k="${esc(normName(n))}">${esc(n)}</button>` : `<span class="fv-link fv-nolink">${esc(n)}</span>`;
   return [
     coreAbilitiesHTML(v.coreNames),
     factionAbilitiesHTML(v.factionNames, armyRules),

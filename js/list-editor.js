@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.0";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.0";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.0";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.0";
-import { applyAccent, factionStyle } from "./factions.js?v=7.0";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.0";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.1";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.1";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.1";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.1";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.1";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.1";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -295,25 +295,28 @@ function lbGroupOf(u) { return DATASHEET_GROUPS.findIndex(([, test]) => test(u.k
 const PENCIL_SVG = `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M11.3 1.3a1.5 1.5 0 0 1 2.1 0l1.3 1.3a1.5 1.5 0 0 1 0 2.1l-8.6 8.6a1 1 0 0 1-.46.26l-3.4.9a.6.6 0 0 1-.74-.74l.9-3.4a1 1 0 0 1 .26-.46l8.64-8.56Zm-.6 2.3-7.1 7.1-.5 1.9 1.9-.5 7.1-7.1-1.4-1.4Zm1.5-1.4-.6.6 1.4 1.4.6-.6-1.4-1.4Z"/></svg>`;
 const TRASH_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4a1 1 0 0 1 1 1V3h3a.75.75 0 0 1 0 1.5h-.6l-.7 9.1A1.5 1.5 0 0 1 11.2 15H4.8a1.5 1.5 0 0 1-1.5-1.4L2.6 4.5H2A.75.75 0 0 1 2 3h3v-.5a1 1 0 0 1 1-1Zm-1.9 3 .7 9h6.4l.7-9H4.1Zm2.15 1.75a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Zm3.5 0a.6.6 0 0 1 .6.6v4.8a.6.6 0 1 1-1.2 0v-4.8a.6.6 0 0 1 .6-.6Z"/></svg>`;
 
+const TRASH_BIG = TRASH_SVG.replace('width="14" height="14"', 'width="26" height="26"');
 function lbListColumn(list, r) {
   const chip = (target, label) => `<button type="button" class="lb-attached${target.problems?.length ? " bad" : ""}" data-lb-jump="${target.id}" title="Show ${esc(target.unit.name)} in the list"><span class="lb-arrow">${label}</span><span class="lb-aname">${esc(target.unit.name)}</span><span class="lb-ccost">${target.total}</span></button>`;
   const card = x => {
     const sel = listUI.sel === x.id ? " sel" : "";
     const trash = `<button type="button" class="lb-trash" data-lb-remove="${x.id}" title="Delete this unit" aria-label="Delete ${esc(x.unit?.name || x.key)}">${TRASH_SVG}</button>`;
-    if (!x.unit) return `<div class="lb-cardwrap"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div>`;
+    // Phones and tablets: swipe the card left to reveal a red delete button behind it (like iOS Mail).
+    const swDel = `<button type="button" class="lb-swdel" data-lb-remove="${x.id}" aria-label="Delete ${esc(x.unit?.name || x.key)}" tabindex="-1">${TRASH_BIG}</button>`;
+    if (!x.unit) return `<div class="lb-cardwrap"><div class="lb-swipe">${swDel}<div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div></div>`;
     const host = x.attachTo ? r.entries.find(h => h.id === x.attachTo && h.unit) : null;
     const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     // A unit lists the characters attached to it; a character lists the unit it's attached to.
     const chips = x.unit.character ? (host ? [chip(host, "↳")] : []) : r.entries.filter(c => c.attachTo === x.id && c.unit).map(c => chip(c, "↳"));
     const bad = x.problems?.length ? " bad" : "";
-    return `<div class="lb-cardwrap">
+    return `<div class="lb-cardwrap"><div class="lb-swipe">${swDel}
       <div role="button" tabindex="0" class="lb-card${sel}${bad}" id="lbc-${x.id}" data-lb-sel="${x.id}">
         <span class="lb-ctop"><span class="lb-cname">${esc(x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
         <span class="lb-cmeta">${x.models} model${x.models === 1 ? "" : "s"}${host ? ` · ${x.slot === "support" ? "supporting" : "leading"} the unit below` : ""}${x.copy >= 3 && x.opt?.later ? " · 3rd+ cost" : ""}</span>
         ${tags ? `<span class="lb-ctags">${tags}</span>` : ""}
         ${bad ? `<span class="lb-cerr">⚠︎ ${esc(x.problems[0])}${x.problems.length > 1 ? ` (+${x.problems.length - 1} more)` : ""}</span>` : ""}
         ${trash}
-      </div>
+      </div></div>
       ${chips.join("")}
     </div>`;
   };
@@ -376,11 +379,6 @@ function renderListEditor(list) {
   applyAccent(view, list.faction);
   $("#listsTitle").innerHTML = `<button class="btn plain lb-back" type="button" data-lb="home">‹ Lists</button>`;
   $("#listsToolbar").innerHTML = `
-    <div class="segmented lb-panes" role="tablist">
-      <button type="button" data-lb-pane="list" class="lb-pane-list" aria-pressed="${listUI.pane === "list"}">List</button>
-      <button type="button" data-lb-pane="unit" aria-pressed="${listUI.pane === "unit"}">Unit</button>
-      <button type="button" data-lb-pane="add" aria-pressed="${listUI.pane === "add"}">Add</button>
-    </div>
     <div class="lb-left ${r.left < 0 ? "over" : ""}"><span>${Math.abs(r.left).toLocaleString()}</span> <i class="lb-w">points</i> ${r.left < 0 ? "over" : "left"}</div>`;
   const host = $("#listsHost");
   const keep = {};
@@ -388,9 +386,10 @@ function renderListEditor(list) {
   const filterFocused = document.activeElement?.id === "lbAddFilter";
   host.innerHTML = `<div class="lb-shell" data-pane="${listUI.pane}">
     <div class="lb-col lb-colL" data-col="L">${lbListColumn(list, r)}</div>
-    <div class="lb-col lb-colC" data-col="C">${lbInspector(list, r, data)}</div>
-    <div class="lb-col lb-colR" data-col="R">${lbAddColumn(list, r, data)}</div>
-  </div>`;
+    <div class="lb-col lb-colC" data-col="C"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbInspector(list, r, data)}</div>
+    <div class="lb-col lb-colR" data-col="R"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbAddColumn(list, r, data)}</div>
+  </div>
+  <button type="button" class="lb-fab${listUI.pane === "add" ? " hidden" : ""}" data-lb-pane="add" aria-label="Add a unit" title="Add a unit">+</button>`;
   for (const c of host.querySelectorAll(".lb-col")) if (keep[c.dataset.col] != null) c.scrollTop = keep[c.dataset.col];
   lbApplyFilter();
   if (filterFocused) { const f = $("#lbAddFilter"); f.focus(); f.setSelectionRange(f.value.length, f.value.length); }
@@ -485,12 +484,58 @@ function openCreateSheet() {
 
 function wireListBuilder() {
   const view = $("#view-lists");
+  /* Phones and tablets: swipe a unit card left to reveal its delete button; swipe right (or tap elsewhere) to close it.
+     Swipe right on a datasheet or the add screen to go back to the list. */
+  let sw = null, openCard = null;
+  const closeCard = () => { if (openCard) { openCard.style.transform = ""; openCard.closest(".lb-swipe")?.classList.remove("open"); openCard = null; } };
+  view.addEventListener("touchstart", e => {
+    const t = e.touches[0], card = e.target.closest(".lb-swipe .lb-card");
+    sw = { x: t.clientX, y: t.clientY, card, dx: 0, horiz: null, pane: !card && e.target.closest(".lb-colC, .lb-colR") };
+    if (openCard && card !== openCard && !e.target.closest(".lb-swdel")) { closeCard(); sw.closedOther = true; }
+  }, { passive: true });
+  view.addEventListener("touchmove", e => {
+    if (!sw) return;
+    const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+    if (sw.horiz === null && Math.abs(dx) + Math.abs(dy) > 8) sw.horiz = Math.abs(dx) > Math.abs(dy) * 1.2;
+    if (!sw.horiz || !sw.card) return;
+    const w = sw.card.offsetWidth, base = sw.card === openCard ? -0.2 * w : 0;
+    sw.dx = dx;
+    sw.card.style.transition = "none";
+    sw.card.style.transform = `translateX(${Math.max(-0.24 * w, Math.min(0, base + dx))}px)`;
+  }, { passive: true });
+  view.addEventListener("touchend", () => {
+    if (!sw) return;
+    const s0 = sw; sw = null;
+    if (s0.card && s0.horiz) {
+      const wasOpen = s0.card === openCard;
+      s0.card.style.transition = "";
+      if ((!wasOpen && s0.dx < -40) || (wasOpen && s0.dx < 30)) {
+        if (!wasOpen) closeCard();
+        openCard = s0.card; s0.card.style.transform = "translateX(-20%)"; s0.card.closest(".lb-swipe").classList.add("open");
+      } else { s0.card.style.transform = ""; if (wasOpen) { s0.card.closest(".lb-swipe").classList.remove("open"); openCard = null; } }
+      view._swiped = Date.now();
+      return;
+    }
+  }, { passive: true });
+  // Swipe right on a datasheet or the add screen to go back to the list (phones), or from adding to the unit (tablets).
+  onSwipeRight(view, e => !e.target.closest(".lb-swipe") && !!e.target.closest(".lb-colC, .lb-colR"), () => {
+    const list = state.lists.find(l => l.id === listUI.id);
+    if (!list || listUI.mode !== "edit" || listUI.pane === "list") return;
+    listUI.pane = "list"; renderListEditor(list);
+  });
+  // A tap on a card that's slid open closes it instead of opening the unit.
+  view.addEventListener("click", e => {
+    if (view._swiped && Date.now() - view._swiped < 350) { e.stopPropagation(); e.preventDefault(); return; }
+    if (openCard && !e.target.closest(".lb-swdel")) { const on = e.target.closest(".lb-card") === openCard; closeCard(); if (on) { e.stopPropagation(); e.preventDefault(); } }
+  }, true);
   // Weapon, enhancement and upgrade rows: the left half of the bar shows or hides the details,
   // the right half equips or unequips (same as the checkbox).
   const splitSide = (row, e) => {
     const bar = row.querySelector("summary")?.getBoundingClientRect(), box = row.getBoundingClientRect();
     if (bar) row.style.setProperty("--barh", `${Math.round(bar.bottom - box.top + 2)}px`);
     if (!bar || e.clientY < box.top || e.clientY > bar.bottom + 2) return "";
+    // Rows with a − / + counter: the whole bar shows or hides the details; only the buttons change the count.
+    if (row.classList.contains("stepper") || row.querySelector(".lb-step")) return "l";
     return e.clientX > box.left + box.width / 2 ? "r" : "l";
   };
   view.addEventListener("click", e => {

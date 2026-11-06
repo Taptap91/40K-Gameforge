@@ -1,16 +1,29 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=7.0";
-import { armyData } from "./army.js?v=7.0";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.0";
-import { factionMatches } from "./search.js?v=7.0";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.0";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.0";
+import { $, DB, esc, openSheet, state, store, toast } from "./core.js?v=7.1";
+import { armyData } from "./army.js?v=7.1";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.1";
+import { factionMatches } from "./search.js?v=7.1";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.1";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.1";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
+// On phones and tablets every category starts closed, Army Rules and Detachments too.
+if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
+/** Phones and tablets: the bottom menu bar, faction group buttons, closed categories, swipe to go back. */
+const TOUCH_LAYOUT = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
+const isTouchLayout = () => matchMedia(TOUCH_LAYOUT).matches;
+/* Faction groups for the phone and tablet picker. Factions the app doesn't know yet go under Xenos. */
+const FACTION_GROUPS = [
+  ["Imperium", ["Adepta Sororitas", "Adeptus Custodes", "Adeptus Mechanicus", "Astra Militarum", "Black Templars", "Blood Angels", "Dark Angels",
+    "Deathwatch", "Grey Knights", "Imperial Agents", "Imperial Knights", "Space Marines", "Space Wolves"]],
+  ["Forces of Chaos", ["Chaos Daemons", "Chaos Knights", "Chaos Space Marines", "Death Guard", "Emperor's Children", "Thousand Sons", "World Eaters"]],
+  ["Xenos", null],
+];
+const groupOf = f => (FACTION_GROUPS.find(([, list]) => list && list.some(x => normName(x) === normName(f))) || FACTION_GROUPS[2])[0];
 const factionDocs = f => state.docs.filter(d => d.structured?.datasheets && factionMatches(d.faction, f));
 const factionNames = () => [...new Set(state.docs.filter(d => d.structured?.datasheets && d.faction).map(d => d.faction))].sort();
 
@@ -65,7 +78,10 @@ function factionButton(f, on) {
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
+  // Desktop shows every faction's button; phones and tablets show three group buttons that open a picker.
+  const groups = FACTION_GROUPS.map(([g]) => [g, names.filter(n => groupOf(n) === g)]).filter(([, l]) => l.length);
   const html = names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
+    <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>
     <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : "";
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
@@ -274,6 +290,31 @@ function applyFilter() {
   if (none) none.hidden = shown > 0;
 }
 
+/** A popup listing one group's factions as their buttons; tapping one selects it. */
+function openFactionPicker(group) {
+  const names = factionNames().filter(n => groupOf(n) === group);
+  const d = openSheet(`<div class="sheet-head"><h2>${esc(group)}</h2><p>Choose a faction.</p></div>
+    <div class="sheet-body fp-picker">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Close</button></div>`);
+  d.querySelector(".fp-picker").onclick = e => {
+    const b = e.target.closest("[data-fac]");
+    if (!b) return;
+    d.close();
+    if (b.dataset.fac === fUI.faction) return;
+    fUI.faction = b.dataset.fac; store.set("rf.faction", fUI.faction); fUI.sel = null; fUI.open = false; fUI.filter = "";
+    renderFactionsPage();
+  };
+}
+/** Calls back on a mostly-horizontal swipe to the right (touch screens), started where `where(event)` allows. */
+function onSwipeRight(el, where, cb) {
+  let x0 = null, y0 = 0;
+  el.addEventListener("touchstart", e => { const t = e.touches[0]; x0 = where(e) ? t.clientX : null; y0 = t.clientY; }, { passive: true });
+  el.addEventListener("touchend", e => {
+    if (x0 == null) return;
+    const t = e.changedTouches[0], dx = t.clientX - x0, dy = Math.abs(t.clientY - y0); x0 = null;
+    if (dx > 70 && dy < dx * 0.6) cb();
+  }, { passive: true });
+}
 function wireFactionsPage() {
   const view = $("#view-factions");
   view.addEventListener("click", e => {
@@ -296,8 +337,12 @@ function wireFactionsPage() {
       fac.scrollIntoView?.({ block: "nearest", inline: "nearest" });
       return;
     }
+    const grp = e.target.closest("[data-fp-group]");
+    if (grp) { openFactionPicker(grp.dataset.fpGroup); return; }
     if (e.target.closest("[data-fp-style]")) openStyleSheet(fUI.faction);
   });
+  // Phones and tablets: swipe right on the datasheet to go back to the list.
+  onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) { fUI.open = false; renderFactionsPage(); } });
   view.addEventListener("input", e => { if (e.target.id === "fpFilter") { fUI.filter = e.target.value; applyFilter(); } });
   view.addEventListener("toggle", e => {
     const g = e.target.dataset?.grp;
@@ -305,4 +350,4 @@ function wireFactionsPage() {
   }, true);
 }
 
-export { applyAccent, factionStyle, renderFactionsPage, wireFactionsPage };
+export { applyAccent, factionStyle, onSwipeRight, renderFactionsPage, wireFactionsPage };

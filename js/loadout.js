@@ -1,7 +1,7 @@
 /* RulesForge · loadout.js
  * Wargear: model groups, default weapons, swap options and limits read from datasheets, and weapon changes in the list builder.
  */
-import { normName, stripRich, titleCase } from "./text.js?v=7.0";
+import { normName, stripRich, titleCase } from "./text.js?v=7.1";
 
 /** "Bolt Rifle - Focused Fire" → "Bolt Rifle". */
 const weaponBase = name => String(name || "").split(/\s+[-–—]\s+/)[0].replace(/\s+non-?\s*$/i, "").trim();/** Loose name key for matching wargear text to weapons ("Lightning Claws" → "lightning claw"). */

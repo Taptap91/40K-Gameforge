@@ -857,3 +857,66 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-kmodel { color: var(--text); font-weight: 600; }
 /* A light line above and below the profiles of one weapon, when other weapons share the table. */
 .fv-weapons .fv-wsep { grid-column: 1 / -1; height: 0; border-top: 1px solid rgba(255,255,255,.10); margin: 6px 0; }
+
+/* ---------- Phones and tablets: faction groups, boxed categories, bordered Back ---------- */
+.fp-groups { display: none; }
+.fp-picker { display: flex; flex-wrap: wrap; gap: 10px; }
+.fp-picker .fp-fac { font-size: 14px; }
+.fp-picker .fp-fac .fp-fac-sym { opacity: 1; transform: none; }
+.fp-picker .fp-fac.has-sym { padding-right: 62px; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .fp-facs { display: none; }
+  .fp-groups { display: flex; flex: 1; min-width: 0; gap: 8px; padding: 8px 0; }
+  .fp-groupbtn { flex: 1 1 0; min-width: 0; height: 40px; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text-2); font: 600 14px var(--font); white-space: nowrap; }
+  .fp-groupbtn.on { color: var(--text); border-color: var(--text-2); background: var(--panel-2); }
+  .fp-groupn { font-weight: 400; font-size: 12px; color: var(--text-3); }
+  /* Categories look and feel like buttons. */
+  .fp-grp > summary { padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); min-height: 46px; }
+  .fp-grp[open] > summary { margin-bottom: 8px; }
+  .fp-grp { margin-top: 8px; }
+  /* Back: a bordered button in white. */
+  .btn.plain.fp-back, .btn.lb-paneback { align-items: center; gap: 4px; padding: 8px 14px; border: 1px solid var(--border-strong) !important; border-radius: 10px; color: var(--text) !important; background: var(--panel) !important; margin-bottom: 12px; }
+}
+@media (max-width: 380px) { .fp-groupbtn { font-size: 13px; padding: 0 6px; } .fp-groupn { display: none; } }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  /* Leader / Led By / Support lists: bordered buttons instead of bullet-point links. */
+  .fv-units { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .fv-units .fv-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px;
+    background: var(--panel); color: var(--text); font-size: 13.5px; font-weight: 500; text-decoration: none; }
+  .fv-units .fv-link:hover { text-decoration: none; background: var(--panel-2); }
+}
+/* ---------- List builder on phones and tablets ---------- */
+.lb-swipe { position: relative; }
+.lb-swdel { display: none; }
+.lb-paneback, .lb-fab { display: none; }
+.lb-panes { display: none !important; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .lb-swipe { overflow: hidden; border-radius: 10px; }
+  .lb-swipe .lb-card { position: relative; z-index: 1; transition: transform .2s ease; touch-action: pan-y; }
+  /* The red delete button sits behind the right 20% of the card, the same height and shape. */
+  .lb-swdel { display: grid; place-items: center; position: absolute; top: 0; bottom: 0; right: 0; width: calc(20% - 6px); border: 0; border-radius: 10px;
+    background: var(--red, #ff453a); color: #fff; cursor: pointer; }
+  .lb-card .lb-trash { display: none; }
+  .lb-card { padding-right: 12px; }
+  /* Floating + button to add units, above the bottom bar on the right. */
+  .lb-fab { display: grid; place-items: center; position: fixed; right: max(20px, env(safe-area-inset-right, 0px)); bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    width: 58px; height: 58px; border-radius: 50%; border: 1.5px solid var(--border-strong); background: var(--panel-2); color: var(--text);
+    font: 300 34px/1 var(--font); box-shadow: 0 8px 24px rgba(0,0,0,.45); z-index: 30; cursor: pointer; }
+  .lb-fab.hidden { display: none; }
+  #view-lists:not(.lb-editing) .lb-fab { display: none; }
+  .lb-colR .lb-paneback { display: inline-flex; margin-bottom: 12px; }
+  .lb-col { padding-bottom: 96px; }
+}
+@media (max-width: 760px) { .lb-colC .lb-paneback { display: inline-flex; margin-bottom: 12px; } }
+
+/* Bigger − / + buttons for weapon counts (every screen size). */
+.lb-step { width: 36px; height: 36px; border-radius: 8px; font-size: 20px; font-weight: 500; }
+.lb-count { gap: 8px; padding-top: 4px; }
+.lb-count span { min-width: 30px; font-size: 14px; }
+.lb-wopt.stepper summary { padding-right: 150px; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .lb-step { width: 42px; height: 42px; font-size: 22px; }
+  .lb-wopt.stepper summary { padding-right: 162px; min-height: 52px; }
+}
+.fv-nolink { color: inherit; cursor: default; } .fv-nolink:hover { text-decoration: none; }

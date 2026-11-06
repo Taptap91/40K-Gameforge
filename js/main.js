@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.0";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.0";
-import { exportDocToExcel } from "./excel.js?v=7.0";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.0";
-import * as core from "./core.js?v=7.0";
-import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.0";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.0";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.0";
-import { buildIndex } from "./search.js?v=7.0";
-import { openDataViewer } from "./viewer.js?v=7.0";
-import { fixApostrophes } from "./text.js?v=7.0";
-import { groupArmyRules } from "./faction-parser.js?v=7.0";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.0";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=7.1";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=7.1";
+import { exportDocToExcel } from "./excel.js?v=7.1";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openPointsSheet, renderLibrary } from "./library.js?v=7.1";
+import * as core from "./core.js?v=7.1";
+import { renderFactionsPage, wireFactionsPage } from "./factions.js?v=7.1";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=7.1";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=7.1";
+import { buildIndex } from "./search.js?v=7.1";
+import { openDataViewer } from "./viewer.js?v=7.1";
+import { fixApostrophes } from "./text.js?v=7.1";
+import { groupArmyRules } from "./faction-parser.js?v=7.1";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=7.1";
 
 function renderAll() {
   renderScope();
