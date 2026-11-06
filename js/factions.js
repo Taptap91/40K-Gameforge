@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.0";
-import { armyData } from "./army.js?v=8.0";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.0";
-import { factionMatches } from "./search.js?v=8.0";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.0";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.0";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.1";
+import { armyData } from "./army.js?v=8.1";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.1";
+import { factionMatches } from "./search.js?v=8.1";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.1";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.1";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -305,13 +305,15 @@ function rightHTML(c) {
     const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
     const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
     const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
+    // Lore text (in italics) above the rules, when the faction pack prints any.
+    const fl = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
     const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;
     return `${back}<div class="fp-head"><h2>${esc(d.name)}</h2><div class="fp-sub">Detachment · ${esc(String(d.dp || "").replace(/(\d+)\s*DP/i, "$1 DP"))}</div></div>
       ${uq ? `<div class="fv-unique"><b>Unique: ${esc(uq)}</b><span>${rivals.length ? `Can't be taken in the same army as ${esc(rivals.join(", "))}.` : "No other detachment in your army may share this tag."}</span></div>` : ""}
       ${d.description ? panelHTML("", `<div class="fv-rich fp-text">${richHTML(d.description)}</div>`) : ""}
-      ${rules.length ? panelHTML("Detachment Rules", rules.map(r => ab(r.name, "", richHTML(r.rich || r.text))).join("")) : ""}
-      ${d.enhancements.length ? panelHTML("Enhancements", d.enhancements.map(e => ab(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), richHTML(e.rich || e.text))).join("")) : ""}
-      ${d.stratagems.length ? panelHTML("Stratagems", d.stratagems.map(st => ab(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), richHTML(st.rich || st.text))).join("")) : ""}`;
+      ${rules.length ? panelHTML("Detachment Rules", rules.map(r => ab(r.name, "", fl(r) + richHTML(r.rich || r.text))).join("")) : ""}
+      ${d.enhancements.length ? panelHTML("Enhancements", d.enhancements.map(e => ab(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), fl(e) + richHTML(e.rich || e.text))).join("")) : ""}
+      ${d.stratagems.length ? panelHTML("Stratagems", d.stratagems.map(st => ab(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), fl(st) + richHTML(st.rich || st.text))).join("")) : ""}`;
   }
   const ds = c.datasheets.find(x => normName(x.name) === s.k);
   if (!ds) return "";

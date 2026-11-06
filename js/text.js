@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=8.0";
+import { esc } from "./core.js?v=8.1";
 
 function normalize(raw) {
   return raw
@@ -25,7 +25,23 @@ const fixApostrophes = s => String(s ?? "").replace(/(\p{L})(?:\s+(['’])\s*|([
   (m, a, q1, q2, suf) => a + (q1 || q2) + (a === a.toUpperCase() && a !== a.toLowerCase() ? suf : suf.toLowerCase()))
   // "Ka’Tah" → "Ka’tah" (a capital after an apostrophe only follows a one-letter start, as in N’Kari).
   .replace(/(\p{L}{2,}['’])(\p{Lu})(\p{Ll}{2,})/gu, (m, a, b, c) => a + b.toLowerCase() + c);
-const cleanGlyphs = s => fixApostrophes(s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim());
+/* Ligatures the PDF splits into a separate piece: "sacri fi ce" → "sacrifice", "fi lth" → "filth", "the fl ames" → "the flames". */
+const LIG = new Set(["fi", "fl", "ff", "ffi", "ffl"]);
+const SHORT = new Set(["a", "an", "the", "of", "and", "or", "to", "in", "on", "at", "by", "as", "is", "be", "it", "its", "for", "from", "with", "into", "their", "his", "her", "this", "that", "no", "not", "if", "so", "up", "out", "all", "any", "each", "one", "two", "can", "has", "had", "was", "are", "but"]);
+function joinLigatures(s) {
+  if (!/(^| )(ffi|ffl|fi|fl|ff) [a-z]/.test(s)) return s;
+  const w = s.split(" "), out = [];
+  for (let i = 0; i < w.length; i++) {
+    if (LIG.has(w[i]) && /^[a-z]/.test(w[i + 1] || "")) {
+      let word = w[i] + w[++i];
+      const prev = out[out.length - 1];
+      if (prev && /^[a-z]+$/.test(prev) && !SHORT.has(prev)) word = out.pop() + word;
+      out.push(word);
+    } else out.push(w[i]);
+  }
+  return out.join(" ");
+}
+const cleanGlyphs = s => fixApostrophes(joinLigatures(s.replace(/[-⌘✦◆]/g, "").replace(/\s+/g, " ").trim()));
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"]);
 const titleCase = s => (s = fixApostrophes(s)) === s.toUpperCase()
   ? s.toLowerCase().replace(/(^|[\s\-([])(\w+)/g, (m, a, w, i) => a + (i > 0 && a === " " && SMALL_WORDS.has(w) ? w : w[0].toUpperCase() + w.slice(1)))

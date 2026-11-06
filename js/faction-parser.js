@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=8.0";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.0";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.0";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=8.1";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.1";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.1";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -280,6 +280,17 @@ function groupArmyRules(rules) {
 }
 
 /** Drops browser print headers and footers (date, page title, web address, "2/39") that repeat at the top or bottom of most pages. */
+/** A detachment's name: all the text on its title line, left to right, up to its Force Disposition symbol and DP cost
+ *  (however many pieces the PDF split it into). Falls back to the title piece itself. */
+function detachmentName(title, dpItem, items) {
+  if (!dpItem) return cleanGlyphs(title.t);
+  const tol = Math.max(6, title.s * 0.45);
+  const parts = items.filter(o => o !== dpItem && Math.abs(o.y - dpItem.y) <= tol && o.x < dpItem.x && !/^\d+\s*DP$/i.test(o.t)
+    && Math.abs(o.s - title.s) <= title.s * 0.3 && /[A-Za-z]/.test(o.t)).sort((a, b) => a.x - b.x);
+  const name = cleanGlyphs(parts.map(o => o.t).join(" ")).replace(/\s+([’'])\s*/g, "$1");
+  return name.length >= cleanGlyphs(title.t).length ? name : cleanGlyphs(title.t);
+}
+
 function dropPageFurniture(items) {
   const edge = i => i.ph && (i.py < 32 || i.py > i.ph - 32);
   const shape = i => cleanGlyphs(i.t).replace(/\d+/g, "#").trim();
@@ -293,7 +304,7 @@ function dropPageFurniture(items) {
 
 const EXCLUDED_GROUPS = /^(boarding actions|boarding strike|pilum strike team)\b/i;
 
-function parseFactionPdf(allItems) {
+function parseFactionPdfRaw(allItems) {
   const items = allItems.filter(i => i.t && i.t.trim()).map(i => ({ ...i, t: i.t.trim() }))
     .sort((a, b) => a.y - b.y || a.x - b.x);
   const result = { datasheets: [], detachments: [], armyRules: [] };
@@ -474,7 +485,7 @@ function parseFactionPdf(allItems) {
     const split = rightSection.length ? Math.min(...rightSection.map(i => i.x)) - 10 : 460;
 
     const dpItem = items.find(o => isDP(o.t) && sameRow(o, sec.h, 8)), dp = dpItem?.t.replace(/\s+/g, "") || "";
-    const det = { name: titleCase(cleanGlyphs(sec.h.t)), dp, ...(dpItem?.fd?.length ? { dispositions: dpItem.fd } : {}), description: "", rules: [], enhancements: [], stratagems: [] };
+    const det = { name: titleCase(detachmentName(sec.h, dpItem, items)), dp, ...(dpItem?.fd?.length ? { dispositions: dpItem.fd } : {}), description: "", rules: [], enhancements: [], stratagems: [] };
     const entries = [], heads = [];
     [region.filter(i => i.x < split), region.filter(i => i.x >= split)].forEach((col, colIndex) => {
       let entry = null;
@@ -640,7 +651,7 @@ function sideLabelLists(sections) {
   for (const s of labels) s.lines.sort((a, b) => lineY(a) - lineY(b));
 }
 
-function parsePrintedFactionPdf(allItems) {
+function parsePrintedFactionPdfRaw(allItems) {
   const result = { datasheets: [], detachments: [], armyRules: [] };
   const items = allItems
     .filter(i => i.t && i.t.trim() && !(i.s < 8.8 && (i.py < 26 || i.py > (i.ph || 792) - 28)))   // page header/footer
@@ -987,10 +998,10 @@ function parsePrintedFactionPdf(allItems) {
   const firstDatasheet = anchors.length ? Math.min(...anchors.map(a => a.start)) : Infinity;
   const entrySizeOf = region => mostCommonSize(region.filter(i => i.s < sectionSize - 2 && i.s > body + 3 && isUpperText(cleanGlyphs(i.t)) && letterCount(i.t) >= 3 && !/^\d+\s*CP$/i.test(i.t))) || body + 5;
   const regionText = (entryLines, baseX) => {
-    // Flavour text (the italic lines straight after the name) is left out; italic rules text later on is kept.
+    // Flavour text (the italic lines straight after the name) is kept apart from the rules; italic rules text later on stays in the rules.
     let i = 0;
     while (i < entryLines.length && entryLines[i].items.every(x => x.it)) i++;
-    return linesToRich(entryLines.slice(i), baseX);
+    return { rich: linesToRich(entryLines.slice(i), baseX), flavour: cleanGlyphs(entryLines.slice(0, i).map(l => l.plain).join(" ")) };
   };
   for (const t of detTitles) {
     const end = Math.min(nextBound(t.y), firstDatasheet);
@@ -1001,7 +1012,7 @@ function parsePrintedFactionPdf(allItems) {
     const uniqueItem = items.find(i => /^UNIQUE\s*:/i.test(i.t) && t.y - i.y > 0 && t.y - i.y < 60);
     const unique = uniqueItem ? titleCase(cleanGlyphs(uniqueItem.t.replace(/^UNIQUE\s*:\s*/i, "") || items.find(o => sameRow(o, uniqueItem, 4) && o.x > uniqueItem.x)?.t || "")) : "";
     const dpIt = dpItems.find(d => sameRow(d, t, 10));
-    const det = { name: titleCase(cleanGlyphs(t.t)), dp: (dpIt?.t || "").replace(/\s+/g, ""), ...(dpIt?.fd?.length ? { dispositions: dpIt.fd } : {}), unique, description: "", rules: [], enhancements: [], stratagems: [] };
+    const det = { name: titleCase(detachmentName(t, dpIt, items)), dp: (dpIt?.t || "").replace(/\s+/g, ""), ...(dpIt?.fd?.length ? { dispositions: dpIt.fd } : {}), unique, description: "", rules: [], enhancements: [], stratagems: [] };
     let section = "", entry = null;
     const entries = [];
     for (const line of lines(region)) {
@@ -1015,23 +1026,28 @@ function parsePrintedFactionPdf(allItems) {
         entries.push(entry);
         continue;
       }
+      // The line under the detachment's name, before its first section ("PLAGUE MARINES ADVANCE INEXORABLY…"), is its description.
+      if (!entry && !section && line.plain && !/^(UNIQUE\b|ERRATA|Show|Hide)/i.test(line.plain) && !isDP(line.plain)) { det.description += (det.description ? " " : "") + cleanGlyphs(line.plain); continue; }
       if (!entry) continue;
       if (/^(ERRATA|Show|Hide)$/i.test(line.plain)) continue;
       entry.lines.push(line);
     }
+    if (isUpperText(det.description)) det.description = det.description.charAt(0) + det.description.slice(1).toLowerCase();
     for (const e of entries) {
       let ls = e.lines;
-      let category = "";
+      let category = "", stratFlavour = "";
       if (/STRATAGEM/.test(e.section) || e.cp != null) {
         const catLine = ls.find(l => /STRATAGEM$/i.test(l.plain) && isUpperText(l.plain));
         if (catLine) category = titleCase(catLine.plain);
         const when = ls.findIndex(l => /^(WHEN|TARGET|EFFECT)\s*:/i.test(l.plain));
-        if (when > 0) ls = ls.slice(when);
+        // A stratagem's lore sits between its category line and WHEN:.
+        if (when > 0) { stratFlavour = cleanGlyphs(ls.slice(0, when).filter(l => l !== catLine).map(l => l.plain).join(" ")); ls = ls.slice(when); }
         ls = ls.filter(l => l !== catLine);
       }
       const baseX = ls.length ? Math.min(...ls.map(l => l.x)) : 0;
-      const rich = regionText(ls, baseX);
-      const out = { name: e.name, rich, text: stripRich(rich) };
+      const { rich, flavour } = regionText(ls, baseX);
+      const fl = stratFlavour || flavour;
+      const out = { name: e.name, rich, text: stripRich(rich), ...(fl ? { flavour: fl } : {}) };
       if (/ENHANCEMENT/.test(e.section) || e.points != null) det.enhancements.push({ ...out, points: e.points, ...(e.upgrade ? { upgrade: true } : {}) });
       else if (/STRATAGEM/.test(e.section) || e.cp != null) det.stratagems.push({ ...out, cp: e.cp != null ? `${e.cp}CP` : "", category });
       else det.rules.push(out);
@@ -1077,5 +1093,23 @@ function parsePrintedFactionPdf(allItems) {
   }
   return result;
 }
+
+/** One detachment per name and DP cost: when a title line arrives as several pieces, the pieces can each start a
+ *  "detachment"; they're merged, keeping every rule, enhancement and stratagem found. */
+function mergeDuplicateDetachments(data) {
+  const out = [], byKey = new Map();
+  for (const d of data.detachments || []) {
+    const k = `${d.name.toLowerCase()}|${d.dp}`, prev = byKey.get(k);
+    if (!prev) { byKey.set(k, d); out.push(d); continue; }
+    for (const f of ["rules", "enhancements", "stratagems"]) for (const e of d[f] || []) if (!prev[f].some(x => x.name === e.name)) prev[f].push(e);
+    if (!prev.description && d.description) prev.description = d.description;
+    if (!prev.unique && d.unique) prev.unique = d.unique;
+    if (!prev.dispositions && d.dispositions) prev.dispositions = d.dispositions;
+  }
+  data.detachments = out;
+  return data;
+}
+const parseFactionPdf = items => mergeDuplicateDetachments(parseFactionPdfRaw(items));
+const parsePrintedFactionPdf = items => mergeDuplicateDetachments(parsePrintedFactionPdfRaw(items));
 
 export { armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };

@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.0";
-import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.0";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.0";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=8.0";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.0";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.0";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.1";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.1";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.1";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=8.1";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.1";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.1";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -179,7 +179,7 @@ function lbEnhChecklist(x, r, upgrade) {
         <details data-wkey="${esc(key)}" ${listUI.openWeapons.has(key) ? "open" : ""}><summary><span class="lb-arrow" aria-hidden="true"></span><span class="lb-whead">
           <span class="lb-enhhead"><span class="lb-wtitle">${esc(en.name)}</span><span class="lb-enhpts">+${en.points} pts</span>${count}</span></span></summary>
           <div class="lb-enhmore"><span class="lb-enhdet">${esc(en.detachment)}${en.upgrade ? " · Upgrade" : ""}</span>
-          <span class="fv-rich lb-enhtext">${richHTML(en.text)}</span></div></details>
+          ${en.flavour ? `<span class="fv-flavour lb-enhflav">${esc(en.flavour)}</span>` : ""}<span class="fv-rich lb-enhtext">${richHTML(en.text)}</span></div></details>
         ${block ? `<div class="lb-enhtaken" data-block="${esc(block.msg)}"><span>${esc(block.msg)}</span>${btn}</div>` : ""}
       </div>
     </div>`;

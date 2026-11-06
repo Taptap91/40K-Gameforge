@@ -1,10 +1,10 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { formatGB, toast } from "./core.js?v=8.0";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.0";
-import { rulesToSheets } from "./rules-doc.js?v=8.0";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.0";
+import { formatGB, toast } from "./core.js?v=8.1";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.1";
+import { rulesToSheets } from "./rules-doc.js?v=8.1";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.1";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -129,12 +129,12 @@ function structuredToSheets(data, faction, theme = null) {
         const rivals = uq ? data.detachments.filter(o => o !== d && normName(detUnique(o)) === normName(uq)).map(o => o.name).join(", ") : "";
         return [d.name, d.dp, (d.dispositions || []).join(", "), uq, rivals, d.description, d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => `${r.name}: ${r.text}`).join("\n\n")];
       }) },
-    { name: "Detachment rules", columns: [W("Detachment", 30), W("Rule", 32), W("Rules", 90), W("Formatted", 20)],
-      rows: data.detachments.flatMap(d => d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => [d.name, r.name, r.text, rich(r.rich)])) },
-    { name: "Enhancements", columns: [W("Detachment", 30), W("Enhancement", 34), W("Points", 8), W("Upgrade", 9), W("Rules", 90), W("Formatted", 20)],
-      rows: data.detachments.flatMap(d => d.enhancements.map(e => [d.name, e.name, e.points ?? "", e.upgrade === true ? "Yes" : e.upgrade === false ? "No" : "", e.text, rich(e.rich)])) },
-    { name: "Stratagems", columns: [W("Detachment", 30), W("Stratagem", 32), W("CP", 6), W("Category", 18), W("Rules", 90), W("Formatted", 20)],
-      rows: data.detachments.flatMap(d => d.stratagems.map(s => [d.name, s.name, s.cp, s.category || "", s.text, rich(s.rich)])) },
+    { name: "Detachment rules", columns: [W("Detachment", 30), W("Rule", 32), W("Rules", 90), W("Formatted", 20), W("Flavour text", 60)],
+      rows: data.detachments.flatMap(d => d.rules.filter(r => !/^unique\b/i.test(r.name)).map(r => [d.name, r.name, r.text, rich(r.rich), r.flavour || ""])) },
+    { name: "Enhancements", columns: [W("Detachment", 30), W("Enhancement", 34), W("Points", 8), W("Upgrade", 9), W("Rules", 90), W("Formatted", 20), W("Flavour text", 60)],
+      rows: data.detachments.flatMap(d => d.enhancements.map(e => [d.name, e.name, e.points ?? "", e.upgrade === true ? "Yes" : e.upgrade === false ? "No" : "", e.text, rich(e.rich), e.flavour || ""])) },
+    { name: "Stratagems", columns: [W("Detachment", 30), W("Stratagem", 32), W("CP", 6), W("Category", 18), W("Rules", 90), W("Formatted", 20), W("Flavour text", 60)],
+      rows: data.detachments.flatMap(d => d.stratagems.map(s => [d.name, s.name, s.cp, s.category || "", s.text, rich(s.rich), s.flavour || ""])) },
     { name: "Army rules", columns: [W("Rule", 32), W("Special move", 10), W("Part of", 24), W("Type", 18), W("Rules", 100), W("Formatted", 20)],
       rows: data.armyRules.map(r => [r.name, YES(r.special), r.partOf || "", r.kind || "", r.text, rich(r.rich)]) },
     { name: "About", columns: [W("Field", 20), W("Value", 90)],
@@ -260,7 +260,8 @@ function structuredFromWorkbook(book) {
   const detRules = byUnit(sheet("Detachment rules"), "detachment"), enhs = byUnit(sheet("Enhancements"), "detachment"), detStrats = byUnit(sheet("Stratagems"), "detachment");
   const detachments = sheet("Detachments").filter(d => d.detachment).map(d => {
     const k = normName(d.detachment);
-    let rules = (detRules.get(k) || []).map(r => ({ name: r.rule || "", text: r.rules || "", rich: richOr(r.formatted, r.rules || "") }));
+    const fl = r => (r["flavour text"] || "").trim() ? { flavour: r["flavour text"].trim() } : {};
+    let rules = (detRules.get(k) || []).map(r => ({ name: r.rule || "", text: r.rules || "", rich: richOr(r.formatted, r.rules || ""), ...fl(r) }));
     // Older files only have the combined Rules column: "Name: text" paragraphs.
     if (!rules.length && d.rules) rules = d.rules.split(/\n{2,}/).map(p => { const m = p.match(/^([^:\n]{2,80}):\s*([\s\S]*)$/); return m ? { name: m[1].trim(), text: m[2].trim() } : { name: "", text: p.trim() }; });
     return {
@@ -268,9 +269,9 @@ function structuredFromWorkbook(book) {
       unique: (d["unique keyword"] || "").trim(), description: d.description || "", rules,
       ...(d["force disposition"] ? { dispositions: String(d["force disposition"]).split(/\s*,\s*/).filter(Boolean) } : {}),
       // "Upgrade" column: Yes/No; workbooks made before it existed leave it to the rules text.
-      enhancements: (enhs.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points), text: e.rules || "", rich: richOr(e.formatted, e.rules || ""),
+      enhancements: (enhs.get(k) || []).map(e => ({ name: e.enhancement || "", points: num(e.points), text: e.rules || "", rich: richOr(e.formatted, e.rules || ""), ...fl(e),
         ...(/^(yes|true|y|1)$/i.test(e.upgrade || "") ? { upgrade: true } : /^(no|false|n|0)$/i.test(e.upgrade || "") ? { upgrade: false } : {}) })),
-      stratagems: (detStrats.get(k) || []).map(s => ({ name: s.stratagem || "", cp: s.cp || "", category: s.category || "", text: s.rules || "", rich: richOr(s.formatted, s.rules || "") })),
+      stratagems: (detStrats.get(k) || []).map(s => ({ name: s.stratagem || "", cp: s.cp || "", category: s.category || "", text: s.rules || "", rich: richOr(s.formatted, s.rules || ""), ...fl(s) })),
       fromExcel: true,
     };
   });

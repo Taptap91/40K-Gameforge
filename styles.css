@@ -1253,3 +1253,4 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .mc-map img { width: 100%; border-radius: 8px; background: #fff; }
 .mc-faq { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .mc-faq p { margin: 0; font-size: 14px; line-height: 1.5; }
+.fv-flavour { margin: 0 0 8px; font-style: italic; color: var(--text-2); }
