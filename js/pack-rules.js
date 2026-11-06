@@ -37,8 +37,8 @@
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=7.3";
-import { normName } from "./text.js?v=7.3";
+import { KNOWN_FACTIONS } from "./core.js?v=7.4";
+import { normName } from "./text.js?v=7.4";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";
@@ -154,6 +154,15 @@ async function loadFactionKit(onImages) {
   }
   KIT.listed = Object.fromEntries(Object.values(list).map(v => [v.name, v.image]));
   KIT.onImages = onImages;
+  KIT.loaded = true;
+  for (const n of Object.keys(KIT.listed)) kitSymbol(n);   // start fetching every symbol now, so they're ready sooner
+}
+/** True while the app's own symbol for a faction may still arrive (the folder list hasn't loaded, or its image is on the
+ *  way). Until then nothing is shown, rather than briefly showing the PDF's icon and then swapping it. */
+function kitPending(f) {
+  const n = canonicalFaction(f) || f;
+  if (!KIT.loaded) return true;
+  return !!KIT.listed[n] && !KIT.images[n] && !KIT.failed?.has(n);
 }
 /** The kit's image for a faction ("" when the folder has none). Each faction's image is looked for once, the first time
  *  it's shown; when it arrives, the page is redrawn. */
@@ -164,7 +173,7 @@ function kitSymbol(f) {
   if (!KIT.tried.has(n)) {
     KIT.tried.add(n);
     kitImage(n, KIT.listed[n]).then(img => {
-      if (!img) return;
+      if (!img) { (KIT.failed ||= new Set()).add(n); clearTimeout(redraw); redraw = setTimeout(() => KIT.onImages?.(), 50); return; }
       KIT.images[n] = img;
       clearTimeout(redraw); redraw = setTimeout(() => KIT.onImages?.(), 50);
     });
@@ -283,4 +292,4 @@ async function applyPackRules(doc, { bookIcons, fileName = "", typed = "" } = {}
   return doc;
 }
 
-export { sortDatasheetAbilities, loadFactionKit, kitSymbol, kitSlug, PACK_RULES_VERSION, FACTION_THEMES, canonicalFaction, packFaction, packIcon, packTheme, defaultColours, applyPackRules };
+export { sortDatasheetAbilities, loadFactionKit, kitPending, kitSymbol, kitSlug, PACK_RULES_VERSION, FACTION_THEMES, canonicalFaction, packFaction, packIcon, packTheme, defaultColours, applyPackRules };

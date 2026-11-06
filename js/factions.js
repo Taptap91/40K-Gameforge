@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.3";
-import { armyData } from "./army.js?v=7.3";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.3";
-import { factionMatches } from "./search.js?v=7.3";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.3";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.3";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.4";
+import { armyData } from "./army.js?v=7.4";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.4";
+import { factionMatches } from "./search.js?v=7.4";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=7.4";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.4";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -49,7 +49,7 @@ function factionStyle(f) {
   const def = defaultColours(f, docs.find(d => d.theme)?.theme);
   // The symbol: one you chose (this browser only), else the icon read from the faction's PDF ("Books" table).
   // Order: your own image (this browser), the app's faction kit image, then the icon from the faction's PDF.
-  const kit = kitSymbol(f), pdfIcon = docs.find(d => d.icon)?.icon || "", base = kit || pdfIcon;
+  const kit = kitSymbol(f), pdfIcon = docs.find(d => d.icon)?.icon || "", base = kit || (kitPending(f) ? "" : pdfIcon);
   return { c1: saved.c1 || def[0], c2: saved.c2 || def[1], img: saved.img || base, own: !!saved.img, pdfIcon: base, kit: !!kit, def };
 }
 /** Accent colours for keywords, checkboxes and selected weapons: the faction's (default) or the app's own. */

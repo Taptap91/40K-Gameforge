@@ -119,6 +119,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "7.3";
+const APP_VERSION = "7.4";
 
 export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, settingsTabsHTML, state, store, toast, uid };
