@@ -9,8 +9,8 @@
   --border: rgba(255,255,255,.08);
   --border-strong: rgba(255,255,255,.14);
   --text: #f5f5f7;
-  --text-2: #a1a1a6;
-  --text-3: #6e6e73;
+  --text-2: #b9b9be;
+  --text-3: #8e8e93;
   --accent: #0a84ff;
   --accent-soft: rgba(10,132,255,.18);
   --green: #30d158;
@@ -1045,3 +1045,92 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 @media (min-width: 761px) and (max-width: 1279px), (min-width: 761px) and (pointer: coarse) and (max-width: 1400px) {
   .lb-fab { right: auto; left: 242px; }
 }
+
+/* ---------- 7.3 ---------- */
+/* Stat line: as much space on the right as the left; with an invulnerable save, a shield centred in the space beside it. */
+.fv-statrow { display: flex; align-items: center; min-width: 0; width: 100%; align-self: stretch; }
+.fv-statrow .fv-stats, .fv-statrow .fv-stats.named { flex: 1 1 auto; width: auto; max-width: 600px; min-width: 0;
+  grid-template-columns: repeat(6, auto); justify-content: space-between; column-gap: 14px; }
+.fv-statrow .fv-stats.named { grid-template-columns: auto repeat(6, auto); }
+.fv-statrow.has-inv .fv-stats { column-gap: 11px; }
+.fv-statrow .fv-stats .lab { font-size: 14px; }
+.fv-statrow .fv-stats .val { font-size: 17px; font-weight: 600; }
+.fv-invshield { flex: 0 0 auto; position: relative; width: 52px; height: 60px; margin: 0 auto; padding: 0 12px; box-sizing: content-box; display: grid; place-items: center; }
+.fv-invshield svg { position: absolute; inset: 0; margin: auto; width: 52px; height: 60px; fill: color-mix(in srgb, var(--kw-b, var(--accent)) 18%, transparent); stroke: var(--kw-b, var(--border-strong)); stroke-width: 2.2; }
+.fv-invshield span { position: relative; font: 700 17px/1 var(--font); color: var(--text); margin-top: -4px; font-variant-numeric: tabular-nums; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .fv-statrow .fv-stats, .fv-statrow .fv-stats.named { grid-template-columns: repeat(6, auto); max-width: none; }
+}
+
+/* Unit header: no faction name; a clear gap under Back; shrunk, the points sit beside the name. */
+.fp-unitbanner .fp-banner-text { gap: 0 !important; }
+.fp-unitbanner .fp-bannerback { margin-bottom: 14px; }
+.fp-banner-nameline { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
+.fp-banner-nameline .fp-banner-name { min-width: 0; }
+.fp-banner-pts { flex: none; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; font-size: 15px; font-weight: 600; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.5); transition: max-width .28s ease, opacity .2s ease; }
+.fp-unitbanner .fp-banner-counts { margin-top: 6px; max-height: 80px; overflow: hidden; transition: max-height .28s ease, opacity .2s ease, margin .28s ease; }
+.fp-unitbanner.compact .fp-bannerback { margin-bottom: 14px; }
+.fp-unitbanner.compact .fp-banner-counts { max-height: 0; opacity: 0; margin-top: 0; }
+.fp-unitbanner.compact .fp-banner-pts { max-width: 160px; opacity: 1; }
+
+/* List builder: Duplicate and Remove on the right; folded Wargear Options at the bottom; whole weapon bar opens details. */
+.lb-insp-acts { margin-left: auto; display: flex; gap: 10px; }
+.lb-split::before, .lb-split::after { display: none !important; }
+.lb-wgfold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.lb-wgfold > summary::-webkit-details-marker { display: none; }
+.lb-wgfold > summary::before { content: "▸"; color: var(--text-2); transition: transform .15s; }
+.lb-wgfold[open] > summary::before { transform: rotate(90deg); }
+.lb-wgfold:not([open]) > summary { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.lb-titleback { display: inline-flex; align-items: center; gap: 6px; max-width: 62vw; min-height: 40px; padding: 6px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text); font-size: 15px; font-weight: 600; }
+.lb-titleback span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Army lists: one box per list in its faction's colours, with its symbol on the right. */
+.lb-listswipe { margin-bottom: 12px; border-radius: 12px; overflow: hidden; }
+.lb-listcard { position: relative; display: flex; align-items: center; min-height: 120px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: transform .2s ease;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 30%, var(--window)) 0%, color-mix(in srgb, var(--c1) 12%, var(--window)) 55%, color-mix(in srgb, var(--c2) 14%, var(--window)) 100%); }
+.lb-listcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; background: linear-gradient(180deg, var(--c1), var(--c2)); }
+.lb-listcard:hover { border-color: color-mix(in srgb, var(--c1) 50%, var(--border)); }
+.lb-lc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.lb-lc-name { max-width: 60%; font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text); overflow-wrap: anywhere; }
+.lb-lc-fac { font-size: 14px; color: var(--text); opacity: .85; }
+.lb-lc-dets { font-size: 14px; color: var(--text-2); }
+.lb-lc-pts { margin-top: 14px; font-size: 14px; color: var(--text-2); }
+.lb-lc-pts b { color: var(--text); font-size: 16px; }
+.lb-lc-mark { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c1) 55%, transparent)); pointer-events: none; }
+.lb-listcard.has-mark .lb-lc-fac, .lb-listcard.has-mark .lb-lc-dets, .lb-listcard.has-mark .lb-lc-pts { max-width: calc(100% - 104px); }
+.lb-lc-trash { position: absolute; right: 8px; bottom: 8px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; }
+.lb-lc-trash:hover { color: var(--red); background: rgba(255,69,58,.12); }
+.lb-listswipe .lb-swdel { border-radius: 12px; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) { .lb-lc-trash { display: none; } }
+
+/* 7.3: "Inv" over the save in the shield; hazard sign on army lists; weapon rows without options. */
+.fv-invshield span { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 14px; margin-top: -3px; }
+.fv-invshield small { font: 600 9px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.lb-hazard { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; vertical-align: -3px; font-weight: 600; }
+.lb-wopt.fixed summary { padding-right: 70px !important; }
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) { .lb-wopt.fixed .lb-wtitle { padding-right: 60px; } .lb-wopt.fixed > .lb-count { top: 16px; } }
+
+/* ---------- 7.3 (2) ---------- */
+/* The "Added …" message sits above the bottom bar on phones and tablets. */
+@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); font-size: 14px; }
+}
+/* Weapon rows have no checkbox: − / + only. A weapon with 1 or more equipped is filled in the accent colour
+   (the faction's, or the app's green with "App default colours"). */
+.lb-wopt.lb-nocheck { grid-template-columns: minmax(0, 1fr); padding-left: 14px; }
+.lb-wopt.lb-nocheck .fv-weapons { margin-left: -14px; }
+.lb-wopt.lb-nocheck.on { border-color: var(--on-b, rgba(48,209,88,.6)); background: var(--on-tint, linear-gradient(90deg, rgba(48,209,88,.07), rgba(48,209,88,.13))); }
+/* Unit boxes in a list: a red trash button on the right, the cost moved left of it. No swiping. */
+.lb-card { padding-right: 56px; }
+.lb-card .lb-trash { display: grid !important; top: 50%; bottom: auto; right: 8px; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 10px; color: var(--red); }
+.lb-card .lb-trash svg { width: 20px; height: 20px; }
+.lb-card .lb-trash:hover { background: rgba(255,69,58,.14); }
+/* Army list boxes: the symbol moves left to make room for the ⋮ button; the menu opens beside it. */
+.lb-lc-mark { right: 64px; }
+.lb-listcard.has-mark .lb-lc-fac, .lb-listcard.has-mark .lb-lc-dets, .lb-listcard.has-mark .lb-lc-pts { max-width: calc(100% - 150px); }
+.lb-lc-kebab { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; }
+.lb-lc-kebab:hover, .lb-lc-kebab:focus-visible { background: rgba(255,255,255,.08); }
+.lb-menu { position: fixed; z-index: 60; min-width: 170px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); box-shadow: 0 12px 32px rgba(0,0,0,.45); display: flex; flex-direction: column; }
+.lb-menu button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 15px/1 var(--font); text-align: left; cursor: pointer; }
+.lb-menu button:hover { background: var(--panel-2); }
+.lb-menu button.danger { color: var(--red); }

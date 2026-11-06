@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.2";
-import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.2";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.2";
-import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.2";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.2";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.2";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=7.3";
+import { $, $$, askText, confirmSheet, DB, esc, icon, openSheet, state, store, toast, uid } from "./core.js?v=7.3";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=7.3";
+import { buffsFor, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=7.3";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=7.3";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=7.3";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -33,15 +33,19 @@ function renderListsPage() {
     ${lists.length ? `<div class="list">${lists.map(l => {
       if (l.version !== 2) return `<div class="list-row"><div class="main"><div class="title">${esc(l.title || "Saved list")}</div><div class="meta">Older list · ${l.points || ""} pts</div></div>
         <button class="btn plain" type="button" data-lb-copy-old="${esc(l.id)}">Copy</button><button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button></div>`;
-      const r = evaluateList(l);
-      return `<div class="list-row lb-listrow">
-        <button class="main lb-open" type="button" data-lb-open="${esc(l.id)}">
-          <div class="title">${esc(l.name)}</div>
-          <div class="meta">${esc(l.faction)} · ${r.total} / ${l.points} pts${l.detachments.length ? " · " + esc(l.detachments.join(", ")) : ""}${r.issues.length ? ` · <span class="lb-warn">${r.issues.length} to fix</span>` : ""}</div>
-        </button>
-        <button class="btn plain" type="button" data-lb-rename="${esc(l.id)}">Rename</button>
-        <button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button>
-      </div>`;
+      const r = evaluateList(l), st = factionStyle(l.faction);
+      // A box per list in its faction's colours and symbol; swipe left (touch) or the trash (desktop) to delete.
+      return `<div class="lb-listswipe">
+        <div role="button" tabindex="0" class="lb-listcard${st.img ? " has-mark" : ""}" data-lb-open="${esc(l.id)}" style="--c1:${st.c1};--c2:${st.c2}">
+          <div class="lb-lc-text">
+            <div class="lb-lc-name">${esc(l.name)}</div>
+            <div class="lb-lc-fac">${esc(l.faction)}</div>
+            ${l.detachments.length ? `<div class="lb-lc-dets">${l.detachments.map(d => `<div>${esc(d)}</div>`).join("")}</div>` : ""}
+            <div class="lb-lc-pts"><b>${r.total.toLocaleString()}</b> / ${l.points.toLocaleString()} pts${r.issues.length ? ` <span class="lb-warn lb-hazard" title="${r.issues.length} to fix" aria-label="${r.issues.length} to fix"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3 2 20.5h20z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.2" fill="currentColor"/></svg>${r.issues.length}</span>` : ""}</div>
+          </div>
+          ${st.img ? `<img class="lb-lc-mark" src="${esc(st.img)}" alt="">` : ""}
+          <button type="button" class="lb-lc-kebab" data-lb-listmenu="${esc(l.id)}" title="More" aria-label="More options for ${esc(l.name)}" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg></button>
+        </div></div>`;
     }).join("")}</div>` : factions.length ? `<div class="empty">No lists yet. Create one yourself, or let the app generate one from a description.</div>` : ""}`;
 }
 
@@ -96,6 +100,8 @@ function lbLoadout(x, buffs) {
     const icon = msgs => msgs.length ? `<span class="lb-warnicon" role="img" tabindex="0" title="${esc(msgs.join(" "))}" aria-label="${esc(msgs.join(" "))}" data-lb-warn="${esc(msgs.join(" "))}">⚠︎</span>` : "";
     const weaponWarn = w => icon(problems.filter(p => (p.ws || []).includes(w)).map(p => p.msg));
     const groupWarn = icon(problems.filter(p => !(p.ws || []).length).map(p => p.msg));
+    // A model type with nothing to swap (every weapon is its standard wargear) shows its counts without − / +.
+    const fixed = [...gr.reach.keys()].every(w => gr.defaults.includes(w));
     const row = w => {
       const ps = profiles(w);
       if (!ps.length) return "";
@@ -112,12 +118,11 @@ function lbLoadout(x, buffs) {
       // Keywords as outlined tags under the name (bonuses from attached characters in their own colour).
       const kw = [...own.map(k => `<button type="button" class="fv-kw fv-kw-btn" data-core="${esc(k)}" aria-haspopup="dialog">${esc(k)}</button>`), ...extra.map(e => `<span class="fv-kw lb-buffkw">${esc(e)}</span>`)].join("");
       const data = `data-entry="${x.id}" data-group="${esc(gr.name)}" data-w="${esc(w)}"`;
-      return `<div class="lb-wopt lb-split${n > 0 ? " on" : ""} stepper" data-split title="Left half: show or hide details · Right half: equip or unequip">
-        <input type="checkbox" class="lb-check" data-lb-wcheck ${data} ${n > 0 ? "checked" : ""} aria-label="Equip ${esc(w)}">
+      return `<div class="lb-wopt lb-split lb-nocheck${n > 0 ? " on" : ""}${fixed ? " fixed" : " stepper"}" data-split title="Left half: show or hide details · Right half: equip or unequip">
         <details data-wkey="${esc(key)}" ${open.has(key) ? "open" : ""}><summary><span class="lb-arrow" aria-hidden="true"></span><span class="lb-whead"><span class="lb-wtitle">${esc(capWords(w))}${ps.length > 1 ? `<span class="lb-subtle lb-pcount">${ps.length} profiles</span>` : ""}${weaponWarn(w)}</span>
           ${kw ? `<span class="lb-wkws fv-kws">${kw}</span>` : ""}</span></summary>
           ${weaponGridHTML(ps, type, buffs, "profile", w)}</details>
-        <div class="lb-count"><button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button><span>${n}/${room}</span><button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button></div>
+        <div class="lb-count">${fixed ? `<span>${n}/${room}</span>` : `<button type="button" class="lb-step" data-lb-step="-1" ${data} ${n <= 0 ? "disabled" : ""} aria-label="One fewer">−</button><span>${n}/${room}</span><button type="button" class="lb-step" data-lb-step="1" ${data} ${canAdd ? "" : "disabled"} aria-label="One more">+</button>`}</div>
       </div>`;
     };
     const all = [...gr.reach.keys()];
@@ -261,7 +266,7 @@ function lbInspector(list, r, data) {
         ${inList.map(c => { const k = clash(c), h = hostOf(c), on = c.attachTo === x.id; return `<button type="button" class="lb-host${on ? " on" : ""}" data-lb-leadby="${c.id}" data-host="${x.id}" data-slot="${slot}" ${k ? "disabled" : ""}>
           <span class="lb-hostname">${esc(lbEntryLabel({ ...c, attachTo: null }, r).replace(/ \(with .*\)$/, ""))}</span><span class="lb-subtle">${k ? `${esc(k.unit.name)} has ${esc(k.enh || k.upg)}; one enhancement per attached unit` : on ? `Attached to this unit · tap to detach` : h ? `Attached to ${esc(lbEntryLabel({ ...h, attachTo: null }, r).replace(/ \(with .*\)$/, ""))} · tap to move here` : `${c.total} pts · not attached`}</span>${on ? `<span class="lb-tick">✓</span>` : ""}</button>`; }).join("")}
         ${inList.length ? "" : `<div class="lb-subtle lb-none">None in your list yet.</div>`}
-      </div>${missing.length ? `<div class="lb-subtle lb-alsolead">Can also be ${verb} by: ${esc(missing.join(", "))}</div>` : ""}</div>`;
+      </div></div>`;
     }
   }
   const buffNote = buffs.length ? `<div class="lb-buffnote">Weapon bonuses from attached characters are shown in <span class="lb-buffkw">this colour</span>.</div>` : "";
@@ -271,17 +276,17 @@ function lbInspector(list, r, data) {
       <div class="lb-insp-title"><h2>${esc(u.name)}</h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>
       <div class="lb-insp-bar">${size}
         ${u.character ? `<button class="btn${x.warlord ? " lb-on" : ""}" type="button" data-lb-warlord="${x.id}">${x.warlord ? "★ Warlord" : "☆ Make Warlord"}</button>` : ""}
-        <button class="btn lb-iconbtn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""} title="Duplicate" aria-label="Duplicate">${DUP_SVG}<span class="lb-btntext">Duplicate</span></button>
-        <button class="btn danger lb-iconbtn" type="button" data-lb-remove="${x.id}" title="Remove" aria-label="Remove">${TRASH_MID}<span class="lb-btntext">Remove</span></button></div>
+        <span class="lb-insp-acts"><button class="btn lb-iconbtn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""} title="Duplicate" aria-label="Duplicate">${DUP_SVG}<span class="lb-btntext">Duplicate</span></button>
+        <button class="btn danger lb-iconbtn" type="button" data-lb-remove="${x.id}" title="Remove" aria-label="Remove">${TRASH_MID}<span class="lb-btntext">Remove</span></button></span></div>
     </div>
     ${attach}
     ${statsHTML(ds)}
-    ${wargearOptionsHTML(ds)}
     ${buffNote}
     ${(() => { const other = (x.problems || []).filter(p => !(x.loadoutText || []).includes(p)); return other.length ? `<div class="lb-problems">${other.map(p => `<div>⚠︎ ${esc(p)}</div>`).join("")}</div>` : ""; })()}
     ${lbLoadout(x, buffs)}
     ${enhHTML}
-    ${datasheetDetailsHTML(ds, factionArmyRules(list.faction), { siblings: (data?.units || []).map(o => o.ds) })}`;
+    ${datasheetDetailsHTML(ds, factionArmyRules(list.faction), { siblings: (data?.units || []).map(o => o.ds) })}
+    ${(w => w ? w.replace('<section class="fv-panel"><div class="fv-panel-head">Wargear Options</div>', '<details class="fv-panel lb-wgfold"><summary class="fv-panel-head">Wargear Options</summary>').replace(/<\/section>$/, "</details>") : "")(wargearOptionsHTML(ds))}`;
 }
 
 function lbAtMax(u, r) {
@@ -304,15 +309,13 @@ function lbListColumn(list, r) {
   const card = x => {
     const sel = listUI.sel === x.id ? " sel" : "";
     const trash = `<button type="button" class="lb-trash" data-lb-remove="${x.id}" title="Delete this unit" aria-label="Delete ${esc(x.unit?.name || x.key)}">${TRASH_SVG}</button>`;
-    // Phones and tablets: swipe the card left to reveal a red delete button behind it (like iOS Mail).
-    const swDel = `<button type="button" class="lb-swdel" data-lb-remove="${x.id}" aria-label="Delete ${esc(x.unit?.name || x.key)}" tabindex="-1">${TRASH_BIG}</button>`;
-    if (!x.unit) return `<div class="lb-cardwrap"><div class="lb-swipe">${swDel}<div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div></div>`;
+    if (!x.unit) return `<div class="lb-cardwrap"><div class="lb-swipe"><div role="button" tabindex="0" class="lb-card bad${sel}" id="lbc-${x.id}" data-lb-sel="${x.id}"><span class="lb-cname">${esc(x.key)}</span><span class="lb-cmeta">Not in your library</span>${trash}</div></div></div>`;
     const host = x.attachTo ? r.entries.find(h => h.id === x.attachTo && h.unit) : null;
     const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     // A unit lists the characters attached to it; a character lists the unit it's attached to.
     const chips = x.unit.character ? (host ? [chip(host, "↳")] : []) : r.entries.filter(c => c.attachTo === x.id && c.unit).map(c => chip(c, "↳"));
     const bad = x.problems?.length ? " bad" : "";
-    return `<div class="lb-cardwrap"><div class="lb-swipe">${swDel}
+    return `<div class="lb-cardwrap"><div class="lb-swipe">
       <div role="button" tabindex="0" class="lb-card${sel}${bad}" id="lbc-${x.id}" data-lb-sel="${x.id}">
         <span class="lb-ctop"><span class="lb-cname">${esc(x.unit.name)}</span><span class="lb-ccost">${x.total}</span></span>
         <span class="lb-cmeta">${x.models} model${x.models === 1 ? "" : "s"}${host ? ` · ${x.slot === "support" ? "supporting" : "leading"} the unit below` : ""}${x.copy >= 3 && x.opt?.later ? " · 3rd+ cost" : ""}</span>
@@ -380,7 +383,10 @@ function renderListEditor(list) {
   const view = $("#view-lists");
   view.classList.add("lb-editing");
   applyAccent(view, list.faction);
-  $("#listsTitle").innerHTML = `<button class="btn plain lb-back" type="button" data-lb="home">‹ Lists</button>`;
+  // Phones, on a unit or the add screen: a box with the list's name goes back to the list; otherwise "Lists" goes to all lists.
+  $("#listsTitle").innerHTML = isPhone() && listUI.pane !== "list"
+    ? `<button class="btn lb-titleback" type="button" data-lb-pane="list">‹ <span>${esc(list.name || "List")}</span></button>`
+    : `<button class="btn lb-titleback" type="button" data-lb="home">‹ Lists</button>`;
   $("#listsToolbar").innerHTML = `
     <div class="lb-left ${r.left < 0 ? "over" : ""}"><span>${Math.abs(r.left).toLocaleString()}</span> <i class="lb-w">points</i> ${r.left < 0 ? "over" : "left"}</div>`;
   const host = $("#listsHost");
@@ -389,8 +395,8 @@ function renderListEditor(list) {
   const filterFocused = document.activeElement?.id === "lbAddFilter";
   host.innerHTML = `<div class="lb-shell" data-pane="${listUI.pane}">
     <div class="lb-col lb-colL" data-col="L">${lbListColumn(list, r)}</div>
-    <div class="lb-col lb-colC" data-col="C"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbInspector(list, r, data)}</div>
-    <div class="lb-col lb-colR" data-col="R"><button type="button" class="btn lb-paneback" data-lb-pane="list">‹ List</button>${lbAddColumn(list, r, data)}</div>
+    <div class="lb-col lb-colC" data-col="C">${lbInspector(list, r, data)}</div>
+    <div class="lb-col lb-colR" data-col="R">${lbAddColumn(list, r, data)}</div>
   </div>
   <button type="button" class="lb-fab${listUI.pane === "add" || (listUI.pane === "unit" && isPhone()) ? " hidden" : ""}" data-lb-pane="add" aria-label="Add a unit" title="Add a unit">+</button>`;
   for (const c of host.querySelectorAll(".lb-col")) if (keep[c.dataset.col] != null) c.scrollTop = keep[c.dataset.col];
@@ -485,52 +491,38 @@ function openCreateSheet() {
   };
 }
 
+/* The ⋮ menu on an army list's box: a small pop-up beside the button with Duplicate and Delete. */
+let listMenu = null;
+function closeListMenu() { listMenu?.remove(); listMenu = null; }
+function openListMenu(btn) {
+  const was = listMenu?.dataset.for;
+  closeListMenu();
+  if (was === btn.dataset.lbListmenu) return;
+  const m = document.createElement("div");
+  m.className = "lb-menu"; m.setAttribute("role", "menu"); m.dataset.for = btn.dataset.lbListmenu;
+  m.innerHTML = `<button type="button" role="menuitem" data-lb-duplist="${esc(btn.dataset.lbListmenu)}">${DUP_SVG.replace(/width="22" height="22"/, 'width="18" height="18"')}Duplicate</button>
+    <button type="button" role="menuitem" class="danger" data-lb-delete="${esc(btn.dataset.lbListmenu)}">${TRASH_SVG.replace('width="14" height="14"', 'width="18" height="18"')}Delete</button>`;
+  $("#view-lists").append(m);
+  const r = btn.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
+  const below = r.bottom + 6 + h < innerHeight - 90;
+  m.style.left = `${Math.max(12, r.right - w)}px`;
+  m.style.top = `${below ? r.bottom + 6 : r.top - 6 - h}px`;
+  listMenu = m;
+}
+document.addEventListener("click", e => { if (listMenu && !e.target.closest(".lb-menu, [data-lb-listmenu]")) closeListMenu(); }, true);
+addEventListener("resize", closeListMenu);
+document.addEventListener("scroll", closeListMenu, true);
+
 function wireListBuilder() {
   const view = $("#view-lists");
   /* Phones and tablets: swipe a unit card left to reveal its delete button; swipe right (or tap elsewhere) to close it.
      Swipe right on a datasheet or the add screen to go back to the list. */
-  let sw = null, openCard = null;
-  const closeCard = () => { if (openCard) { openCard.style.transform = ""; openCard.closest(".lb-swipe")?.classList.remove("open"); openCard = null; } };
-  view.addEventListener("touchstart", e => {
-    const t = e.touches[0], card = e.target.closest(".lb-swipe .lb-card");
-    sw = { x: t.clientX, y: t.clientY, card, dx: 0, horiz: null, pane: !card && e.target.closest(".lb-colC, .lb-colR") };
-    if (openCard && card !== openCard && !e.target.closest(".lb-swdel")) { closeCard(); sw.closedOther = true; }
-  }, { passive: true });
-  view.addEventListener("touchmove", e => {
-    if (!sw) return;
-    const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
-    if (sw.horiz === null && Math.abs(dx) + Math.abs(dy) > 8) sw.horiz = Math.abs(dx) > Math.abs(dy) * 1.2;
-    if (!sw.horiz || !sw.card) return;
-    const w = sw.card.offsetWidth, base = sw.card === openCard ? -0.2 * w : 0;
-    sw.dx = dx;
-    sw.card.style.transition = "none";
-    sw.card.style.transform = `translateX(${Math.max(-0.24 * w, Math.min(0, base + dx))}px)`;
-  }, { passive: true });
-  view.addEventListener("touchend", () => {
-    if (!sw) return;
-    const s0 = sw; sw = null;
-    if (s0.card && s0.horiz) {
-      const wasOpen = s0.card === openCard;
-      s0.card.style.transition = "";
-      if ((!wasOpen && s0.dx < -40) || (wasOpen && s0.dx < 30)) {
-        if (!wasOpen) closeCard();
-        openCard = s0.card; s0.card.style.transform = "translateX(-20%)"; s0.card.closest(".lb-swipe").classList.add("open");
-      } else { s0.card.style.transform = ""; if (wasOpen) { s0.card.closest(".lb-swipe").classList.remove("open"); openCard = null; } }
-      view._swiped = Date.now();
-      return;
-    }
-  }, { passive: true });
   // Swipe right on a datasheet or the add screen to go back to the list (phones), or from adding to the unit (tablets).
   onSwipeRight(view, e => !e.target.closest(".lb-swipe") && !!e.target.closest(".lb-colC, .lb-colR"), () => {
     const list = state.lists.find(l => l.id === listUI.id);
     if (!list || listUI.mode !== "edit" || listUI.pane === "list") return;
     listUI.pane = "list"; renderListEditor(list);
   });
-  // A tap on a card that's slid open closes it instead of opening the unit.
-  view.addEventListener("click", e => {
-    if (view._swiped && Date.now() - view._swiped < 350) { e.stopPropagation(); e.preventDefault(); return; }
-    if (openCard && !e.target.closest(".lb-swdel")) { const on = e.target.closest(".lb-card") === openCard; closeCard(); if (on) { e.stopPropagation(); e.preventDefault(); } }
-  }, true);
   // Weapon, enhancement and upgrade rows: the left half of the bar shows or hides the details,
   // the right half equips or unequips (same as the checkbox).
   const splitSide = (row, e) => {
@@ -538,8 +530,7 @@ function wireListBuilder() {
     if (bar) row.style.setProperty("--barh", `${Math.round(bar.bottom - box.top + 2)}px`);
     if (!bar || e.clientY < box.top || e.clientY > bar.bottom + 2) return "";
     // Rows with a − / + counter: the whole bar shows or hides the details; only the buttons change the count.
-    if (row.classList.contains("stepper") || row.querySelector(".lb-step") || matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) return "l";
-    return e.clientX > box.left + box.width / 2 ? "r" : "l";
+    return "l";   // the whole bar shows or hides the details; only the buttons and the checkbox change the weapon
   };
   view.addEventListener("click", e => {
     const t = e.target, row = t.closest("[data-split]");
@@ -577,7 +568,7 @@ function wireListBuilder() {
       try { await navigator.clipboard.writeText(text); toast("List copied"); } catch { toast("Couldn't copy here"); }
       return;
     }
-    const open = t.closest("[data-lb-open]");
+    const open = !t.closest("[data-lb-delete], [data-lb-listmenu], .lb-menu") && t.closest("[data-lb-open]");
     if (open) { listUI.mode = "edit"; listUI.id = open.dataset.lbOpen; listUI.sel = null; listUI.pane = isPhone() ? "list" : "unit"; return renderListsPage(); }
     const ren = t.closest("[data-lb-rename]");
     if (ren) {
@@ -586,8 +577,24 @@ function wireListBuilder() {
       if (name) { l.name = name; await saveList(l, true); renderListsPage(); }
       return;
     }
+    const menuBtn = t.closest("[data-lb-listmenu]");
+    if (menuBtn) return openListMenu(menuBtn);
+    const dupL = t.closest("[data-lb-duplist]");
+    if (dupL) {
+      closeListMenu();
+      const l = state.lists.find(x => x.id === dupL.dataset.lbDuplist);
+      if (!l) return;
+      // An exact copy of the list and everything in it, named "Name (1)", "Name (2)", … so no two share a name.
+      const base = String(l.name || "List").replace(/ \(\d+\)$/, ""), names = new Set(state.lists.map(x => x.name));
+      let n = 1; while (names.has(`${base} (${n})`)) n++;
+      const copy = { ...structuredClone(l), id: uid(), name: `${base} (${n})`, createdAt: Date.now() };
+      await saveList(copy, true);
+      toast(`Duplicated as ${copy.name}`);
+      return renderListsPage();
+    }
     const del = t.closest("[data-lb-delete]");
     if (del) {
+      closeListMenu();
       const l = state.lists.find(x => x.id === del.dataset.lbDelete);
       if (!(await confirmSheet("Delete this list?", `“${l.name || l.title || "This list"}” will be deleted. This can't be undone.`, "Delete"))) return;
       await DB.del("lists", l.id);
@@ -741,7 +748,7 @@ function wireListBuilder() {
   }, true);
   // Keyboard: unit cards act like buttons.
   view.addEventListener("keydown", e => {
-    if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".lb-card")) { e.preventDefault(); e.target.click(); }
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches?.(".lb-card, .lb-listcard")) { e.preventDefault(); e.target.click(); }
   });
 }
 

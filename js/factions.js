@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.2";
-import { armyData } from "./army.js?v=7.2";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.2";
-import { factionMatches } from "./search.js?v=7.2";
-import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.2";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.2";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=7.3";
+import { armyData } from "./army.js?v=7.3";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, weaponGridHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=7.3";
+import { factionMatches } from "./search.js?v=7.3";
+import { defaultColours, kitSymbol } from "./pack-rules.js?v=7.3";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=7.3";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -110,9 +110,11 @@ function bannerHTML(f, c) {
   if (ds) {
     const u = c.priced.get(normName(ds.name)), opts = u?.options || ds.points || [];
     const cost = opts.map(o => `<span><b>${o.models}</b> model${o.models === 1 ? "" : "s"} – <b>${o.points}</b> pts</span>`).join("") || "<span>No points listed</span>";
+    // Shown beside the name once the header has shrunk (the model counts are hidden then).
+    const pts = opts.length ? `${opts.map(o => o.points).join(" / ")} pts` : "";
     return `<div class="fp-banner fp-unitbanner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
     ${!art && st.img ? `<img class="fp-banner-mark" src="${esc(st.img)}" alt="">` : ""}
-    <div class="fp-banner-text"><button type="button" class="btn fp-bannerback" data-fp-back>‹ Back</button><div class="fp-banner-kicker">${esc(f)}</div><div class="fp-banner-name">${esc(ds.name)}</div><div class="fp-banner-counts">${cost}</div></div>
+    <div class="fp-banner-text"><button type="button" class="btn fp-bannerback" data-fp-back>‹ Back</button><div class="fp-banner-nameline"><span class="fp-banner-name">${esc(ds.name)}</span>${pts ? `<span class="fp-banner-pts">${esc(pts)}</span>` : ""}</div><div class="fp-banner-counts">${cost}</div></div>
   </div>`;
   }
   const counts = [[c.topRules.length, "Army Rule"], [c.detachments.length, "Detachment"], [c.datasheets.length, "Datasheet"]]

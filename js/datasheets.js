@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=7.2";
-import { wargearOf } from "./loadout.js?v=7.2";
-import { factionMatches } from "./search.js?v=7.2";
-import { coreAbilityRule } from "./rules-doc.js?v=7.2";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=7.2";
+import { esc, state, uid } from "./core.js?v=7.3";
+import { wargearOf } from "./loadout.js?v=7.3";
+import { factionMatches } from "./search.js?v=7.3";
+import { coreAbilityRule } from "./rules-doc.js?v=7.3";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=7.3";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -387,10 +387,13 @@ function statsHTML(ds) {
   if (!profiles.length) return "";
   const named = profiles.length > 1;
   const cells = (vals, cls) => vals.map(v => `<span class="${cls}">${esc(v ?? "")}</span>`).join("");
-  return `<section class="fv-panel"><div class="fv-stats${named ? " named" : ""}">
+  // An invulnerable save like "4+" goes in a shield beside the stat line, written "4++".
+  const inv = /^\s*(\d)\+\s*$/.exec(ds.invuln || "");
+  const shield = inv ? `<div class="fv-invshield" title="Invulnerable save ${esc(ds.invuln)}" role="img" aria-label="Invulnerable save ${inv[1]}+"><svg viewBox="0 0 48 56" aria-hidden="true"><path d="M24 2 4 9v16c0 14 8.6 24.6 20 29 11.4-4.4 20-15 20-29V9z"/></svg><span><small>Inv</small>${inv[1]}+</span></div>` : "";
+  return `<section class="fv-panel"><div class="fv-statrow${inv ? " has-inv" : ""}"><div class="fv-stats${named ? " named" : ""}">
       ${named ? "<span></span>" : ""}${cells(["M", "T", "Sv", "W", "Ld", "Oc"], "lab")}
       ${profiles.map(p => (named ? `<span class="model">${esc(p.name)}</span>` : "") + cells([p.M, p.T, p.SV, p.W, p.LD, p.OC], "val")).join("")}
-    </div>${ds.invuln ? `<div class="fv-inv"><span>Invulnerable Save</span><span class="val">${esc(ds.invuln)}</span></div>` : ""}</section>`;
+    </div>${shield}</div>${ds.invuln && !inv ? `<div class="fv-inv"><span>Invulnerable Save</span><span class="val">${esc(ds.invuln)}</span></div>` : ""}</section>`;
 }
 const abilitiesHTML = list => list.map(a => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(a.name))}</div><div class="fv-rich">${richHTML(a.rich || a.text)}</div></div>`).join("");
 
