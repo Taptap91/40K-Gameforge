@@ -1145,3 +1145,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-insp-orig { margin-top: -9px; line-height: 1.25; }
 .lb-card { padding-right: 104px; }
 .lb-card .lb-ccost { position: absolute; right: 56px; top: 50%; transform: translateY(-50%); font-size: 15px; }
+
+/* Unit boxes: ⋮ instead of the trash. */
+.lb-card .lb-trash.lb-unitkebab { width: 44px; height: 44px; color: var(--text); }
+.lb-card .lb-trash.lb-unitkebab svg { width: 22px; height: 22px; }
+.lb-card .lb-trash.lb-unitkebab:hover { background: rgba(255,255,255,.08); }
