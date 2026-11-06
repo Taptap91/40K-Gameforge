@@ -1,21 +1,21 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.2";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.2";
-import { exportDocToExcel } from "./excel.js?v=8.2";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.2";
-import * as core from "./core.js?v=8.2";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.2";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.2";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.2";
-import { buildIndex } from "./search.js?v=8.2";
-import { openDataViewer } from "./viewer.js?v=8.2";
-import { openMissionViewer } from "./mission-viewer.js?v=8.2";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.2";
-import { fixApostrophes } from "./text.js?v=8.2";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.2";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.2";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.3";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.3";
+import { exportDocToExcel } from "./excel.js?v=8.3";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.3";
+import * as core from "./core.js?v=8.3";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.3";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.3";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.3";
+import { buildIndex } from "./search.js?v=8.3";
+import { openDataViewer } from "./viewer.js?v=8.3";
+import { openMissionViewer } from "./mission-viewer.js?v=8.3";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.3";
+import { fixApostrophes } from "./text.js?v=8.3";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.3";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.3";
 
 function renderAll() {
   renderScope();
@@ -167,8 +167,12 @@ function showView(name) {
     }
     state.lists = await DB.all("lists");
     // Army lists name their detachments, so they get the same apostrophe tidy-up and still match.
+    // A detachment re-read with its proper name ("Death Lord S Chosen" → "Death Lord’s Chosen") is matched by its letters
+    // alone, so lists made with the old name still find it.
+    const letters = n => String(n).toLowerCase().replace(/[^a-z]/g, "");
     for (const l of state.lists) if (Array.isArray(l.detachments)) {
-      const tidy = l.detachments.map(tidyApostrophes);
+      const known = state.docs.filter(d => d.kind === "faction" && d.faction === l.faction).flatMap(d => (d.structured?.detachments || []).map(x => x.name));
+      const tidy = l.detachments.map(tidyApostrophes).map(n => known.includes(n) ? n : known.find(k => letters(k) === letters(n)) || n);
       if (tidy.some((n, i) => n !== l.detachments[i])) { l.detachments = tidy; try { await DB.put("lists", l); } catch {} }
     }
   } catch (err) {

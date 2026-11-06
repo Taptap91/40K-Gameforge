@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=8.2";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.2";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.2";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=8.3";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.3";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.3";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -288,8 +288,10 @@ const tidyApostrophes = name => String(name).replace(/(\w\w)\s*([’'])\s*([A-Za
 function detachmentName(title, dpItem, items) {
   if (!dpItem) return cleanGlyphs(title.t);
   const tol = Math.max(6, title.s * 0.45);
+  // Words, and the punctuation between them: an apostrophe or hyphen can arrive as a piece of its own ("LORD", "’", "S").
+  const punct = t => /^[’'‘\-–&]+$/.test(t.trim());
   const parts = items.filter(o => o !== dpItem && Math.abs(o.y - dpItem.y) <= tol && o.x < dpItem.x && !/^\d+\s*DP$/i.test(o.t)
-    && Math.abs(o.s - title.s) <= title.s * 0.3 && /[A-Za-z]/.test(o.t)).sort((a, b) => a.x - b.x);
+    && (punct(o.t) || Math.abs(o.s - title.s) <= title.s * 0.3 && /[A-Za-z]/.test(o.t))).sort((a, b) => a.x - b.x);
   const name = cleanGlyphs(parts.map(o => o.t).join(" ")).replace(/\s+([’'])\s*/g, "$1");
   return name.length >= cleanGlyphs(title.t).length ? name : cleanGlyphs(title.t);
 }
