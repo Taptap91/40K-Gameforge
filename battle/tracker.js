@@ -274,6 +274,8 @@ function renderTracker(host) {
   const compact = !!tp && pane === "tracker" && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2;
   mountStick(compact);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
+  // The nearest section top is where the screen rests.
+  if (tp) { const st = sectionStarts(tp); restPos = st.reduce((b, v) => (Math.abs(v - (keep[1] || 0)) < Math.abs(b - (keep[1] || 0)) ? v : b), st[0] ?? 0); }
 }
 function showPane(next, host) {
   if (!PANES.includes(next)) return;
@@ -349,66 +351,69 @@ function handleTrackerClick(e, host) {
   if (t.closest("[data-bt-dsback]")) { sheet = null; renderTracker(host); return true; }
   return false;
 }
-/* Snapping in the tracker: the top section and each box's top are rest points. After a scroll, the page settles on one:
-   a nearby rest point, or in the direction of the scroll. A firm wheel notch or swipe moves on to the next section at
-   once. While a box is open and taller than the screen, the scroll is free until the box's bottom edge is on screen. */
-const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 260, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
-let snapTimer = 0, snapping = false, snapDir = 1, lastScroll = 0;
-/** Moves the tracker to a rest point. `flick` (+1 down, -1 up) asks for the next section in that direction. */
+/* Snapping in the tracker. Each section's top is a stop. A firm wheel notch, swipe or flick moves on to the next section.
+   A weaker scroll bounces back to the top of the section it started from. Going down, the next section comes up once its top
+   reaches the bottom edge of the screen; going up, the section above comes up once the gap has been scrolled past. The page
+   settles when the scroll has ended (so a finger's momentum isn't cut short). While a box is open and taller than the screen,
+   the scroll is free until the box's bottom edge is on screen. */
+const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
+const HAS_SCROLLEND = "onscrollend" in window;
+let snapTimer = 0, snapping = false, snapId = 0, snapDir = 1, lastScroll = 0, restPos = 0;
+
+/** The top of each section, in the pane's scroll coordinates. */
+function sectionStarts(pane) {
+  const pr = pane.getBoundingClientRect(), cur = pane.scrollTop;
+  return [...pane.querySelectorAll(".bt-tracker > section")].map(s => s.getBoundingClientRect().top - pr.top + cur);
+}
+/** Moves the tracker to a section top. `flick` (+1 down, -1 up) asks for the next section that way at once. */
 function snapTo(pane, flick = 0) {
   if (!B?.active || snapping) return false;
-  const s2 = pane.querySelector(".bt-s2"), gap = pane.querySelector(".bt-gap");
-  if (!s2 || !gap) return false;
-  // Where everything sits now: the second screen's top (T), each box's top, and the largest scroll.
-  const measure = () => {
-    const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
-    const pr = pane.getBoundingClientRect(), at = el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; };
-    const boxes = [...pane.querySelectorAll(".bt-box")].map(at);
-    return { cur, view, max, T: at(s2).top, boxes };
-  };
-  let m = measure();
-  const { cur, view, max, T, boxes } = m;
-  const G = gap.offsetHeight;   // the gap between the screens: a scroll this long is needed before the second screen comes up
-  const rest = [0, T, ...boxes.map(b => b.top), max].map(v => Math.min(max, Math.max(0, v)));
+  const starts = sectionStarts(pane);
+  if (!starts.length) return false;
+  const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
+  const pr = pane.getBoundingClientRect();
+  const boxes = [...pane.querySelectorAll(".bt-box")].map(el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; });
   const i = boxes.reduce((k, b, j) => (b.top <= cur + 1 ? j : k), -1);
-  const inTall = i >= 0 && boxes[i].bottom > cur + view;
+  if (i >= 0 && boxes[i].bottom > cur + view) return false;   // a tall open box scrolls freely
+  const G = pane.querySelector(".bt-gap")?.offsetHeight || 0;
+  const R = Math.min(restPos, max);   // the section top the screen rests on
+  const next = [...starts, ...(max > starts[starts.length - 1] + 1 ? [max] : [])].find(v => v > R + 1) ?? null;
+  const prev = [...starts].reverse().find(v => v < R - 1) ?? null;
   let target;
   if (flick) {
-    if (inTall) return false;
-    target = flick > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
+    target = flick > 0 ? next : prev;
     if (target == null) return false;
+  } else if (snapDir > 0) {
+    // Down: the next section comes up once its top reaches the bottom edge of the screen (the bottom stop: after 40px).
+    target = next == null ? R : (cur - R >= Math.max(SNAP_NEAR, Math.min(next - R, next - view - R)) ? next : R);
   } else {
-    const near = rest.reduce((best, v) => (Math.abs(v - cur) < Math.abs(best - cur) ? v : best), rest[0]);
-    if (Math.abs(near - cur) <= SNAP_NEAR) target = near;
-    else if (cur < T - 1) {
-      // Between the screens: going down, the second comes up once it reaches the bottom edge of the screen;
-      // going up, the first comes up once the gap has been scrolled past.
-      target = snapDir > 0 ? (cur > T - view ? T : 0) : (cur < T - G ? 0 : T);
-    } else {
-      if (inTall) return false;
-      target = snapDir > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
-      if (target == null) target = snapDir > 0 ? max : 0;
-    }
+    // Up: the section above comes up once the gap has been scrolled past. Less than that bounces back to this section's top.
+    target = prev == null ? R : (R - cur >= Math.max(SNAP_NEAR, G) ? prev : R);
   }
-  // The second screen (and anything below it) moves the strip up into the header.
-  setCompact(target >= T - 1);
+  restPos = target;
+  // The second section (and any below it) moves the strip up into the header.
+  const second = starts[1];
+  setCompact(second != null && target >= second - 1);
   if (Math.abs(target - cur) < 2) return false;
-  snapping = true;
+  snapping = true; const id = ++snapId;
   pane.scrollTo({ top: target, behavior: "smooth" });
-  setTimeout(() => { snapping = false; }, SNAP_TIME);
+  const done = () => { if (id === snapId) snapping = false; };
+  pane.addEventListener("scrollend", done, { once: true });
+  setTimeout(done, SNAP_TIME * 4);   // for browsers without scrollend
   return true;
 }
 function wireTrackerSnap(host) {
   const isTracker = el => el?.closest?.('.bt-pane[data-pane="tracker"]') || null;
-  // Settling after any scroll (scrollbar, keyboard, or a slow drag).
+  // The direction of the scroll (kept up to date even during a snap, so the next scroll reads its own direction).
   host.addEventListener("scroll", e => {
     const pane = e.target;
     if (!pane.classList?.contains("bt-pane") || pane.dataset.pane !== "tracker") return;
-    // The direction is kept up to date even during a snap, so the next scroll reads its own direction.
     if (pane.scrollTop !== lastScroll) { if (!snapping) snapDir = pane.scrollTop > lastScroll ? 1 : -1; lastScroll = pane.scrollTop; }
-    if (snapping) return;
+    if (snapping || HAS_SCROLLEND) return;
     clearTimeout(snapTimer); snapTimer = setTimeout(() => snapTo(pane), SNAP_PAUSE);
   }, { capture: true, passive: true });
+  // Settled: the scroll has ended, after any momentum.
+  host.addEventListener("scrollend", e => { const pane = e.target; if (pane?.dataset?.pane === "tracker") snapTo(pane); }, { capture: true, passive: true });
   // A firm wheel scroll (a notch, or enough trackpad movement) goes on to the next section.
   let acc = 0, last = 0;
   host.addEventListener("wheel", e => {

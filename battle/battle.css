@@ -128,7 +128,7 @@
 .bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; }
 .bt-s1 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 10px; display: flex; flex-direction: column; gap: 12px; }
 .bt-gap { flex: none; height: 64px; }
-.bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 12px; display: flex; flex-direction: column; }   /* the same 12px as the turn text has under the header */
+.bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 32px; display: flex; flex-direction: column; }   /* 20px lower than before, for the taller header bar */
 /* One footer for the army buttons and End Battle: a single top border and background, End Battle full width beneath. */
 .bt-footer { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--sidebar); }
 .bt-end { width: 100%; min-height: 52px; font-weight: 800; }
