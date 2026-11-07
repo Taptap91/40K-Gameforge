@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.12";
-import { factionStyle } from "../js/factions.js?v=8.12";
-import { armyData, evaluateList } from "../js/army.js?v=8.12";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.12";
-import { effectiveRules } from "../js/rules-doc.js?v=8.12";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.12";
-import { richHTML } from "../js/text.js?v=8.12";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.13";
+import { factionStyle } from "../js/factions.js?v=8.13";
+import { armyData, evaluateList } from "../js/army.js?v=8.13";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.13";
+import { effectiveRules } from "../js/rules-doc.js?v=8.13";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.13";
+import { richHTML } from "../js/text.js?v=8.13";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -610,11 +610,13 @@ function tLayout(pane) {
 const secAt = (secs, p) => { let i = 0; secs.forEach((s, j) => { if (s.top <= p + 1) i = j; }); return i; };
 
 /** Glides exactly to a stop. Input is ignored while it runs. */
-function glideTo(pane, target) {
+function glideTo(pane, index) {
   const from = pane.scrollTop;
+  // The header changes first (section 2 and beyond use the compact strip), and that changes the view's height and
+  // where each section sits. So the stop is measured after that change, not before it.
+  setCompact(index >= 1);
+  const target = sectionStarts(pane)[index];
   restPos = target;
-  const starts = sectionStarts(pane), second = starts[1];
-  setCompact(second != null && target >= second - 1);   // the second section moves the strip up into the header
   if (Math.abs(target - from) < 1) { glide = null; return; }
   const g = glide = { pane, from, to: target, t0: performance.now() };
   const step = now => {
@@ -635,8 +637,8 @@ function beginMove(pane, dir) {
   if (tall && dir > 0 && pos < s.end - view - 1) return { mode: "free" };
   if (tall && dir < 0 && pos > s.top + 1) return { mode: "free" };
   const tops = secs.map(x => x.top);
-  const target = dir > 0 ? tops.find(t => t > pos + 1) : tops.filter(t => t < pos - 1).pop();
-  return target == null ? { mode: "done" } : { mode: "snap", target };
+  const index = dir > 0 ? tops.findIndex(t => t > pos + 1) : tops.reduce((a, t, k) => (t < pos - 1 ? k : a), -1);
+  return index < 0 ? { mode: "done" } : { mode: "snap", index };
 }
 /** Scrolls a tall section by a movement, within its own top and far edge. Returns "edge" once it reaches one. */
 function freeMove(pane, dy) {
@@ -652,7 +654,7 @@ function gestureMove(pane, dy, total) {
     if (Math.abs(total) < (gest.touch ? MIN_TOUCH : MIN_WHEEL)) return;
     const m = beginMove(pane, Math.sign(total));
     gest.mode = m.mode;
-    if (m.mode === "snap") glideTo(pane, m.target);
+    if (m.mode === "snap") glideTo(pane, m.index);
     else if (m.mode === "free" && freeMove(pane, dy) === "edge") gest.mode = "done";
     return;
   }
