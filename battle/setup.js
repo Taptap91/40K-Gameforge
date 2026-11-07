@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.6";
-import { factionStyle } from "../js/factions.js?v=8.6";
-import { evaluateList } from "../js/army.js?v=8.6";
-import { missionCard } from "../js/mission-viewer.js?v=8.6";
-import { openSync } from "./sync.js?v=8.6";
-import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.6";
-import { confirmSheet } from "../js/core.js?v=8.6";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.7";
+import { factionStyle } from "../js/factions.js?v=8.7";
+import { evaluateList } from "../js/army.js?v=8.7";
+import { missionCard } from "../js/mission-viewer.js?v=8.7";
+import { openSync } from "./sync.js?v=8.7";
+import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.7";
+import { confirmSheet } from "../js/core.js?v=8.7";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -231,6 +231,7 @@ function openSyncSheet() {
   document.body.append(syncSheet);
   requestAnimationFrame(() => syncSheet.classList.add("open"));
   const inp = syncSheet.querySelector(".bs-code-in");
+  inp.focus();   // ready to type the opponent's code
   inp.addEventListener("input", () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (inp.value.length === 6) sync.connect(inp.value); });
   syncSheet.addEventListener("click", e => { if (e.target.closest("[data-bs-sync-cancel]")) closeSyncSheet(); });
 }

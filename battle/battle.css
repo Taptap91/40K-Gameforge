@@ -248,15 +248,8 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bs-begin:disabled { background: var(--control); color: var(--text-3); box-shadow: none; cursor: not-allowed; }
 
 /* ---------- Primary and Secondary Missions (above the Stratagems) ---------- */
-.bt-mrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-.bt-mhead { min-height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.bt-mhead b { font-size: 16px; font-weight: 700; flex: 1; min-width: 0; }
-.bt-mhead span:not(.bt-chev) { font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.bt-mhead .bt-chev { font-size: 18px; color: var(--text-2); transition: transform .2s ease; }
-.bt-mhead.open .bt-chev { transform: rotate(180deg); }
+.bt-mpair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; margin-bottom: 10px; }   /* each box keeps its own height */
 /* A body spans both columns, so it drops down under the two headers: the Primary one reads from the left, the Secondary one from the right. */
-.bt-mbody { grid-column: 1 / -1; padding: 14px 16px; }
-.bt-mrow .bt-mbody + .bt-mbody { margin-top: 0; }
 .bt-mh { display: flex; align-items: center; gap: 10px; min-height: 36px; }
 .bt-mh b { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; text-align: left; }
 .bt-mh2 { margin-top: 12px; }
@@ -291,7 +284,6 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-addrow span { color: var(--accent); font-weight: 700; flex: none; }
 
 /* ---------- The Event Log: its own screen under the second ---------- */
-.bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
 .bt-logh h2 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
 .bt-ev { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); color: var(--fc); font-size: 14px; line-height: 1.35; }
 .bt-ev.struck { color: var(--text-2); opacity: .6; }
@@ -305,3 +297,14 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-ev.struck .bt-evbadge { color: var(--text-2); }
 /* The Score, remove and add pop-ups: Cancel (red) on the left, Accept on the right. */
 .sheet-foot:has(.bt-cancel) { justify-content: space-between; }
+
+/* Primary and Secondary: the same header as the other boxes. The arrow points right, and turns down when the box is open. */
+.bt-mhead { align-items: center; }
+.bt-mhead b { font-size: 16px; }
+.bt-arrow { flex: none; display: block; color: var(--text-2); transition: transform .2s ease; }
+.bt-mbox.open .bt-arrow { transform: rotate(90deg); }
+.bt-mbox.open > .bt-mhead { border-bottom: 1px solid var(--border); }   /* a faint line under the header while open */
+.bt-mbody { padding: 12px 14px 14px; }
+.bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
+.bt-s4 { box-sizing: border-box; padding: 16px 0 16px; }
+.bt-addsec { white-space: normal; min-height: 44px; height: auto; padding: 8px 10px; font-size: 14px; line-height: 1.25; }

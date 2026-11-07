@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.6";
-import { factionStyle } from "../js/factions.js?v=8.6";
-import { armyData, evaluateList } from "../js/army.js?v=8.6";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.6";
-import { effectiveRules } from "../js/rules-doc.js?v=8.6";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.6";
-import { richHTML } from "../js/text.js?v=8.6";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.7";
+import { factionStyle } from "../js/factions.js?v=8.7";
+import { armyData, evaluateList } from "../js/army.js?v=8.7";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.7";
+import { effectiveRules } from "../js/rules-doc.js?v=8.7";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.7";
+import { richHTML } from "../js/text.js?v=8.7";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -205,9 +205,11 @@ function trackerHTML(armies) {
       <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
     </section>
     <div class="bt-gap" aria-hidden="true"></div>
-    <section class="bt-s2">${missionsHTML()}${boxesHTML(armies)}<button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
+    <section class="bt-s2">${missionsHTML()}${boxesHTML(armies)}</section>
     <div class="bt-gap" aria-hidden="true"></div>
     <section class="bt-s3">${logHTML()}</section>
+    <div class="bt-gap" aria-hidden="true"></div>
+    <section class="bt-s4"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
   </div>`;
 }
 /** One mission's scoring lines, read from the pack: each round's heading, then its lines and their VP. */
@@ -216,31 +218,34 @@ function missionDetail(name, card) {
   if (!card) return `<div class="bt-mname">${esc(name)}</div><p class="bt-hint">Add the mission pack in Library to see how it scores.</p>`;
   return `<div class="bt-mname">${esc(name)}</div>` + card.scoring.map(b => `<div class="bt-mround"><span>${esc(b.round)}</span>${b.cap ? `<em>${esc(b.cap)}</em>` : ""}</div>${b.rows.map(r => `<div class="bt-mline"><span>${esc(r.text)}</span><b>${esc(vpText(r.vp))}</b></div>`).join("")}`).join("");
 }
-/** The Primary and Secondary boxes above the Stratagems. Each opens down from its header; the bodies span both columns. */
+/** The Primary and Secondary boxes above the Stratagems: each is a box like the others, and its details open inside it. */
+const ARROW = `<svg class="bt-arrow" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 function missionsHTML() {
   const me = B.me, them = B.them;
-  const head = (id, label, meta) => `<button type="button" class="bt-mhead${openBoxes.has(id) ? " open" : ""}" data-bt-mhead="${id}" aria-expanded="${openBoxes.has(id)}"><b>${label}</b><span>${meta}</span><span class="bt-chev" aria-hidden="true">⌄</span></button>`;
-  const priBody = openBoxes.has("pri") ? `<div class="bt-mbody bt-box">
-      <div class="bt-mh"><b>${esc(me.name || "You")}’s Primary Missions</b><button type="button" class="bt-scorebtn" data-bt-score>Score</button></div>
+  const box = (id, label, meta, body) => {
+    const open = openBoxes.has(id);
+    return `<section class="bt-box bt-mbox${open ? " open" : ""}">
+      <button type="button" class="bt-boxhead bt-mhead" data-bt-mhead="${id}" aria-expanded="${open}"><b>${label}</b><span class="bt-count">${meta}</span>${ARROW}</button>
+      ${open ? `<div class="bt-boxbody bt-mbody">${body}</div>` : ""}
+    </section>`;
+  };
+  const priBody = `<div class="bt-mh"><b>${esc(me.name || "You")}’s Primary Missions</b><button type="button" class="bt-scorebtn" data-bt-score>Score</button></div>
       <hr class="bt-hr">
       ${missionDetail(me.priMission, primaryCard(me.priMission))}
       <div class="bt-mh bt-mh2"><b>${esc(them.name || "Opponent")}’s Primary Mission</b></div>
       <hr class="bt-hr">
-      ${missionDetail(them.priMission, primaryCard(them.priMission))}
-    </div>` : "";
+      ${missionDetail(them.priMission, primaryCard(them.priMission))}`;
   const rows = me.secs.map((s, i) => `<div class="bt-sec${s.vp > 0 ? " done" : ""}">
       <button type="button" class="bt-secname" data-bt-secscore="${i}">${esc(s.name)}</button>
       ${s.vp > 0
         ? `<span class="bt-secvp">${s.vp} VP</span><button type="button" class="bt-iconbtn" data-bt-secscore="${i}" aria-label="Change the score for ${esc(s.name)}">${PENCIL}</button>`
         : `<button type="button" class="bt-iconbtn" data-bt-secdel="${i}" aria-label="Remove ${esc(s.name)}">${TRASH}</button>`}
     </div>`).join("");
-  const secBody = openBoxes.has("sec") ? `<div class="bt-mbody bt-box">
-      <div class="bt-mh"><b>${esc(me.name || "You")}’s Secondary Missions</b></div>
+  const secBody = `<div class="bt-mh"><b>${esc(me.name || "You")}’s Secondary Missions</b></div>
       <hr class="bt-hr">
       ${rows || `<p class="bt-hint">No Secondary Missions yet.</p>`}
-      <button type="button" class="btn bt-addsec" data-bt-secadd>Add Secondary Mission</button>
-    </div>` : "";
-  return `<div class="bt-mrow">${head("pri", "Primary", `${me.primary} VP`)}${head("sec", "Secondary", `${me.secs.length}`)}${priBody}${secBody}</div>`;
+      <button type="button" class="btn bt-addsec" data-bt-secadd>Add Secondary Mission</button>`;
+  return `<div class="bt-mpair">${box("pri", "Primary", `${me.primary} VP`, priBody)}${box("sec", "Secondary", `${me.secs.length}`, secBody)}</div>`;
 }
 /** The Event Log: one line for each event, in the colour of the player who did it. Struck-through lines are the ones removed. */
 function logHTML() {
@@ -559,7 +564,8 @@ function handleTrackerClick(e, host) {
 const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35, LOCK_IDLE = 250;
 const HAS_SCROLLEND = "onscrollend" in window;
 let snapTimer = 0, snapping = false, snapId = 0, snapDir = 1, lastScroll = 0, restPos = 0;
-let lockTarget = null, lockTimer = 0;
+let lockTarget = null, lockTimer = 0, lockEnd = 0;
+const LOCK_MAX = 600;   // a hold never lasts longer than this, however long the scrolling goes on
 
 /** The top of each section, in the pane's scroll coordinates. */
 function sectionStarts(pane) {
@@ -569,41 +575,57 @@ function sectionStarts(pane) {
 /** Holds the screen on a stop until the scrolling has been still for LOCK_IDLE, then lets it settle. */
 function holdFor(pane) {
   clearTimeout(lockTimer);
+  if (performance.now() > lockEnd) { lockTarget = null; snapTo(pane); return; }
   lockTimer = setTimeout(() => { lockTarget = null; snapTo(pane); }, LOCK_IDLE);
 }
-/** Moves the tracker to a section top. `flick` (+1 down, -1 up) asks for the next section that way at once. */
+/** The bottom of each section, in the pane's scroll coordinates. */
+function sectionEnds(pane) {
+  const pr = pane.getBoundingClientRect(), cur = pane.scrollTop;
+  return [...pane.querySelectorAll(".bt-tracker > section")].map(s => s.getBoundingClientRect().bottom - pr.top + cur);
+}
+/** Moves the tracker to a section top. `flick` (+1 down, -1 up) asks for the next section that way at once.
+   A section taller than the screen is read by scrolling: nothing snaps inside it until its far edge is reached,
+   and a firm move at that edge goes on to the next section. */
 function snapTo(pane, flick = 0) {
   if (!B?.active || snapping || lockTarget != null) return false;
-  const starts = sectionStarts(pane);
+  const starts = sectionStarts(pane), ends = sectionEnds(pane);
   if (!starts.length) return false;
   const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
-  const pr = pane.getBoundingClientRect();
-  const boxes = [...pane.querySelectorAll(".bt-box")].map(el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; });
-  const i = boxes.reduce((k, b, j) => (b.top <= cur + 1 ? j : k), -1);
-  if (i >= 0 && boxes[i].bottom > cur + view) return false;   // a tall open box scrolls freely
   const G = pane.querySelector(".bt-gap")?.offsetHeight || 0;
-  const R = Math.min(restPos, max);   // the section top the screen rests on
-  const next = starts.find(v => v > R + 1) ?? null;   // only the section tops are stops
-  const prev = [...starts].reverse().find(v => v < R - 1) ?? null;
-  let target;
-  if (flick) {
-    target = flick > 0 ? next : prev;
-    if (target == null) return false;
-  } else if (snapDir > 0) {
-    if (next == null && max > R + 1) return false;   // the last section is taller than the screen: scroll freely
-    // Down: the next section comes up once its top reaches the bottom edge of the screen (the bottom stop: after 40px).
-    target = next == null ? R : (cur - R >= Math.max(SNAP_NEAR, Math.min(next - R, next - view - R)) ? next : R);
-  } else {
-    // Up: the section above comes up once the gap has been scrolled past. Less than that bounces back to this section's top.
-    target = prev == null ? R : (R - cur >= Math.max(SNAP_NEAR, G) ? prev : R);
+  const dir = flick || snapDir;
+  let i = 0; starts.forEach((v, j) => { if (v <= cur + 1) i = j; });   // the section the screen's top is in
+  const top = starts[i], end = ends[i], tall = end - top > view + 1;
+  const nxt = starts[i + 1] ?? null, prv = i > 0 ? starts[i - 1] : null;
+  if (tall) {
+    if (dir > 0 && cur < end - view - 1) return false;   // still reading this section downward
+    if (dir < 0 && cur > top + 1) return false;          // still reading it upward
   }
+  let target;
+  if (dir > 0) {
+    if (nxt == null) return false;                         // the last section: scroll freely
+    if (tall) {
+      if (!flick && cur - (end - view) < SNAP_NEAR) return false;   // at the bottom but not pushed on
+      target = nxt;
+    } else {
+      // Down: the next section comes up once the screen has moved far enough (it shows at the bottom edge at most).
+      target = flick || cur - top >= Math.max(SNAP_NEAR, Math.min(nxt - top, nxt - view - top)) ? nxt : top;
+    }
+  } else {
+    if (flick) target = cur > top + 1 ? top : prv;        // a firm move up: this section's top, then the one above
+    else {
+      if (nxt == null) return false;
+      // Up: back to the section the screen came from unless it has been scrolled past firmly, then up to this section's top.
+      target = nxt - cur >= Math.max(SNAP_NEAR, G) ? top : nxt;
+    }
+  }
+  if (target == null) return false;
   restPos = target;
   // The second section (and any below it) moves the strip up into the header.
   const second = starts[1];
   setCompact(second != null && target >= second - 1);
   if (Math.abs(target - cur) < 2) return false;
   snapping = true; const id = ++snapId;
-  lockTarget = target; holdFor(pane);
+  lockTarget = target; lockEnd = performance.now() + LOCK_MAX; holdFor(pane);
   pane.scrollTo({ top: target, behavior: "smooth" });
   const done = () => { if (id === snapId) snapping = false; };
   pane.addEventListener("scrollend", done, { once: true });
@@ -633,10 +655,15 @@ function wireTrackerSnap(host) {
   host.addEventListener("wheel", e => {
     const pane = isTracker(e.target);
     if (!pane || !B?.active) return;
-    if (snapping || lockTarget != null) { e.preventDefault(); if (lockTarget != null) holdFor(pane); acc = 0; return; }
-    // Movement counts while it keeps coming: a mouse notch is one step, a trackpad flick is many small ones close together.
-    const now = performance.now(); if (now - last > 120) acc = 0; last = now;
+    const now = performance.now(), fresh = now - last > 120;   // a pause ends the gesture; momentum arrives without one
+    last = now;
+    if (fresh) acc = 0;
+    // A new gesture releases a hold. While a snap is moving, the wheel waits for it.
+    if (fresh && lockTarget != null && !snapping) { lockTarget = null; clearTimeout(lockTimer); }
+    if (snapping) { e.preventDefault(); acc = 0; return; }
+    if (lockTarget != null) { acc = 0; return; }
     if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+    // Movement counts while it keeps coming: a mouse notch is one step, a trackpad flick is many small ones close together.
     acc += e.deltaY;
     if (Math.abs(acc) < WHEEL_PX) return;
     const dir = Math.sign(acc); acc = 0;
