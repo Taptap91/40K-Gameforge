@@ -125,7 +125,7 @@
 .bt-stick.compact .bt-phases button:not(.on) { display: none; }
 .bt-stick.compact .bt-phases button.on { background: transparent; box-shadow: none; color: #fff; min-height: 0; padding: 0; font-size: 14px; letter-spacing: 0; line-height: 20px; text-shadow: 0 1px 2px rgba(0,0,0,.45); }
 /* The two screens of the tracker: the first fills the pane, a gap, then the second (its top can reach the top of the pane). */
-.bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; overflow-anchor: none; }   /* the snap sets the position, not the browser */
+.bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; overflow-anchor: none; overflow-y: hidden; touch-action: none; }   /* the tracker steers its own scrolling */
 .bt-s1 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 10px; display: flex; flex-direction: column; gap: 12px; }
 .bt-gap { flex: none; height: 64px; }
 .bt-s2 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; }   /* exactly one visible screen */
@@ -148,12 +148,12 @@
 .bt-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 10px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--c1) 40%, var(--border));
   background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 26%, var(--panel)), color-mix(in srgb, var(--c2) 8%, var(--panel))); margin-bottom: 4px; }
 .bt-pname { text-align: center; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bt-vp { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--fc); font-weight: 800; line-height: 1; margin: 2px 0 4px; text-shadow: 0 2px 12px color-mix(in srgb, var(--fc) 35%, transparent); }
+.bt-vp { display: flex; align-items: baseline; justify-content: center; gap: 10px; color: var(--fc); font-weight: 800; line-height: 1; margin: 2px 0 4px; text-shadow: 0 2px 12px color-mix(in srgb, var(--fc) 35%, transparent); }
 .bt-vp b { font-size: 44px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .bt-vp span { font-size: 20px; }
 .bt-tlabel { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-top: 4px; }
 .bt-track { display: flex; align-items: baseline; justify-content: center; min-height: 48px; padding: 8px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); font: 800 26px var(--font); font-variant-numeric: tabular-nums; }
-.bt-track span { font-size: 15px; font-weight: 600; color: var(--text-3); margin-left: 2px; }
+.bt-track span { font-size: 15px; font-weight: 600; color: var(--text-3); margin-left: 8px; }
 .bt-cpbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .bt-cpbtn { min-height: 48px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--control); color: var(--text); font: 600 26px/1 var(--font); cursor: pointer; }
 .bt-cpbtn:disabled { opacity: .35; cursor: not-allowed; }
@@ -308,5 +308,5 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
 .bt-addsec { white-space: normal; min-height: 44px; height: auto; padding: 8px 10px; font-size: 14px; line-height: 1.25; }
 /* End Battle sits at the bottom of the Event Log screen, above the footer, and scrolls with the log when the log grows. */
-.bt-logl { display: flex; flex-direction: column; padding-bottom: 16px; }
+.bt-logl { display: flex; flex-direction: column; margin-bottom: 20px; }   /* End Battle sits 20px (double a button gap) below the oldest event */
 .bt-s3 .bt-end { margin-top: auto; flex: none; }
