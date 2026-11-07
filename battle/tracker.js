@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.15";
-import { factionStyle } from "../js/factions.js?v=8.15";
-import { armyData, evaluateList } from "../js/army.js?v=8.15";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.15";
-import { effectiveRules } from "../js/rules-doc.js?v=8.15";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.15";
-import { richHTML } from "../js/text.js?v=8.15";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.16";
+import { factionStyle } from "../js/factions.js?v=8.16";
+import { armyData, evaluateList } from "../js/army.js?v=8.16";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.16";
+import { effectiveRules } from "../js/rules-doc.js?v=8.16";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.16";
+import { richHTML } from "../js/text.js?v=8.16";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -701,6 +701,16 @@ function wireTrackerSnap(host) {
     lastEv = now;
     gest.total += dy;
     gestureMove(pane, dy, gest.total);
+  }, { capture: true, passive: false });
+  // Wide screens: the army columns scroll themselves only when they are long enough to need it; otherwise a wheel over them moves the tracker.
+  host.addEventListener("wheel", e => {
+    if (!matchMedia("(min-width: 1280px)").matches) return;
+    const side = e.target?.closest?.('.bt-pane[data-pane="me"], .bt-pane[data-pane="them"]');
+    if (!side) return;
+    e.preventDefault();
+    if (side.scrollHeight > side.clientHeight + 1) { side.scrollTop += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; return; }
+    const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
+    tp?.dispatchEvent(new WheelEvent("wheel", { deltaY: e.deltaY, deltaX: e.deltaX, deltaMode: e.deltaMode, bubbles: true, cancelable: true }));
   }, { capture: true, passive: false });
   // Touch: a tall section follows the finger; anything else goes to the next stop as soon as the finger has moved.
   host.addEventListener("touchstart", e => {

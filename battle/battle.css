@@ -335,18 +335,42 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-rbox.on { background: linear-gradient(90deg, color-mix(in srgb, var(--c1, #555) 70%, #000), color-mix(in srgb, var(--c2, #555) 55%, #000)); color: #fff; border-color: transparent; }
 .bt-rcancel { margin-top: 16px; }
 /* Wide screens: the Round button grows to suit the bigger header. */
-@media (min-width: 793px) { .bt-round { min-height: 50px; padding: 0 30px; font-size: 22px; } }
-/* Wide screens (desktop): your army sits on the right, your opponent's on the left, in the space either side of the 760px tracker. The army buttons go. */
+@media (min-width: 793px) { .bt-round { min-height: 50px; padding: 0 30px; font-size: 20px; } }
+/* Wide screens (desktop, 1280px and up). Three columns: your army | the tracker (760px, sections 728px) | your opponent's army.
+   The army columns are as narrow as their unit names need, and do not move when the tracker scrolls. */
 @media (min-width: 1280px) {
-  .bt-shell { width: 100%; transform: none; transition: none; display: grid; grid-template-columns: minmax(240px, 1fr) minmax(0, 760px) minmax(240px, 1fr); grid-template-rows: minmax(0, 1fr); }
+  :root { --bt-side: 204px; }
+  .bt-shell { width: 100%; transform: none; transition: none; display: grid; grid-template-columns: var(--bt-side) minmax(0, 760px) var(--bt-side); justify-content: center; grid-template-rows: minmax(0, 1fr); }
   .bt-pane { width: auto; min-width: 0; }
-  .bt-pane[data-pane="them"] { grid-column: 1; grid-row: 1; padding-left: 8px; padding-right: 8px; }
+  .bt-pane[data-pane="them"] { grid-column: 1; grid-row: 1; padding: 0 8px 24px; overscroll-behavior: contain; }
   .bt-pane[data-pane="tracker"] { grid-column: 2; grid-row: 1; }
-  .bt-pane[data-pane="me"] { grid-column: 3; grid-row: 1; padding-left: 8px; padding-right: 8px; }
+  .bt-pane[data-pane="me"] { grid-column: 3; grid-row: 1; padding: 0 8px 24px; overscroll-behavior: contain; }
+  .bt-pane[data-pane="me"] > *, .bt-pane[data-pane="them"] > * { max-width: none; }
+  /* No health or points in the army columns: just the names, cut with "..." when too long. */
+  .bt-pane[data-pane="me"] .bt-unit-top > span, .bt-pane[data-pane="them"] .bt-unit-top > span,
+  .bt-pane[data-pane="me"] .bt-unit-meta, .bt-pane[data-pane="them"] .bt-unit-meta,
+  .bt-pane[data-pane="me"] .bt-unit-orig, .bt-pane[data-pane="them"] .bt-unit-orig,
+  .bt-pane[data-pane="me"] .bt-attached > span:not([aria-hidden]), .bt-pane[data-pane="them"] .bt-attached > span:not([aria-hidden]) { display: none; }
+  .bt-pane[data-pane="me"] .bt-unit-top b, .bt-pane[data-pane="them"] .bt-unit-top b,
+  .bt-pane[data-pane="me"] .bt-attached b, .bt-pane[data-pane="them"] .bt-attached b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bt-footer { display: none; }
-  /* The phase bar: quieter, in the app's panel colours, with the current phase marked by a faction-coloured underline. */
-  .bt-phases { background: var(--panel); border: 1px solid var(--border); box-shadow: none; }
-  .bt-phases button { color: var(--text-2); text-shadow: none; }
-  .bt-phases button.on { background: var(--panel-2); color: var(--text); box-shadow: inset 0 -3px 0 var(--c1, #888); text-shadow: none; }
-  .bt-stick.compact .bt-phases button.on { background: transparent; color: var(--text); box-shadow: inset 0 -3px 0 var(--c1, #888); }
+  /* Header: Round # lines up with the left edge of the sections; the turn and the phase tracker sit on the sections' edges too. */
+  #view-battle > header.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 8px; padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
+  #view-battle > header.toolbar > h1 { grid-column: 1; grid-row: 1; justify-self: start; }
+  #view-battle > header.toolbar > .spacer { display: none; }
+  #view-battle > header.toolbar > #battleTools { grid-column: 2; grid-row: 1; justify-self: end; }
+  /* The phase tracker in the header, once scrolled past section one: all six phases, centred on the sections, with the turn text beside Round #. */
+  #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
+  #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-strow { display: contents; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-turn { grid-column: 2; grid-row: 1; justify-self: end; font-size: 20px; text-align: right; color: var(--text-2); }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 1 / -1; grid-row: 2; width: 100%; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 4px; border-radius: 14px; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button:not(.on) { display: block; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 50px; font-size: 20px; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases .short { display: none; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases .full { display: inline; }
+  .bt-stick:not(.compact) .bt-turn { font-size: 20px; }
+  .bt-round { font-size: 20px; }
+  .bt-stick .bt-phases button { font-size: 20px; }
+  .bt-s1 { padding-top: 14px; }
 }
