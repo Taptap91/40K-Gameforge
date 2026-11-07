@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.13";
-import { factionStyle } from "../js/factions.js?v=8.13";
-import { armyData, evaluateList } from "../js/army.js?v=8.13";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.13";
-import { effectiveRules } from "../js/rules-doc.js?v=8.13";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.13";
-import { richHTML } from "../js/text.js?v=8.13";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.14";
+import { factionStyle } from "../js/factions.js?v=8.14";
+import { armyData, evaluateList } from "../js/army.js?v=8.14";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.14";
+import { effectiveRules } from "../js/rules-doc.js?v=8.14";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.14";
+import { richHTML } from "../js/text.js?v=8.14";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -214,7 +214,11 @@ function boxesHTML(armies) {
 function stickHTML(compact) {
   const active = B.turn === "you" ? B.me : B.them, st = factionStyle(active.faction || "");
   const whose = B.turn === "you" ? (B.me.name ? `${B.me.name}’s` : "Your") : `${B.them.name || "Opponent"}’s`;
-  return `<div class="bt-stick${compact ? " compact" : ""}">
+  if (compact) return `<div class="bt-stick compact" style="--c1:${st.c1};--c2:${st.c2}">
+    <div class="bt-strow"><div class="bt-turn">${esc(whose)} turn</div><span class="bt-statslot"></span></div>
+    <div class="bt-phases" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => i === B.phase ? `<button type="button" role="tab" aria-selected="true" class="on" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>` : "").join("")}</div>
+  </div>`;
+  return `<div class="bt-stick">
     <div class="bt-turn">${esc(whose)} turn</div>
     <div class="bt-phases" style="--c1:${st.c1};--c2:${st.c2}" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => `<button type="button" role="tab" aria-selected="${i === B.phase}" class="${i === B.phase ? "on" : ""}" data-bt-phase="${i}" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>`).join("")}</div>
   </div>`;
@@ -306,6 +310,8 @@ function mountStick(compact, animate = false) {
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
+  const statusNow = document.getElementById("battleStatus");
+  el.querySelector(".bt-statslot")?.insertAdjacentHTML("beforeend", statusNow ? statusNow.innerHTML : "");
   fitView(pane);
   // The pane's height changed under the scroll: put the position back (the browser may have clamped it).
   if (pane && pane.scrollTop !== keepTop) pane.scrollTop = keepTop;
@@ -405,7 +411,11 @@ function renderTracker(host) {
       <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>
     </footer>`;
   // The header reads "Round N" while the battle is on.
-  const title = document.querySelector("#view-battle h1"); if (title) title.textContent = `Round ${B.round}`;
+  const title = document.querySelector("#view-battle h1");
+  if (title) {
+    const act = B.turn === "you" ? B.me : B.them, rst = factionStyle(act.faction || "");
+    title.innerHTML = `<button type="button" class="bt-round" data-bt-round style="--c1:${rst.c1};--c2:${rst.c2}" aria-haspopup="dialog">Round ${B.round}</button>`;
+  }
   // Compact once the scroll is past the middle of the way to the second screen (decided from where the pane was left).
   const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
   const compact = !!tp && pane === "tracker" && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2;
@@ -414,6 +424,28 @@ function renderTracker(host) {
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
   // The nearest section top is where the screen rests.
   if (tp) { const st = sectionStarts(tp); restPos = st.reduce((b, v) => (Math.abs(v - (keep[1] || 0)) < Math.abs(b - (keep[1] || 0)) ? v : b), st[0] ?? 0); }
+}
+/** Round choice: five boxes the same width, a double gap, then Cancel. Sits over a blurred screen, not the whole of it. */
+function openRoundPicker(host) {
+  const rst = factionStyle((B.turn === "you" ? B.me : B.them).faction || "");
+  const el = document.createElement("div");
+  el.className = "bt-rpick"; el.style.cssText = `--c1:${rst.c1};--c2:${rst.c2}`;
+  el.innerHTML = `<div class="bt-rscrim" data-rclose></div>
+    <div class="bt-rpanel" role="dialog" aria-modal="true" aria-label="Choose the round">
+      <h3>Round</h3>
+      <div class="bt-rlist">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="bt-rbox${n === B.round ? " on" : ""}" data-round="${n}">Round ${n}</button>`).join("")}</div>
+      <button type="button" class="bt-rcancel" data-rclose>Cancel</button>
+    </div>`;
+  const close = () => { el.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  el.addEventListener("click", e => {
+    const r = e.target.closest("[data-round]");
+    if (r) { const n = +r.dataset.round; close(); if (n !== B.round) change(b => { b.round = n; }, host); return; }
+    if (e.target.closest("[data-rclose]")) close();
+  });
+  document.addEventListener("keydown", onKey);
+  document.body.append(el);
+  el.querySelector(".bt-rbox.on, .bt-rbox")?.focus();
 }
 function showPane(next, host) {
   if (!PANES.includes(next)) return;
@@ -542,6 +574,7 @@ function handleTrackerClick(e, host) {
   if (!B?.active) return false;
   const t = e.target;
   if (t.closest("[data-bt-next]")) { change(nextPhase, host); return true; }
+  if (t.closest("[data-bt-round]")) { openRoundPicker(host); return true; }
   const ph = t.closest("[data-bt-phase]");
   if (ph) { change(b => { b.phase = +ph.dataset.btPhase; }, host); return true; }
   const cp = t.closest("[data-bt-cp]");

@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.13";
-import { factionStyle } from "../js/factions.js?v=8.13";
-import { evaluateList } from "../js/army.js?v=8.13";
-import { missionCard } from "../js/mission-viewer.js?v=8.13";
-import { openSync } from "./sync.js?v=8.13";
-import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.13";
-import { confirmSheet } from "../js/core.js?v=8.13";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.14";
+import { factionStyle } from "../js/factions.js?v=8.14";
+import { evaluateList } from "../js/army.js?v=8.14";
+import { missionCard } from "../js/mission-viewer.js?v=8.14";
+import { openSync } from "./sync.js?v=8.14";
+import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.14";
+import { confirmSheet } from "../js/core.js?v=8.14";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -256,10 +256,14 @@ const resumeSetup = () => { if (!S.active && !trackerActive()) return false; $("
 
 /* Top right: Reconnect (when the two phones have lost each other) and Cancel. */
 function tools() {
-  const el = $("#battleTools");
-  if (!el) return;
+  const el = $("#battleTools"), status = $("#battleStatus");
+  if (!el || !status) return;
   const lost = !!S.peerCode && link !== "connected";
-  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}${trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
+  const html = lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : "";
+  status.innerHTML = html;
+  // The same status also sits in the header strip on wide screens, where the turn and the status share a line.
+  document.querySelectorAll("#view-battle .bt-statslot").forEach(s => { s.innerHTML = html; });
+  el.innerHTML = trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`;
 }
 const STATUS_TEXT = { waiting: "Waiting for your opponent…", connecting: "Connecting…", connected: "Connected — swapping armies…", "not-found": "No one is waiting with that code.", offline: "Can't reach the internet: only another copy of RulesForge in this browser can pair.", lost: "Connection lost." };
 function startSync(reconnect) {
@@ -310,7 +314,7 @@ function startSetup() {
 }
 function exitSetup(renderHome) {
   S.active = false; save();
-  $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; $("#view-battle h1").textContent = "Battle"; document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove()); sync?.close(); sync = null; closeSyncSheet(true); renderHome();
+  $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; $("#battleStatus").innerHTML = ""; $("#view-battle h1").textContent = "Battle"; document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove()); sync?.close(); sync = null; closeSyncSheet(true); renderHome();
 }
 
 /** The two armies for the battle screens: your list (by id) and your opponent's synced list with their faction's rules. */

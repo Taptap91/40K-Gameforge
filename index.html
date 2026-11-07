@@ -6,8 +6,8 @@
 <title>RulesForge</title>
 <meta name="color-scheme" content="dark">
 <meta name="rf-version" content="8.5">
-<link rel="stylesheet" href="styles.css?v=8.13">
-<link rel="stylesheet" href="battle/battle.css?v=8.13">
+<link rel="stylesheet" href="styles.css?v=8.14">
+<link rel="stylesheet" href="battle/battle.css?v=8.14">
 </head>
 <body>
 <div class="app">
@@ -104,7 +104,7 @@
 
     <!-- ================= BATTLE ================= -->
     <section class="view hidden" id="view-battle">
-      <header class="toolbar"><h1>Battle</h1><div class="spacer"></div><div id="battleTools"></div></header>
+      <header class="toolbar"><div id="battleStatus" class="bt-status"></div><h1>Battle</h1><div id="battleTools"></div></header>
       <div class="scroll"><div class="content bt-content" id="battleHost"></div></div>
     </section>
   </main>
@@ -124,6 +124,6 @@ setTimeout(function () {
   document.body.prepend(bar);
 }, 5000);
 </script>
-<script type="module" src="js/main.js?v=8.13"></script>
+<script type="module" src="js/main.js?v=8.14"></script>
 </body>
 </html>
