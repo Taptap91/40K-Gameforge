@@ -130,8 +130,10 @@
 .bt-gap { flex: none; height: 64px; }
 .bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 32px; display: flex; flex-direction: column; }   /* 20px lower than before, for the taller header bar */
 /* One footer for the army buttons and End Battle: a single top border and background, End Battle full width beneath. */
-.bt-footer { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--sidebar); }
-.bt-end { width: 100%; min-height: 52px; font-weight: 800; }
+.bt-footer { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px 0; border-top: 1px solid var(--border); background: var(--sidebar); }
+/* End Battle is a row of the same footer: full width, its text centred, divided from the army buttons by a line. */
+.bt-end { width: calc(100% + 32px); margin: 0 -16px; min-height: 54px; padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px)); border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; justify-content: center; align-items: center; font-weight: 800; }
+.bt-end:hover { background: transparent; }
 /* Phases: one bar in the faction colours of whoever's turn it is. Full names when they fit, short ones on phones. */
 .bt-phases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--c1) 70%, #000), color-mix(in srgb, var(--c2) 55%, #000)); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
