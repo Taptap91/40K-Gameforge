@@ -125,15 +125,14 @@
 .bt-stick.compact .bt-phases button:not(.on) { display: none; }
 .bt-stick.compact .bt-phases button.on { background: transparent; box-shadow: none; color: #fff; min-height: 0; padding: 0; font-size: 14px; letter-spacing: 0; line-height: 20px; text-shadow: 0 1px 2px rgba(0,0,0,.45); }
 /* The two screens of the tracker: the first fills the pane, a gap, then the second (its top can reach the top of the pane). */
-.bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; }
+.bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; overflow-anchor: none; }   /* the snap sets the position, not the browser */
 .bt-s1 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 10px; display: flex; flex-direction: column; gap: 12px; }
 .bt-gap { flex: none; height: 64px; }
-.bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 32px; display: flex; flex-direction: column; }   /* 20px lower than before, for the taller header bar */
+.bt-s2 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; }   /* exactly one visible screen */
+.bt-s2 .bt-end { margin-top: auto; }   /* 20px lower than before, for the taller header bar */
 /* One footer for the army buttons and End Battle: a single top border and background, End Battle full width beneath. */
 .bt-footer { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--sidebar); }
 .bt-end { width: 100%; min-height: 52px; font-weight: 800; }
-/* End Battle's own section, after the second: a full screen like the others, its button at the top. */
-.bt-s3 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 32px; display: flex; flex-direction: column; }
 /* Phases: one bar in the faction colours of whoever's turn it is. Full names when they fit, short ones on phones. */
 .bt-phases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--c1) 70%, #000), color-mix(in srgb, var(--c2) 55%, #000)); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
@@ -247,3 +246,62 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bs-ready { display: flex; flex-direction: column; gap: 10px; }
 .bs-begin.on { background: linear-gradient(180deg, #8e8e93, #636366); box-shadow: none; }
 .bs-begin:disabled { background: var(--control); color: var(--text-3); box-shadow: none; cursor: not-allowed; }
+
+/* ---------- Primary and Secondary Missions (above the Stratagems) ---------- */
+.bt-mrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.bt-mhead { min-height: 56px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.bt-mhead b { font-size: 16px; font-weight: 700; flex: 1; min-width: 0; }
+.bt-mhead span:not(.bt-chev) { font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bt-mhead .bt-chev { font-size: 18px; color: var(--text-2); transition: transform .2s ease; }
+.bt-mhead.open .bt-chev { transform: rotate(180deg); }
+/* A body spans both columns, so it drops down under the two headers: the Primary one reads from the left, the Secondary one from the right. */
+.bt-mbody { grid-column: 1 / -1; padding: 14px 16px; }
+.bt-mrow .bt-mbody + .bt-mbody { margin-top: 0; }
+.bt-mh { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.bt-mh b { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; text-align: left; }
+.bt-mh2 { margin-top: 12px; }
+.bt-hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0 10px; }
+.bt-scorebtn { min-height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--control); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; flex: none; }
+.bt-mname { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+.bt-mround { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.bt-mround em { font-style: normal; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.bt-mline { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 14px; line-height: 1.4; border-bottom: 1px dotted var(--border); }
+.bt-mline span { min-width: 0; }
+.bt-mline b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bt-mbody .bt-hint { padding: 4px 0 8px; }
+.bt-sec { display: flex; align-items: center; gap: 8px; min-height: 48px; border-bottom: 1px solid var(--border); }
+.bt-secname { flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700; font-size: 15px; text-align: left; cursor: pointer; }
+.bt-sec.done { opacity: .55; }
+.bt-sec.done .bt-secname { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--text-2); }
+.bt-secvp { font-weight: 800; font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bt-iconbtn { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border: 0; border-radius: 10px; background: none; color: var(--text-2); cursor: pointer; }
+.bt-iconbtn:hover { background: var(--panel-2); color: var(--text); }
+.bt-addsec { width: 100%; margin-top: 12px; }
+.bt-cancel { color: var(--red); border-color: var(--red); }
+.bt-scorelist { display: grid; gap: 8px; max-height: 52vh; overflow: auto; }
+.bt-scorerow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
+.bt-scorerow input { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--accent); }
+.bt-scorerow span { flex: 1; min-width: 0; font-size: 14px; line-height: 1.4; }
+.bt-scorerow span i { display: block; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.bt-scorerow b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bt-scoretot { margin: 12px 20px 0; font-weight: 700; font-size: 14px; }
+.bt-addlist { display: grid; gap: 8px; max-height: 60vh; overflow: auto; }
+.bt-addrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.bt-addrow b { font-weight: 700; }
+.bt-addrow span { color: var(--accent); font-weight: 700; flex: none; }
+
+/* ---------- The Event Log: its own screen under the second ---------- */
+.bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
+.bt-logh h2 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+.bt-ev { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); color: var(--fc); font-size: 14px; line-height: 1.35; }
+.bt-ev.struck { color: var(--text-2); opacity: .6; }
+.bt-ev.struck .bt-evtext { text-decoration: line-through; text-decoration-thickness: 1px; }
+.bt-evr { flex: none; min-width: 26px; font-size: 11px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bt-evbadge { flex: none; min-width: 44px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+.bt-evbadge.cp-minus { color: var(--red); }
+.bt-evbadge.cp-plus { color: var(--green); }
+.bt-evbadge.vp { color: var(--accent); }
+.bt-evtext { flex: 1; min-width: 0; color: inherit; }
+.bt-ev.struck .bt-evbadge { color: var(--text-2); }
+/* The Score, remove and add pop-ups: Cancel (red) on the left, Accept on the right. */
+.sheet-foot:has(.bt-cancel) { justify-content: space-between; }

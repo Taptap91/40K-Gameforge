@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.5";
-import { factionStyle } from "../js/factions.js?v=8.5";
-import { armyData, evaluateList } from "../js/army.js?v=8.5";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.5";
-import { effectiveRules } from "../js/rules-doc.js?v=8.5";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.5";
-import { richHTML } from "../js/text.js?v=8.5";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.6";
+import { factionStyle } from "../js/factions.js?v=8.6";
+import { armyData, evaluateList } from "../js/army.js?v=8.6";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.6";
+import { effectiveRules } from "../js/rules-doc.js?v=8.6";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.6";
+import { richHTML } from "../js/text.js?v=8.6";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -29,20 +29,52 @@ const saveArmies = () => { try { localStorage.setItem("rf.battleArmies", JSON.st
 
 /** A new battle from the finished setup. */
 function newBattle({ me, them, firstTurn }) {
-  const player = p => ({ name: p.name || "", faction: p.faction || "", battleReady: !!p.battleReady, primary: 0, secondary: 0, cp: 0, army: p.army || "" });
-  B = { active: true, started: Date.now(), updated: Date.now(), round: 1, phase: 0, turn: firstTurn === "opponent" ? "opponent" : "you", first: firstTurn === "opponent" ? "opponent" : "you", me: player(me), them: player(them) };
+  const player = p => ({ name: p.name || "", faction: p.faction || "", battleReady: !!p.battleReady, primary: 0, secondary: 0, cp: 0, army: p.army || "", priMission: p.mission || "", priScores: [], secs: [] });
+  B = { active: true, started: Date.now(), updated: Date.now(), round: 1, phase: 0, turn: firstTurn === "opponent" ? "opponent" : "you", first: firstTurn === "opponent" ? "opponent" : "you", me: player(me), them: player(them), events: [] };
   pane = "tracker"; sheet = null;
   save();
   return B;
 }
 /** The same battle seen from the other phone: "me" and "them" swap, and so does whose turn it is. */
-const mirror = b => b && { ...b, me: b.them, them: b.me, turn: FLIP[b.turn], first: FLIP[b.first] };
+const mirror = b => b && { ...b, me: b.them, them: b.me, turn: FLIP[b.turn], first: FLIP[b.first], events: (b.events || []).map(e => ({ ...e, by: FLIP[e.by] || e.by })) };
 
 const score = p => (p.battleReady ? 10 : 0) + (+p.primary || 0) + (+p.secondary || 0);
 const pad = n => String(n).padStart(2, "0");
 /* A faction's brighter colour, so a very dark faction (Black Templars) still shows its score clearly. */
 const lum = hex => { const v = parseInt(String(hex).slice(1), 16) || 0; return ((v >> 16) & 255) * .299 + ((v >> 8) & 255) * .587 + (v & 255) * .114; };
 const bright = st => lum(st.c1) >= lum(st.c2) || lum(st.c1) > 90 ? st.c1 : st.c2;
+
+/* ---------- missions and the event log: the data ---------- */
+/* Older battles may lack these fields; they're filled in before anything is drawn or changed. */
+function ensure(b) {
+  if (!b) return;
+  b.events ||= [];
+  for (const p of [b.me, b.them]) if (p) { p.secs ||= []; p.priScores ||= []; }
+}
+/* The VP totals are worked out from the scores, so they can't drift from the scores that were recorded. */
+function recalc(b) {
+  for (const p of [b.me, b.them]) {
+    p.primary = p.priScores.reduce((a, r) => a + (+r.vp || 0), 0);
+    p.secondary = p.secs.reduce((a, s) => a + (+s.vp || 0), 0);
+  }
+}
+const missionPack = () => state.docs.filter(d => d.kind === "missions").sort((a, b) => b.importedAt - a.importedAt)[0]?.structured?.missionPack;
+/* The pack's limit per battle round for Primary and for Secondary Missions (15VP in the printed pack). */
+const capPerRound = () => +String(missionPack()?.limits?.[0]?.perRound || "").match(/\d+/)?.[0] || 15;
+const primaryCard = name => (name ? missionPack()?.primaries?.find(m => m.name === name) || null : null);
+/* A scoring line's VP as printed ("5VP", or "5VP / 10VP" for a Fixed and a Tactical value). The score counted is the first number. */
+const vpText = v => (v && typeof v === "object" ? Object.values(v).filter(Boolean).join(" / ") : String(v || ""));
+const vpValue = v => { const s = v && typeof v === "object" ? (v.tactical ?? v.fixed ?? Object.values(v)[0] ?? "") : v; const n = /\d+/.exec(String(s || "")); return n ? +n[0] : 0; };
+/** Every scoring line of a mission, in order (the index is its checkbox). */
+const scoringRows = card => (card?.scoring || []).flatMap(b => b.rows.map(r => ({ round: b.round, text: r.text, vp: vpText(r.vp), n: vpValue(r.vp) })));
+/** VP already scored this round for Primary ("pri") or for the Secondary Missions ("sec"). */
+const gainedThisRound = (p, kind) => (kind === "pri" ? (p.priScores.find(r => r.round === B.round)?.vp || 0) : p.secs.filter(s => s.round === B.round).reduce((a, s) => a + (+s.vp || 0), 0));
+function logEv(b, by, ev) {
+  b.events ||= [];
+  b.events.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), round: b.round, by, struck: false, ...ev });
+}
+const TRASH = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const PENCIL = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16l-1 4zM14 6l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /* ---------- stratagems, army rules and detachment rules ---------- */
 /* Which boxes under the tracker are open, and which stratagems are expanded (on this phone only). */
@@ -173,13 +205,67 @@ function trackerHTML(armies) {
       <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
     </section>
     <div class="bt-gap" aria-hidden="true"></div>
-    <section class="bt-s2">${boxesHTML(armies)}</section>
+    <section class="bt-s2">${missionsHTML()}${boxesHTML(armies)}<button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
     <div class="bt-gap" aria-hidden="true"></div>
-    <section class="bt-s3"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
+    <section class="bt-s3">${logHTML()}</section>
   </div>`;
 }
+/** One mission's scoring lines, read from the pack: each round's heading, then its lines and their VP. */
+function missionDetail(name, card) {
+  if (!name) return `<p class="bt-hint">Not chosen yet. Set the Force Dispositions in setup.</p>`;
+  if (!card) return `<div class="bt-mname">${esc(name)}</div><p class="bt-hint">Add the mission pack in Library to see how it scores.</p>`;
+  return `<div class="bt-mname">${esc(name)}</div>` + card.scoring.map(b => `<div class="bt-mround"><span>${esc(b.round)}</span>${b.cap ? `<em>${esc(b.cap)}</em>` : ""}</div>${b.rows.map(r => `<div class="bt-mline"><span>${esc(r.text)}</span><b>${esc(vpText(r.vp))}</b></div>`).join("")}`).join("");
+}
+/** The Primary and Secondary boxes above the Stratagems. Each opens down from its header; the bodies span both columns. */
+function missionsHTML() {
+  const me = B.me, them = B.them;
+  const head = (id, label, meta) => `<button type="button" class="bt-mhead${openBoxes.has(id) ? " open" : ""}" data-bt-mhead="${id}" aria-expanded="${openBoxes.has(id)}"><b>${label}</b><span>${meta}</span><span class="bt-chev" aria-hidden="true">⌄</span></button>`;
+  const priBody = openBoxes.has("pri") ? `<div class="bt-mbody bt-box">
+      <div class="bt-mh"><b>${esc(me.name || "You")}’s Primary Missions</b><button type="button" class="bt-scorebtn" data-bt-score>Score</button></div>
+      <hr class="bt-hr">
+      ${missionDetail(me.priMission, primaryCard(me.priMission))}
+      <div class="bt-mh bt-mh2"><b>${esc(them.name || "Opponent")}’s Primary Mission</b></div>
+      <hr class="bt-hr">
+      ${missionDetail(them.priMission, primaryCard(them.priMission))}
+    </div>` : "";
+  const rows = me.secs.map((s, i) => `<div class="bt-sec${s.vp > 0 ? " done" : ""}">
+      <button type="button" class="bt-secname" data-bt-secscore="${i}">${esc(s.name)}</button>
+      ${s.vp > 0
+        ? `<span class="bt-secvp">${s.vp} VP</span><button type="button" class="bt-iconbtn" data-bt-secscore="${i}" aria-label="Change the score for ${esc(s.name)}">${PENCIL}</button>`
+        : `<button type="button" class="bt-iconbtn" data-bt-secdel="${i}" aria-label="Remove ${esc(s.name)}">${TRASH}</button>`}
+    </div>`).join("");
+  const secBody = openBoxes.has("sec") ? `<div class="bt-mbody bt-box">
+      <div class="bt-mh"><b>${esc(me.name || "You")}’s Secondary Missions</b></div>
+      <hr class="bt-hr">
+      ${rows || `<p class="bt-hint">No Secondary Missions yet.</p>`}
+      <button type="button" class="btn bt-addsec" data-bt-secadd>Add Secondary Mission</button>
+    </div>` : "";
+  return `<div class="bt-mrow">${head("pri", "Primary", `${me.primary} VP`)}${head("sec", "Secondary", `${me.secs.length}`)}${priBody}${secBody}</div>`;
+}
+/** The Event Log: one line for each event, in the colour of the player who did it. Struck-through lines are the ones removed. */
+function logHTML() {
+  const rows = (B.events || []).map(e => {
+    const p = e.by === "you" ? B.me : B.them, col = bright(factionStyle(p.faction || ""));
+    return `<div class="bt-ev${e.struck ? " struck" : ""}" style="--fc:${col}">
+      <span class="bt-evr">R${e.round}</span>
+      ${e.badge ? `<span class="bt-evbadge ${e.tone || ""}">${esc(e.badge)}</span>` : ""}
+      <span class="bt-evtext">${esc(e.text)}</span>
+      ${e.struck ? "" : `<button type="button" class="bt-iconbtn" data-bt-evdel="${esc(e.id)}" aria-label="Remove this event">${TRASH}</button>`}
+    </div>`;
+  }).join("");
+  return `<div class="bt-logh"><h2>Event Log</h2></div>${rows || `<p class="bt-hint">Nothing yet. Command Points, stratagems and scoring appear here as they happen.</p>`}`;
+}
+
 /** The strip sits under the header when it's full, and inside the header bar once the second screen is showing.
    When it moves, the turn and phase bar slide from where they were, and the screens follow the header's new height. */
+/** The visible height of the tracker pane: the second screen is exactly that tall, so the scroll ends once it is showing. */
+let viewWatch = null;
+function fitView(pane) { if (pane) pane.style.setProperty("--view", pane.clientHeight + "px"); }
+function watchView(pane) {
+  fitView(pane);
+  viewWatch ||= new ResizeObserver(() => fitView(document.querySelector('.bt-pane[data-pane="tracker"]')));
+  viewWatch.disconnect(); viewWatch.observe(pane);
+}
 const reduceMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 function mountStick(compact, animate = false) {
   const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
@@ -187,11 +273,15 @@ function mountStick(compact, animate = false) {
   const old = document.querySelector("#view-battle .bt-stick");
   const before = animate && old ? [...old.querySelectorAll(".bt-turn, .bt-phases")].map(el => el.getBoundingClientRect()) : null;
   const paneTop = animate && pane ? pane.getBoundingClientRect().top : null;
+  const keepTop = pane ? pane.scrollTop : 0;
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   if (!B?.active || !host || !header) return;
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
+  fitView(pane);
+  // The pane's height changed under the scroll: put the position back (the browser may have clamped it).
+  if (pane && pane.scrollTop !== keepTop) pane.scrollTop = keepTop;
   if (!animate || reduceMotion()) return;
   const ms = 220, ease = "cubic-bezier(.2,.7,.2,1)";
   if (before) [...el.querySelectorAll(".bt-turn, .bt-phases")].forEach((node, n) => {
@@ -272,6 +362,7 @@ function battleDatasheet(x, army) {
 /* ---------- the screen ---------- */
 function renderTracker(host) {
   if (!B) return;
+  ensure(B);
   document.body.classList.add("bt-fullscreen");   // the app's menu bar is hidden during a battle
   const i = PANES.indexOf(pane);
   const armies = { me: armyOf("me"), them: armyOf("them") };
@@ -292,6 +383,7 @@ function renderTracker(host) {
   const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
   const compact = !!tp && pane === "tracker" && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2;
   mountStick(compact);
+  if (tp) watchView(tp);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
   // The nearest section top is where the screen rests.
   if (tp) { const st = sectionStarts(tp); restPos = st.reduce((b, v) => (Math.abs(v - (keep[1] || 0)) < Math.abs(b - (keep[1] || 0)) ? v : b), st[0] ?? 0); }
@@ -304,7 +396,7 @@ function showPane(next, host) {
 
 /** Applies a change, saves it and sends it to the other phone (seen from their side). */
 function change(fn, host) {
-  fn(B); B.updated = Date.now(); save(); renderTracker(host);
+  ensure(B); fn(B); recalc(B); B.updated = Date.now(); save(); renderTracker(host);
   sendToPeer({ battle: B });   // sent as seen from this phone; the other phone flips it
 }
 function nextPhase(b) {
@@ -317,13 +409,82 @@ function nextPhase(b) {
 
 /** Spends Command Points on one of your stratagems and marks it used for this phase. */
 function spend(key, cost, host) {
+  const name = lastStrats.me.find(x => x.key === key)?.name || "a stratagem";
   change(b => {
     if (cost > b.me.cp) return;
     const sg = sigOf(b);
     if (b.me.used?.sig !== sg) b.me.used = { sig: sg, keys: [] };
     if (!b.me.used.keys.includes(key)) b.me.used.keys.push(key);
     b.me.cp -= cost;
+    if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}` });
   }, host);
+}
+/** Points for a mission, from the boxes ticked. Up to the round's limit; what was counted is what's recorded. */
+function openScoreSheet(kind, host, idx) {
+  const p = B.me, sec = kind === "sec" ? p.secs[idx] : null;
+  if (kind === "sec" && !sec) return;
+  const name = kind === "pri" ? p.priMission : sec.name;
+  const rows = scoringRows(kind === "pri" ? primaryCard(p.priMission) : missionPack()?.secondaries?.find(m => m.name === sec.name));
+  const rec = kind === "pri" ? p.priScores.find(r => r.round === B.round) : sec;
+  const checked = new Set(rec?.checks || []);
+  const cap = capPerRound();
+  const own = rec?.round === B.round ? rec.vp || 0 : 0;
+  const other = gainedThisRound(p, kind) - own;   // VP this round from the rest of the same kind
+  const sumOf = set => [...set].reduce((a, i) => a + (rows[i]?.n || 0), 0);
+  const counted = () => Math.min(sumOf(checked), Math.max(0, cap - other));
+  const d = openSheet(`<div class="sheet-head"><h2>${esc(name || "Score")}</h2>
+      <p>Tick each way ${kind === "pri" ? "the Primary Mission" : "this Secondary Mission"} was scored this round. ${cap} VP is the most that counts for each of Primary and Secondary in one round.</p></div>
+    <div class="sheet-body bt-scorelist">${rows.length ? rows.map((r, i) => `<label class="bt-scorerow"><input type="checkbox" data-k="${i}" ${checked.has(i) ? "checked" : ""}><span><i>${esc(r.round)}</i>${esc(r.text)}</span><b>${r.n} VP</b></label>`).join("") : `<p class="bt-hint">No scoring is printed for this mission in the mission pack.</p>`}</div>
+    <p class="bt-scoretot" aria-live="polite"></p>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept ${rows.length ? "" : "disabled"}>Accept</button></div>`);
+  const tot = d.querySelector(".bt-scoretot");
+  const show = () => { const raw = sumOf(checked), c = counted(); tot.textContent = `${c} VP this round${c < raw ? ` (counts ${c} of ${raw}: the round's limit is ${cap})` : ""}`; };
+  show();
+  d.onchange = e => { const k = +e.target.dataset.k; if (Number.isNaN(k)) return; e.target.checked ? checked.add(k) : checked.delete(k); show(); };
+  d.onclick = e => {
+    if (!e.target.closest("[data-accept]") || e.target.closest("[disabled]")) return;
+    const vp = counted(), keys = [...checked].sort((a, b) => a - b);
+    d.close();
+    change(b => {
+      const pl = b.me;
+      const prev = kind === "pri" ? (pl.priScores.find(r => r.round === b.round)?.vp || 0) : (pl.secs[idx]?.vp || 0);
+      if (kind === "pri") {
+        let r = pl.priScores.find(x => x.round === b.round);
+        if (!r) pl.priScores.push(r = { round: b.round, checks: [], vp: 0 });
+        r.checks = keys; r.vp = vp;
+      } else {
+        const s = pl.secs[idx]; if (!s) return;
+        s.checks = keys; s.vp = vp; s.round = b.round;
+      }
+      if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${name} (${kind === "pri" ? "Primary" : "Secondary"})` });
+    }, host);
+  };
+}
+/** Taking a Secondary Mission off the list asks first. Cancel does nothing. */
+function openRemoveSheet(idx, host) {
+  const s = B.me.secs[idx]; if (!s) return;
+  const d = openSheet(`<div class="sheet-head"><h2>Remove Secondary Mission?</h2><p>${esc(s.name)} comes off your list of Secondary Missions.</p></div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept>Accept</button></div>`);
+  d.onclick = e => {
+    if (!e.target.closest("[data-accept]")) return;
+    d.close();
+    change(b => { const [gone] = b.me.secs.splice(idx, 1); if (gone) logEv(b, "you", { badge: "Removed", tone: "sec", text: gone.name }); }, host);
+  };
+}
+/** The Secondary Missions in the pack that aren't on the list yet. */
+function openAddSheet(host) {
+  const all = missionPack()?.secondaries || [];
+  const have = new Set(B.me.secs.map(s => s.name));
+  const left = all.filter(m => !have.has(m.name));
+  const d = openSheet(`<div class="sheet-head"><h2>Add a Secondary Mission</h2><p>From the mission pack in your Library.</p></div>
+    <div class="sheet-body bt-addlist">${left.length ? left.map(m => `<button type="button" class="bt-addrow" data-add="${esc(m.name)}"><b>${esc(m.name)}</b><span>Add</span></button>`).join("") : `<p class="bt-hint">${all.length ? "Every Secondary Mission in the pack is already on your list." : "Add a mission pack PDF in Library to choose Secondary Missions here."}</p>`}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button></div>`, true);
+  d.onclick = e => {
+    const row = e.target.closest("[data-add]"); if (!row) return;
+    const name = row.dataset.add;
+    d.close();
+    change(b => { b.me.secs.push({ name, checks: [], vp: 0, round: b.round }); logEv(b, "you", { badge: "New", tone: "sec", text: `Drew ${name}` }); }, host);
+  };
 }
 /** A stratagem with two costs: a pop-up asks how many Command Points to spend. */
 function openSpendSheet(s, host) {
@@ -354,13 +515,32 @@ function handleTrackerClick(e, host) {
   const ph = t.closest("[data-bt-phase]");
   if (ph) { change(b => { b.phase = +ph.dataset.btPhase; }, host); return true; }
   const cp = t.closest("[data-bt-cp]");
-  if (cp && !cp.disabled) { change(b => { const p = b[cp.dataset.btCp]; p.cp = Math.max(0, p.cp + +cp.dataset.d); }, host); return true; }
+  if (cp && !cp.disabled) {
+    const who = cp.dataset.btCp, d = +cp.dataset.d, name = who === "me" ? B.me.name || "You" : B.them.name || "Opponent";
+    change(b => {
+      const p = b[who], before = p.cp;
+      p.cp = Math.max(0, p.cp + d);
+      if (p.cp !== before) logEv(b, who === "me" ? "you" : "opponent", { badge: d > 0 ? "+1" : "-1", tone: d > 0 ? "cp-plus" : "cp-minus", text: `${d > 0 ? "Gained" : "Spent"} a Command Point (${name})` });
+    }, host);
+    return true;
+  }
   // The two army buttons: tapping the one that's open goes back to the tracker.
   const nb = t.closest("[data-bt-pane]");
   if (nb) { showPane(pane === nb.dataset.btPane ? "tracker" : nb.dataset.btPane, host); return true; }
   // The boxes under the columns: open and close, expand a stratagem's text, or use it.
   const use = t.closest("[data-bt-use]");
   if (use) { useStratagem(use.dataset.btUse, host); return true; }
+  // The Primary and Secondary boxes, their Score buttons, and the Secondary Missions' rows.
+  const mh = t.closest("[data-bt-mhead]");
+  if (mh) { toggleIn(openBoxes, mh.dataset.btMhead); renderTracker(host); return true; }
+  if (t.closest("[data-bt-score]")) { openScoreSheet("pri", host); return true; }
+  const ss = t.closest("[data-bt-secscore]");
+  if (ss) { openScoreSheet("sec", host, +ss.dataset.btSecscore); return true; }
+  const sd = t.closest("[data-bt-secdel]");
+  if (sd) { openRemoveSheet(+sd.dataset.btSecdel, host); return true; }
+  if (t.closest("[data-bt-secadd]")) { openAddSheet(host); return true; }
+  const evd = t.closest("[data-bt-evdel]");
+  if (evd) { change(b => { const e = (b.events || []).find(x => x.id === evd.dataset.btEvdel); if (e) e.struck = true; }, host); return true; }
   const box = t.closest("[data-bt-box]");
   if (box) { toggleIn(openBoxes, box.dataset.btBox); renderTracker(host); return true; }
   const srow = t.closest("[data-bt-strat]");
@@ -373,20 +553,27 @@ function handleTrackerClick(e, host) {
 /* Snapping in the tracker. Each section's top is a stop. A firm wheel notch, swipe or flick moves on to the next section.
    A weaker scroll bounces back to the top of the section it started from. Going down, the next section comes up once its top
    reaches the bottom edge of the screen; going up, the section above comes up once the gap has been scrolled past. The page
-   settles when the scroll has ended (so a finger's momentum isn't cut short). While a box is open and taller than the screen,
-   the scroll is free until the box's bottom edge is on screen. */
-const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
+   settles when the scroll has ended (so a finger's momentum isn't cut short). After a snap, the screen is held on that stop
+   until the scrolling has been still for a moment, so momentum or trackpad flicks can't carry it past to the next section.
+   While a box is open and taller than the screen, the scroll is free until the box's bottom edge is on screen. */
+const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35, LOCK_IDLE = 250;
 const HAS_SCROLLEND = "onscrollend" in window;
 let snapTimer = 0, snapping = false, snapId = 0, snapDir = 1, lastScroll = 0, restPos = 0;
+let lockTarget = null, lockTimer = 0;
 
 /** The top of each section, in the pane's scroll coordinates. */
 function sectionStarts(pane) {
   const pr = pane.getBoundingClientRect(), cur = pane.scrollTop;
   return [...pane.querySelectorAll(".bt-tracker > section")].map(s => s.getBoundingClientRect().top - pr.top + cur);
 }
+/** Holds the screen on a stop until the scrolling has been still for LOCK_IDLE, then lets it settle. */
+function holdFor(pane) {
+  clearTimeout(lockTimer);
+  lockTimer = setTimeout(() => { lockTarget = null; snapTo(pane); }, LOCK_IDLE);
+}
 /** Moves the tracker to a section top. `flick` (+1 down, -1 up) asks for the next section that way at once. */
 function snapTo(pane, flick = 0) {
-  if (!B?.active || snapping) return false;
+  if (!B?.active || snapping || lockTarget != null) return false;
   const starts = sectionStarts(pane);
   if (!starts.length) return false;
   const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
@@ -396,13 +583,14 @@ function snapTo(pane, flick = 0) {
   if (i >= 0 && boxes[i].bottom > cur + view) return false;   // a tall open box scrolls freely
   const G = pane.querySelector(".bt-gap")?.offsetHeight || 0;
   const R = Math.min(restPos, max);   // the section top the screen rests on
-  const next = [...starts, ...(max > starts[starts.length - 1] + 1 ? [max] : [])].find(v => v > R + 1) ?? null;
+  const next = starts.find(v => v > R + 1) ?? null;   // only the section tops are stops
   const prev = [...starts].reverse().find(v => v < R - 1) ?? null;
   let target;
   if (flick) {
     target = flick > 0 ? next : prev;
     if (target == null) return false;
   } else if (snapDir > 0) {
+    if (next == null && max > R + 1) return false;   // the last section is taller than the screen: scroll freely
     // Down: the next section comes up once its top reaches the bottom edge of the screen (the bottom stop: after 40px).
     target = next == null ? R : (cur - R >= Math.max(SNAP_NEAR, Math.min(next - R, next - view - R)) ? next : R);
   } else {
@@ -415,6 +603,7 @@ function snapTo(pane, flick = 0) {
   setCompact(second != null && target >= second - 1);
   if (Math.abs(target - cur) < 2) return false;
   snapping = true; const id = ++snapId;
+  lockTarget = target; holdFor(pane);
   pane.scrollTo({ top: target, behavior: "smooth" });
   const done = () => { if (id === snapId) snapping = false; };
   pane.addEventListener("scrollend", done, { once: true });
@@ -428,17 +617,23 @@ function wireTrackerSnap(host) {
     const pane = e.target;
     if (!pane.classList?.contains("bt-pane") || pane.dataset.pane !== "tracker") return;
     if (pane.scrollTop !== lastScroll) { if (!snapping) snapDir = pane.scrollTop > lastScroll ? 1 : -1; lastScroll = pane.scrollTop; }
+    // Held on a stop: any momentum that carries past it is brought back to it.
+    if (lockTarget != null && !snapping) {
+      if (Math.abs(pane.scrollTop - lockTarget) > 2) pane.scrollTo({ top: lockTarget });
+      holdFor(pane);
+      return;
+    }
     if (snapping || HAS_SCROLLEND) return;
     clearTimeout(snapTimer); snapTimer = setTimeout(() => snapTo(pane), SNAP_PAUSE);
   }, { capture: true, passive: true });
   // Settled: the scroll has ended, after any momentum.
-  host.addEventListener("scrollend", e => { const pane = e.target; if (pane?.dataset?.pane === "tracker") snapTo(pane); }, { capture: true, passive: true });
+  host.addEventListener("scrollend", e => { const pane = e.target; if (pane?.dataset?.pane === "tracker" && lockTarget == null) snapTo(pane); }, { capture: true, passive: true });
   // A firm wheel scroll (a notch, or enough trackpad movement) goes on to the next section.
   let acc = 0, last = 0;
   host.addEventListener("wheel", e => {
     const pane = isTracker(e.target);
     if (!pane || !B?.active) return;
-    if (snapping) { e.preventDefault(); return; }
+    if (snapping || lockTarget != null) { e.preventDefault(); if (lockTarget != null) holdFor(pane); acc = 0; return; }
     // Movement counts while it keeps coming: a mouse notch is one step, a trackpad flick is many small ones close together.
     const now = performance.now(); if (now - last > 120) acc = 0; last = now;
     if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
@@ -448,9 +643,9 @@ function wireTrackerSnap(host) {
     clearTimeout(snapTimer);
     if (snapTo(pane, dir)) e.preventDefault();
   }, { capture: true, passive: false });
-  // A quick, firm swipe up or down goes on to the next section.
+  // A quick, firm swipe up or down goes on to the next section. A new touch releases a hold.
   let tp = null, tx = 0, ty = 0, tt = 0;
-  host.addEventListener("touchstart", e => { tp = isTracker(e.target); const t = e.touches[0]; tx = t.clientX; ty = t.clientY; tt = performance.now(); }, { passive: true, capture: true });
+  host.addEventListener("touchstart", e => { lockTarget = null; clearTimeout(lockTimer); tp = isTracker(e.target); const t = e.touches[0]; tx = t.clientX; ty = t.clientY; tt = performance.now(); }, { passive: true, capture: true });
   host.addEventListener("touchend", e => {
     const pane = tp; tp = null;
     if (!pane || !B?.active) return;
