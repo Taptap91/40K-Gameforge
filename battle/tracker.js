@@ -174,20 +174,40 @@ function trackerHTML(armies) {
     </section>
     <div class="bt-gap" aria-hidden="true"></div>
     <section class="bt-s2">${boxesHTML(armies)}</section>
+    <div class="bt-gap" aria-hidden="true"></div>
+    <section class="bt-s3"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
   </div>`;
 }
-/** The strip sits under the header when it's full, and inside the header bar once the second screen is showing. */
-function mountStick(compact) {
+/** The strip sits under the header when it's full, and inside the header bar once the second screen is showing.
+   When it moves, the turn and phase bar slide from where they were, and the screens follow the header's new height. */
+const reduceMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+function mountStick(compact, animate = false) {
   const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
+  const pane = document.querySelector('.bt-pane[data-pane="tracker"]');
+  const old = document.querySelector("#view-battle .bt-stick");
+  const before = animate && old ? [...old.querySelectorAll(".bt-turn, .bt-phases")].map(el => el.getBoundingClientRect()) : null;
+  const paneTop = animate && pane ? pane.getBoundingClientRect().top : null;
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   if (!B?.active || !host || !header) return;
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
+  if (!animate || reduceMotion()) return;
+  const ms = 220, ease = "cubic-bezier(.2,.7,.2,1)";
+  if (before) [...el.querySelectorAll(".bt-turn, .bt-phases")].forEach((node, n) => {
+    const a = before[n], b = node.getBoundingClientRect();
+    if (!a) return;
+    const dx = a.left - b.left, dy = a.top - b.top;
+    if (dx || dy) node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }], { duration: ms, easing: ease });
+  });
+  if (pane && paneTop != null) {
+    const dy = paneTop - pane.getBoundingClientRect().top;
+    if (Math.abs(dy) > 0.5) pane.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: ms, easing: ease });
+  }
 }
 function setCompact(on) {
   const el = document.querySelector("#view-battle .bt-stick");
-  if (!!el?.classList.contains("compact") !== on) mountStick(on);
+  if (!!el?.classList.contains("compact") !== on) mountStick(on, true);
 }
 
 /* ---------- the armies ---------- */
@@ -265,7 +285,6 @@ function renderTracker(host) {
     </div>
     <footer class="bt-footer">
       <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>
-      <button type="button" class="btn bt-end" data-bt-end>End Battle</button>
     </footer>`;
   // The header reads "Round N" while the battle is on.
   const title = document.querySelector("#view-battle h1"); if (title) title.textContent = `Round ${B.round}`;
