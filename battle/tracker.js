@@ -263,8 +263,10 @@ function renderTracker(host) {
       <div class="bt-pane" data-pane="tracker">${trackerHTML(armies)}</div>
       <div class="bt-pane" data-pane="them">${armyHTML("them", armies.them)}</div>
     </div>
-    <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>
-    <div class="bt-foot"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></div>`;
+    <footer class="bt-footer">
+      <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>
+      <button type="button" class="btn bt-end" data-bt-end>End Battle</button>
+    </footer>`;
   // The header reads "Round N" while the battle is on.
   const title = document.querySelector("#view-battle h1"); if (title) title.textContent = `Round ${B.round}`;
   // Compact once the scroll is past the middle of the way to the second screen (decided from where the pane was left).
@@ -350,7 +352,7 @@ function handleTrackerClick(e, host) {
 /* Snapping in the tracker: the top section and each box's top are rest points. After a scroll, the page settles on one:
    a nearby rest point, or in the direction of the scroll. A firm wheel notch or swipe moves on to the next section at
    once. While a box is open and taller than the screen, the scroll is free until the box's bottom edge is on screen. */
-const SNAP_NEAR = 40, SNAP_PAUSE = 50, SNAP_TIME = 260, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
+const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 260, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
 let snapTimer = 0, snapping = false, snapDir = 1, lastScroll = 0;
 /** Moves the tracker to a rest point. `flick` (+1 down, -1 up) asks for the next section in that direction. */
 function snapTo(pane, flick = 0) {

@@ -269,10 +269,12 @@ function leftHTML(c) {
     groups[DATASHEET_GROUPS.findIndex(([, test]) => test(kws))].items.push(ds);
   }
   // Detachments: name on the left, DP on the right, and the Unique tag on its own line below so it can't be read as part of the name.
+  // A detachment stays open in the list while any of its own parts (the page, Stratagems or Enhancements) is selected.
+  const inDet = k => ["det", "dstrat", "denh"].includes(fUI.sel?.t) && fUI.sel.k === k;
   const detItem = d => {
     const k = normName(d.name), uq = detUnique(d), dp = parseInt(d.dp, 10);
     // One line: name, then the Unique tag, then DP at the right edge.
-    return `<button type="button" class="fp-item fp-det${fUI.sel?.t === "det" && fUI.sel.k === k ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}" title="${esc(d.name)}${uq ? ` · Unique: ${esc(uq)}` : ""}">
+    return `<button type="button" class="fp-item fp-det${inDet(k) ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}" title="${esc(d.name)}${uq ? ` · Unique: ${esc(uq)}` : ""}">
       <span class="fp-irow"><span class="fp-iname">${esc(softenCaps(d.name))}</span>${uq ? `<span class="fp-uq"><span class="fp-uq-k">Unique</span><span class="fp-uq-v">${esc(uq)}</span></span>` : ""}${dp ? `<span class="fp-dp">${dp} DP</span>` : ""}</span></button>`;
   };
   const pts = ds => { const u = c.priced.get(normName(ds.name)); const o = u?.options || ds.points || []; return o.length ? `${Math.min(...o.map(p => p.points))} pts` : ""; };
@@ -280,22 +282,17 @@ function leftHTML(c) {
     ${group("army", "Army Rules", c.topRules.map(r => { const ps = armyRuleParts(r, c.armyRules);
       return item("army", normName(r.name), r.name, r.special ? "Special move" : ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : ""); }))}
     ${group("det", "Detachments", c.detachments.map(d => { const k = normName(d.name);
-      return `<div class="fp-detwrap" data-name="${esc(k)}">${detItem(d)}${fUI.sel?.t === "det" && fUI.sel.k === k ? detSubsHTML(d) : ""}</div>`; }))}
+      return `<div class="fp-detwrap" data-name="${esc(k)}">${detItem(d)}${inDet(k) ? detSubsHTML(d) : ""}</div>`; }))}
     ${groups.map(g => group(g.title, g.title, g.items.sort((a, b) => a.name.localeCompare(b.name)).map(ds => item("unit", normName(ds.name), ds.name, pts(ds))))).join("")}
     <div class="fp-none" hidden>Nothing matches that name.</div>`;
 }
 
 const flavourHTML = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
-/** Under a selected detachment in the list: two boxes, Stratagems then Enhancements, each with its entries (open one at a time to read). */
+/** Under a selected detachment in the list: two boxes, Stratagems then Enhancements. Choosing one shows its entries in the right column. */
 function detSubsHTML(d) {
-  const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
-  const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
-  const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
-  const entry = (name, meta, x) => `<details class="fp-subent"><summary><span class="fp-subname">${esc(softenCaps(name))}</span>${meta ? `<span class="fp-imeta">${esc(meta)}</span>` : ""}</summary><div class="fv-rich fp-subtext">${flavourHTML(x)}${richHTML(x.rich || x.text)}</div></details>`;
-  const box = (title, entries) => `<div class="fp-subrow"><svg class="fp-arrow" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1v8.5h8"/><path d="M8.5 6.5 11 9l-2.5 2.5"/></svg><details class="fp-subbox"><summary>${title} · ${entries.length}</summary><div class="fp-subitems">${entries.join("") || `<div class="fp-imeta">None</div>`}</div></details></div>`;
-  const strats = d.stratagems.map(st => entry(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), st));
-  const enhs = d.enhancements.map(e => entry(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), e));
-  return `<div class="fp-subs">${box("Stratagems", strats)}${box("Enhancements", enhs)}</div>`;
+  const k = normName(d.name);
+  const box = (t, title, n) => `<div class="fp-subrow"><svg class="fp-arrow" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1v8.5h8"/><path d="M8.5 6.5 11 9l-2.5 2.5"/></svg><button type="button" class="fp-subbox${fUI.sel?.t === t && fUI.sel.k === k ? " on" : ""}" data-fp="${t}" data-k="${esc(k)}">${title} · ${n}</button></div>`;
+  return `<div class="fp-subs">${box("dstrat", "Stratagems", d.stratagems.length)}${box("denh", "Enhancements", d.enhancements.length)}</div>`;
 }
 
 function rightHTML(c) {
@@ -310,10 +307,26 @@ function rightHTML(c) {
       ${panelHTML("", `<div class="fv-rich fv-army fp-text">${richHTML(r.rich || r.text)}</div>`)}
       ${ps.length ? panelHTML(esc(pluralKind(ps[0].kind, ps.length)), ps.map(p => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(p.name))}</div><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("")) : ""}`;
   }
+  if (s.t === "dstrat" || s.t === "denh") {
+    const d = c.detachments.find(x => normName(x.name) === s.k);
+    if (!d) return "";
+    const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
+    const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
+    const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
+    const fl = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
+    const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;
+    const strat = s.t === "dstrat";
+    const items = strat
+      ? d.stratagems.map(st => ab(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), fl(st) + richHTML(st.rich || st.text)))
+      : d.enhancements.map(e => ab(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), fl(e) + richHTML(e.rich || e.text)));
+    return `${back}<div class="fp-head"><h2>${strat ? "Stratagems" : "Enhancements"}</h2><div class="fp-sub">${esc(d.name)} · ${items.length}</div></div>
+      ${items.length ? panelHTML("", items.join("")) : `<div class="fp-empty">None in this detachment.</div>`}`;
+  }
   if (s.t === "det") {
     const d = c.detachments.find(x => normName(x.name) === s.k);
     if (!d) return "";
     const uq = detUnique(d);
+    const disp = d.dispositions?.length ? d.dispositions : uq ? [uq] : [];
     const rivals = uq ? c.detachments.filter(o => o !== d && normName(detUnique(o)) === normName(uq)).map(o => o.name) : [];
     const rules = d.rules.filter(r => !/^unique\b/i.test(r.name));
     const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
@@ -324,6 +337,7 @@ function rightHTML(c) {
     const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;
     return `${back}<div class="fp-head"><h2>${esc(d.name)}</h2><div class="fp-sub">Detachment · ${esc(String(d.dp || "").replace(/(\d+)\s*DP/i, "$1 DP"))}</div></div>
       ${uq ? `<div class="fv-unique"><b>Unique: ${esc(uq)}</b><span>${rivals.length ? `Can't be taken in the same army as ${esc(rivals.join(", "))}.` : "No other detachment in your army may share this tag."}</span></div>` : ""}
+      ${disp.length ? panelHTML("Force Disposition:", `<div class="fp-disp"><span class="fp-disp-sym" aria-hidden="true">◆</span><span class="fp-disp-name">${esc(disp.join(", "))}</span></div>`) : ""}
       ${d.description ? panelHTML("", `<div class="fv-rich fp-text">${richHTML(d.description)}</div>`) : ""}
       ${rules.length ? panelHTML("Detachment Rules", rules.map(r => ab(r.name, "", fl(r) + richHTML(r.rich || r.text))).join("")) : ""}
       `;

@@ -128,8 +128,9 @@
 .bt-pane[data-pane="tracker"] { padding: 0 16px; gap: 0; }
 .bt-s1 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 10px; display: flex; flex-direction: column; gap: 12px; }
 .bt-gap { flex: none; height: 64px; }
-.bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
-.bt-foot { flex: none; padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--sidebar); }
+.bt-s2 { box-sizing: border-box; min-height: 100vh; min-height: 100dvh; padding-top: 12px; display: flex; flex-direction: column; }   /* the same 12px as the turn text has under the header */
+/* One footer for the army buttons and End Battle: a single top border and background, End Battle full width beneath. */
+.bt-footer { flex: none; display: flex; flex-direction: column; gap: 10px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--sidebar); }
 .bt-end { width: 100%; min-height: 52px; font-weight: 800; }
 /* Phases: one bar in the faction colours of whoever's turn it is. Full names when they fit, short ones on phones. */
 .bt-phases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px;
@@ -168,7 +169,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-shell { flex: 1; min-height: 0; display: flex; width: 300%; transform: translateX(calc(var(--i) * -33.3333%)); transition: transform .3s ease; }
 .bt-pane { width: 33.3333%; min-width: 0; flex: none; overflow-y: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
 .bt-pane > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
-.bt-armynav { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--sidebar); }
+.bt-armynav { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .bt-navbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--c1) 45%, var(--border)); border-radius: 12px; color: #fff; text-align: left; cursor: pointer; min-width: 0; font: inherit;
   background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 55%, var(--window)), color-mix(in srgb, var(--c2) 30%, var(--window))); }
 .bt-navbtn:last-child { align-items: flex-end; text-align: right; }

@@ -622,8 +622,11 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-subrow { display: flex; align-items: center; gap: 10px; }
 .fp-arrow { flex: none; width: 14px; height: 14px; color: var(--text-2); }
 .fp-arrow path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.fp-subbox { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
-.fp-subbox > summary { list-style: none; cursor: pointer; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+.fp-subbox { flex: 1; min-width: 0; display: block; text-align: left; font: 600 13px/1.3 var(--font); color: var(--text); padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); cursor: pointer; }
+.fp-subbox:hover { border-color: var(--border-strong); background: var(--panel-2); }
+.fp-subbox.on { border-color: var(--accent); background: var(--accent-soft); }
+.fp-disp { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
+.fp-disp-sym { color: var(--accent); font-size: 16px; line-height: 1; }
 .fp-subbox > summary::-webkit-details-marker, .fp-subent > summary::-webkit-details-marker { display: none; }
 .fp-subitems { display: flex; flex-direction: column; gap: 0; padding: 0 12px 6px; }
 .fp-subent { border-top: 1px solid var(--border); }
