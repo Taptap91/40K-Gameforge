@@ -339,7 +339,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 /* Wide screens (desktop, 1280px and up). Three columns: your army | the tracker (760px, sections 728px) | your opponent's army.
    The army columns are as narrow as their unit names need, and do not move when the tracker scrolls. */
 @media (min-width: 1280px) {
-  :root { --bt-pad: 16px; --bt-k: 2; --bt-gap: calc(var(--bt-pad) * var(--bt-k)); }
+  :root { --bt-pad: 16px; --bt-k: 2; --bt-gap: calc(var(--bt-pad) * var(--bt-k) + clamp(50px, 3.5vw, 120px)); }
   .bt-shell { width: 100%; transform: none; transition: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 760px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .bt-pane { width: auto; min-width: 0; }
   .bt-pane[data-pane="them"] { grid-column: 1; grid-row: 1; padding: 0 calc(var(--bt-gap) - var(--bt-pad)) 24px var(--bt-pad); overscroll-behavior: contain; }
@@ -355,7 +355,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-pane[data-pane="me"] .bt-attached b, .bt-pane[data-pane="them"] .bt-attached b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bt-footer { display: none; }
   /* Header: Round # lines up with the left edge of the sections; the turn and the phase tracker sit on the sections' edges too. */
-  #view-battle > header.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 8px; padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
+  #view-battle > header.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 8px; padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
   #view-battle > header.toolbar > h1 { grid-column: 1; grid-row: 1; justify-self: start; }
   #view-battle > header.toolbar > .spacer { display: none; }
   #view-battle > header.toolbar { position: relative; }
@@ -365,8 +365,8 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
   #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-strow { display: contents; }
-  #view-battle > header.toolbar > .bt-stick.compact .bt-turn { grid-column: 2; grid-row: 1; justify-self: end; font-size: 20px; text-align: right; color: var(--text-2); }
-  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 1 / -1; grid-row: 2; width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px; border-radius: 14px; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-turn { grid-column: 3; grid-row: 1; justify-self: end; font-size: 20px; text-align: right; color: var(--text-2); }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 2; grid-row: 1; justify-self: center; align-self: center; width: max-content; display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px; border: 0; border-radius: 14px; }
   /* Only the phase the players are in, centred. */
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases button:not(.on) { display: none; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 50px; font-size: 20px; }
@@ -394,7 +394,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 /* Wide screens: the turn text is always in the header box, level with Round #; the copy inside the strip is hidden. */
 .bt-hturn { display: none; }
 @media (min-width: 1280px) {
-  #view-battle > header.toolbar > .bt-hturn { display: block; grid-column: 2; grid-row: 1; justify-self: end; font-size: 20px; color: var(--text-2); white-space: nowrap; }
+  #view-battle > header.toolbar > .bt-hturn { display: block; grid-column: 3; grid-row: 1; justify-self: end; font-size: 20px; color: var(--text-2); white-space: nowrap; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-turn, .bt-stick:not(.compact) .bt-turn { display: none; }
 }
 
@@ -402,3 +402,6 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 #view-battle .bt-phases { background: var(--panel); border: 1px solid var(--border-strong); box-shadow: none; }
 #view-battle .bt-phases button { font-weight: 500; filter: brightness(.75); }
 #view-battle .bt-phases button.on { font-weight: 800; filter: none; background: linear-gradient(90deg, var(--c1, #555), var(--c2, #555)); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+
+/* Compact phase box: no outline, centred vertically with Round # and the turn text. */
+@media (min-width: 1280px) { #view-battle > header.toolbar > .bt-stick.compact .bt-phases { border: 0; box-shadow: none; } }
