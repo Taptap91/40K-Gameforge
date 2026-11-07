@@ -13,28 +13,39 @@ import { confirmSheet } from "../js/core.js?v=8.5";
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
 const STEPS = ["Game Size", "Muster Armies", "Mission & Battlefield", "Attacker and Defender & Secondaries", "Deploy & Begin"];
-/* Choices both players share: a press on one phone shows on the other. Who-is-who choices are flipped for the other phone. */
-const SHARED = ["size", "layout", "twist", "defender", "firstTurn", "step"];
+/* Choices both players share: a press on one phone shows on the other. Who-is-who choices are flipped for the other phone.
+   The step each player is on is their own: both go through the setup at their own pace. */
+const SHARED = ["size", "layout", "twist", "defender", "firstTurn"];
+const LAYOUTS = ["A", "B", "C"];
+/* A player who has pressed Ready waits this long for the other to press it, then Ready is taken back. */
+const READY_WAIT = 5 * 60 * 1000;
+let readyTimer = 0;
 const FLIP = { you: "opponent", opponent: "you" };
 const SIZES = [1000, 2000];
 
-const fresh = () => ({ step: 1, size: 2000, listId: "", disposition: "", battleReady: false, layout: "A", twist: "", defender: "", secondaries: "tactical", realCards: false, firstTurn: "", myCode: "", peerCode: "" });
+const fresh = () => ({ step: 1, size: 2000, listId: "", disposition: "", battleReady: false, layout: "A", twist: "", defender: "", secondaries: "tactical", realCards: false, firstTurn: "", myCode: "", peerCode: "", ready: false, readyAt: 0 });
 let S = { ...fresh(), ...store.get("rf.battleSetup", {}) };
 let opponent = store.get("rf.battleOpponent", null);   // { name, list, faction, disposition, battleReady } (+ their faction's rules, kept in memory)
 let opponentRules = null;
 let sync = null, layoutsData = null, link = "none";   // link: none · connected · lost
 const save = () => { store.set("rf.battleSetup", S); store.set("rf.battleOpponent", opponent); };
 const set = (patch, fromPeer = false) => {
+  const wasReady = S.ready;
   S = { ...S, ...patch };
   // A different battle size (from either phone) clears a list of the wrong size.
   if ("size" in patch && myList() && +myList().points !== +S.size) { S.listId = ""; S.disposition = ""; }
+  // Ready belongs to the last screen: leaving it, or changing the battle size, takes it back.
+  if (((("step" in patch) && patch.step !== 5) || ("size" in patch)) && S.ready) { S.ready = false; S.readyAt = 0; }
   save();
   if (sync && !fromPeer) {
-    if ("disposition" in patch || "listId" in patch || "battleReady" in patch) sync.send({ player: myPayload(false) });
+    if (["disposition", "listId", "battleReady"].some(k => k in patch) || wasReady !== S.ready) sync.send({ player: myPayload(false) });
     const shared = Object.fromEntries(Object.entries(patch).filter(([k]) => SHARED.includes(k)).map(([k, v]) => [k, (k === "defender" || k === "firstTurn") ? FLIP[v] || v : v]));
     if (Object.keys(shared).length) sync.send({ shared });
   }
+  // Moving the layout slides the maps along; anything else redraws the screen.
+  if (Object.keys(patch).length === 1 && "layout" in patch && slideLayout(S.layout)) return;
   render();
+  checkBegin();
 };
 
 const myList = () => state.lists.find(l => l.id === S.listId && l.version === 2);
@@ -45,7 +56,7 @@ const username = () => String(store.get("rf.playerName", "") || "").trim();
 /** What this player sends when syncing: name, army list, its faction's rules and units, disposition, Battle Ready. */
 function myPayload(full = true) {
   const list = myList();
-  const p = { code: S.myCode, name: username(), list: list ? { name: list.name, faction: list.faction, points: list.points, detachments: list.detachments, units: list.units } : null, faction: list?.faction || "", disposition: S.disposition, battleReady: S.battleReady };
+  const p = { code: S.myCode, name: username(), list: list ? { name: list.name, faction: list.faction, points: list.points, detachments: list.detachments, units: list.units } : null, faction: list?.faction || "", disposition: S.disposition, battleReady: S.battleReady, ready: !!S.ready, readyAt: S.readyAt || 0 };
   if (full) p.shared = Object.fromEntries(SHARED.map(k => [k, S[k]]));
   if (full && trackerActive()) p.battle = currentBattle();
   if (full && list) {
@@ -67,7 +78,7 @@ function receive(p, fullHello) {
     if (!again && p.shared) set(Object.fromEntries(Object.entries(p.shared).map(([k, v]) => [k, (k === "defender" || k === "firstTurn") ? FLIP[v] || v : v])), true);
   } else if (p.player) opponent = { ...(opponent || {}), ...p.player };
   else if (p.shared) return set(p.shared, true);
-  save(); render();
+  save(); render(); checkBegin();
 }
 
 /* ---------- pieces ---------- */
@@ -141,11 +152,11 @@ function screen3() {
       ${me.card ? missionCard(me.card, "primary") : `<div class="bs-hint">Your Primary Mission: ${esc(me.name || "not found in the mission pack")}</div>`}
       ${them.name ? `<div class="bs-hint">${esc(opponent?.name || "Your opponent")}'s Primary Mission: <b>${esc(them.name)}</b></div>` : ""}`;
   }
-  const lays = mine && theirs ? layoutsFor(mine, theirs) : null, lay = lays?.[S.layout];
+  const lays = mine && theirs ? layoutsFor(mine, theirs) : null;
   const twist = pack.twists.find(t => t.name === S.twist);
   return section("Primary Mission", (need ? `<div class="bs-hint">${need}</div>` : "") + manual + mission)
-    + (lays ? section("Battlefield", `${toggle("layout", ["A", "B", "C"].map(k => [k, `Layout ${k}`]), S.layout)}
-        ${lay ? `<figure class="bs-map"><img src="battle/maps/${esc(lay.image)}" alt="Layout ${S.layout} terrain map"><figcaption>${esc(lay.deployment)} · Layout ${S.layout}</figcaption></figure>` : `<div class="bs-hint">No map for this layout.</div>`}`) : "")
+    + (lays ? section("Battlefield", `${toggle("layout", LAYOUTS.map(k => [k, `Layout ${k}`]), S.layout)}
+        <div class="bs-mapwin"><div class="bs-maptrack" style="transform:translateX(${-LAYOUTS.indexOf(S.layout) * 100}%)">${LAYOUTS.map(k => { const l = lays[k]; return `<div class="bs-mapslide">${l ? `<figure class="bs-map"><img src="battle/maps/${esc(l.image)}" alt="Layout ${k} terrain map"><figcaption>${esc(l.deployment)} · Layout ${k}</figcaption></figure>` : `<div class="bs-hint">No map for this layout.</div>`}</div>`; }).join("")}</div></div>`) : "")
     + section("Twist <small>(Optional)</small>", `<div class="bs-twistrow"><button type="button" class="btn" data-bs-twist-random>Draw Randomly</button>
         <select class="select bs-twistsel" data-bs-twist><option value="">No twist</option>${pack.twists.map(t => `<option ${t.name === S.twist ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
         ${twist ? `<article class="mc mc-twist"><header><h3>${esc(twist.name)}</h3><span>Twist</span></header>${twist.flavour ? `<p class="mc-flavour">${esc(twist.flavour)}</p>` : ""}${twist.text.split("\n").map(p => `<p>${esc(p)}</p>`).join("")}${twist.note ? `<p class="mc-note"><b>Designer’s note:</b> ${esc(twist.note)}</p>` : ""}</article>` : ""}`)
@@ -160,6 +171,15 @@ function screen4() {
     + nextBtn("Deploy & Begin", 5);
 }
 
+/** Step 5's Ready: each player presses it on their own phone; the battle begins once both have. */
+function readyBlock() {
+  const linked = !!opponent && !!S.peerCode, name = esc(opponent?.name || "your opponent");
+  const status = !linked ? "Sync with your opponent (step 2) before you can be ready."
+    : S.ready ? (opponent?.ready ? "Both ready — starting the battle…" : `Waiting for ${name} to press Ready…`)
+    : (opponent?.ready ? `${name} is ready.` : `${name} hasn't pressed Ready yet.`);
+  return `<div class="bs-ready"><div class="bs-hint">${status}</div>
+    <button type="button" class="bs-begin${S.ready ? " on" : ""}" data-bs-ready ${linked && myList() ? "" : "disabled"}>${S.ready ? "Ready ✓ · tap to undo" : "Ready"}</button></div>`;
+}
 function screen5() {
   const steps = [["Declare Battle Formations", "Declare which units are starting the game in strategic reserve and Deep Strike."],
     ["Deploy Armies", "Starting with the player who was chosen to deploy first, alternate deploying units until none are left."],
@@ -168,19 +188,29 @@ function screen5() {
   return section("First Turn", `${toggle("firstTurn", [["you", esc(username() || "You")], ["opponent", esc(opponent?.name || "Opponent")]], S.firstTurn)}
       <div class="bs-hint">Each player rolls a D6, highest roll must go first.</div>`)
     + `<ol class="bs-seq">${steps.map(([h, t]) => `<li><h4>${h}</h4><p>${t}</p></li>`).join("")}</ol>
-      <button type="button" class="bs-begin" data-bs-begin>Begin Battle</button>`;
+      ${readyBlock()}`;
+}
+
+/** Slides the maps to the layout chosen, in place, so the change animates (no redraw, no reload). */
+function slideLayout(v) {
+  const host = $("#battleHost"), track = host?.querySelector(".bs-maptrack"), i = LAYOUTS.indexOf(v);
+  if (!track || i < 0) return false;
+  track.style.transform = `translateX(${-i * 100}%)`;
+  host.querySelectorAll("[data-bs-set=layout]").forEach(b => { const on = b.dataset.v === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  return true;
 }
 
 function render() {
   const host = $("#battleHost");
   if (!host || !host.classList.contains("bs-on")) return;
-  if (trackerActive()) { host.classList.add("bt-on"); renderTracker(host); tools(); return; }
+  if (trackerActive()) { clearTimeout(readyTimer); host.classList.add("bt-on"); renderTracker(host); tools(); return; }
   host.classList.remove("bt-on");
   const body = [screen1, screen2, screen3, screen4, screen5][S.step - 1]();
-  host.innerHTML = `<div class="bs-steps" role="tablist" aria-label="Battle setup steps">${STEPS.map((t, i) => `<button type="button" role="tab" class="${S.step === i + 1 ? "on" : ""}${i + 1 < S.step ? " done" : ""}" aria-selected="${S.step === i + 1}" data-bs-step="${i + 1}" title="${esc(t)}">${i + 1}</button>`).join("")}</div>
+  host.innerHTML = `<div class="bs-topbar"><button type="button" class="bs-back" data-bs-back aria-label="Back">‹</button><div class="bs-steps" role="tablist" aria-label="Battle setup steps">${STEPS.map((t, i) => `<button type="button" role="tab" class="${S.step === i + 1 ? "on" : ""}${i + 1 < S.step ? " done" : ""}" aria-selected="${S.step === i + 1}" data-bs-step="${i + 1}" title="${esc(t)}">${i + 1}</button>`).join("")}</div></div>
     <h2 class="bs-title"><span>${S.step}.</span><span>${esc(STEPS[S.step - 1])}</span></h2>${body}`;
   tools();
-  if (S.step === 3 && !layoutsData) fetch("battle/maps/layouts.json").then(r => r.json()).then(j => { layoutsData = j; render(); }).catch(() => {});
+  armReadyWait();
+  if (!layoutsData) fetch("battle/maps/layouts.json").then(r => r.json()).then(j => { layoutsData = j; render(); }).catch(() => {});
 }
 
 /* ---------- the sync overlay ---------- */
@@ -245,6 +275,29 @@ function startSync(reconnect) {
   return sync;
 }
 
+/* Keeps the five-minute wait running while this player is Ready and the other isn't (it survives a redraw or reload). */
+function armReadyWait() {
+  clearTimeout(readyTimer); readyTimer = 0;
+  if (!S.ready || opponent?.ready || !S.readyAt) return;
+  readyTimer = setTimeout(() => {
+    if (!S.ready || opponent?.ready) return;
+    set({ ready: false, readyAt: 0 });
+    toast(`${opponent?.name || "Your opponent"} didn't press Ready within 5 minutes. Press Ready again when they're set.`);
+  }, Math.max(0, S.readyAt + READY_WAIT - Date.now()));
+}
+/* Both players have pressed Ready: whoever pressed second starts the battle, and the other phone takes it on when it arrives. */
+function checkBegin() {
+  if (trackerActive() || !S.ready || !opponent?.ready || !S.peerCode || !myList()) return;
+  if ((S.readyAt || 0) < (opponent.readyAt || 0)) return;
+  beginBattle();
+}
+function beginBattle() {
+  const list = myList();
+  const b = startTracker({ me: { name: username(), faction: list.faction, battleReady: S.battleReady, army: list.name }, them: { name: opponent?.name || "", faction: opponent?.faction || opponent?.list?.faction || "", battleReady: !!opponent?.battleReady, army: opponent?.list?.name || "" }, firstTurn: S.firstTurn || "you" }, m => sync?.send(m), armies());
+  sync?.send({ battle: b });
+  render();
+}
+
 function startSetup() {
   const host = $("#battleHost");
   S = { ...fresh(), size: S.size || 2000, active: true }; opponent = null; opponentRules = null; sync?.close(); sync = null; link = "none"; save();
@@ -272,6 +325,7 @@ function wireSetup(renderHome) {
     if (t.closest("[data-bs-exit]")) return exitSetup(renderHome);
     // Reconnect: both phones listen on the codes they first connected with and look for each other again.
     if (t.closest("[data-bs-reconnect]")) { startSync(true); toast("Looking for your opponent…"); return; }
+    if (t.closest("[data-bs-back]")) { if (S.step > 1) { set({ step: S.step - 1 }); view.querySelector(".scroll").scrollTop = 0; } else exitSetup(renderHome); return; }
     const st = t.closest("[data-bs-step]");
     if (st) { set({ step: +st.dataset.bsStep }); view.querySelector(".scroll").scrollTop = 0; return; }
     const sv = t.closest("[data-bs-set]");
@@ -283,13 +337,9 @@ function wireSetup(renderHome) {
       if (tw.length) { const r = crypto.getRandomValues(new Uint32Array(1))[0] % tw.length; set({ twist: tw[r].name }); toast(`Twist drawn: ${tw[r].name}`); }
       return;
     }
-    if (t.closest("[data-bs-begin]")) {
-      if (!myList()) { set({ step: 2 }); return toast("Choose your army list first."); }
-      // Both phones go to the battle tracker; the opponent's Battle Ready comes from their own setup.
-      const b = startTracker({ me: { name: username(), faction: myList()?.faction, battleReady: S.battleReady, army: myList()?.name }, them: { name: opponent?.name || "", faction: opponent?.faction || opponent?.list?.faction || "", battleReady: !!opponent?.battleReady, army: opponent?.list?.name || "" }, firstTurn: S.firstTurn || "you" }, m => sync?.send(m), armies());
-      sync?.send({ battle: b });
-      view.querySelector(".scroll").scrollTop = 0;
-      render();
+    if (t.closest("[data-bs-ready]")) {
+      if (!opponent || !S.peerCode) return toast("Sync with your opponent first.");
+      return set({ ready: !S.ready, readyAt: S.ready ? 0 : Date.now() });
     }
   });
   view.addEventListener("change", e => {

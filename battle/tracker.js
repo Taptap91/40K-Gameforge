@@ -160,8 +160,7 @@ function trackerHTML(armies) {
   const active = B.turn === "you" ? B.me : B.them, st = factionStyle(active.faction || "");
   const whose = B.turn === "you" ? (B.me.name ? `${B.me.name}’s` : "Your") : `${B.them.name || "Opponent"}’s`;
   return `<div class="bt-tracker">
-    <h2 class="bt-round">Round ${B.round}</h2>
-    <div class="bt-turn">${esc(whose)} turn</div>
+    <div class="bt-head"><h2 class="bt-round">Round ${B.round}</h2><div class="bt-turn">${esc(whose)} turn</div></div>
     <div class="bt-phases" style="--c1:${st.c1};--c2:${st.c2}" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => `<button type="button" role="tab" aria-selected="${i === B.phase}" class="${i === B.phase ? "on" : ""}" data-bt-phase="${i}" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>`).join("")}</div>
     <button type="button" class="bt-nextphase" data-bt-next>Next Phase <span aria-hidden="true">→</span></button>
     <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
@@ -320,31 +319,42 @@ function handleTrackerClick(e, host) {
   return false;
 }
 /* Snapping in the tracker: the top section and each box's top are rest points. After a scroll, the page settles on one:
-   a nearby rest point, or in the direction of the scroll (down to the next box, up to the previous one). While a box is
-   open and taller than the screen, the scroll is free until the box's bottom edge is on screen, then it snaps on. */
-const SNAP_NEAR = 40, SNAP_PAUSE = 140;
-function snapTo(pane) {
-  if (!B?.active) return;
-  const cur = pane.scrollTop, view = pane.clientHeight, max = pane.scrollHeight - view;
+   a nearby rest point, or in the direction of the scroll. A firm wheel notch or swipe moves on to the next section at
+   once. While a box is open and taller than the screen, the scroll is free until the box's bottom edge is on screen. */
+const SNAP_NEAR = 40, SNAP_PAUSE = 50, SNAP_TIME = 260, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35;
+let snapTimer = 0, snapping = false, snapDir = 1, lastScroll = 0;
+/** Moves the tracker to a rest point. `flick` (+1 down, -1 up) asks for the next section in that direction. */
+function snapTo(pane, flick = 0) {
+  if (!B?.active || snapping) return false;
+  const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
   const pr = pane.getBoundingClientRect();
   const boxes = [...pane.querySelectorAll(".bt-box")].map(el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; });
   const rest = [0, ...boxes.map(b => b.top), max].map(v => Math.min(max, Math.max(0, v)));
-  const near = rest.reduce((best, v) => (Math.abs(v - cur) < Math.abs(best - cur) ? v : best), rest[0]);
+  const i = boxes.reduce((k, b, j) => (b.top <= cur + 1 ? j : k), -1);
+  const inTall = i >= 0 && boxes[i].bottom > cur + view;
   let target;
-  if (Math.abs(near - cur) <= SNAP_NEAR) target = near;
-  else {
-    const i = boxes.reduce((k, b, j) => (b.top <= cur + 1 ? j : k), -1);
-    if (i >= 0 && boxes[i].bottom > cur + view) return;   // a tall box: free scrolling until its bottom edge is on screen
-    target = snapDir > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
-    if (target == null) target = snapDir > 0 ? max : 0;
+  if (flick) {
+    if (inTall) return false;
+    target = flick > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
+    if (target == null) return false;
+  } else {
+    const near = rest.reduce((best, v) => (Math.abs(v - cur) < Math.abs(best - cur) ? v : best), rest[0]);
+    if (Math.abs(near - cur) <= SNAP_NEAR) target = near;
+    else {
+      if (inTall) return false;
+      target = snapDir > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
+      if (target == null) target = snapDir > 0 ? max : 0;
+    }
   }
-  if (Math.abs(target - cur) < 2) return;
+  if (Math.abs(target - cur) < 2) return false;
   snapping = true;
   pane.scrollTo({ top: target, behavior: "smooth" });
-  setTimeout(() => { snapping = false; }, 450);
+  setTimeout(() => { snapping = false; }, SNAP_TIME);
+  return true;
 }
-let snapTimer = 0, snapping = false, snapDir = 1, lastScroll = 0;
 function wireTrackerSnap(host) {
+  const isTracker = el => el?.closest?.('.bt-pane[data-pane="tracker"]') || null;
+  // Settling after any scroll (scrollbar, keyboard, or a slow drag).
   host.addEventListener("scroll", e => {
     const pane = e.target;
     if (!pane.classList?.contains("bt-pane") || pane.dataset.pane !== "tracker") return;
@@ -353,6 +363,31 @@ function wireTrackerSnap(host) {
     if (snapping) return;
     clearTimeout(snapTimer); snapTimer = setTimeout(() => snapTo(pane), SNAP_PAUSE);
   }, { capture: true, passive: true });
+  // A firm wheel scroll (a notch, or enough trackpad movement) goes on to the next section.
+  let acc = 0, last = 0;
+  host.addEventListener("wheel", e => {
+    const pane = isTracker(e.target);
+    if (!pane || !B?.active) return;
+    if (snapping) { e.preventDefault(); return; }
+    // Movement counts while it keeps coming: a mouse notch is one step, a trackpad flick is many small ones close together.
+    const now = performance.now(); if (now - last > 120) acc = 0; last = now;
+    if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+    acc += e.deltaY;
+    if (Math.abs(acc) < WHEEL_PX) return;
+    const dir = Math.sign(acc); acc = 0;
+    clearTimeout(snapTimer);
+    if (snapTo(pane, dir)) e.preventDefault();
+  }, { capture: true, passive: false });
+  // A quick, firm swipe up or down goes on to the next section.
+  let tp = null, tx = 0, ty = 0, tt = 0;
+  host.addEventListener("touchstart", e => { tp = isTracker(e.target); const t = e.touches[0]; tx = t.clientX; ty = t.clientY; tt = performance.now(); }, { passive: true, capture: true });
+  host.addEventListener("touchend", e => {
+    const pane = tp; tp = null;
+    if (!pane || !B?.active) return;
+    const t = e.changedTouches[0], dy = ty - t.clientY, dx = tx - t.clientX, dt = Math.max(1, performance.now() - tt);
+    if (Math.abs(dy) < FLICK_PX || Math.abs(dy) < Math.abs(dx) * 1.5 || Math.abs(dy) / dt < FLICK_SPEED) return;
+    clearTimeout(snapTimer); snapTo(pane, Math.sign(dy));
+  }, { passive: true, capture: true });
 }
 
 /** Swipe right for the screen to the left (your army), left for the screen to the right (your opponent's). */
