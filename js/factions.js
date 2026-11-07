@@ -279,9 +279,23 @@ function leftHTML(c) {
   return `<input class="input fp-filter" id="fpFilter" placeholder="Filter by name…" value="${esc(fUI.filter)}">
     ${group("army", "Army Rules", c.topRules.map(r => { const ps = armyRuleParts(r, c.armyRules);
       return item("army", normName(r.name), r.name, r.special ? "Special move" : ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : ""); }))}
-    ${group("det", "Detachments", c.detachments.map(detItem))}
+    ${group("det", "Detachments", c.detachments.map(d => { const k = normName(d.name);
+      return `<div class="fp-detwrap" data-name="${esc(k)}">${detItem(d)}${fUI.sel?.t === "det" && fUI.sel.k === k ? detSubsHTML(d) : ""}</div>`; }))}
     ${groups.map(g => group(g.title, g.title, g.items.sort((a, b) => a.name.localeCompare(b.name)).map(ds => item("unit", normName(ds.name), ds.name, pts(ds))))).join("")}
     <div class="fp-none" hidden>Nothing matches that name.</div>`;
+}
+
+const flavourHTML = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
+/** Under a selected detachment in the list: two boxes, Stratagems then Enhancements, each with its entries (open one at a time to read). */
+function detSubsHTML(d) {
+  const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
+  const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
+  const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
+  const entry = (name, meta, x) => `<details class="fp-subent"><summary><span class="fp-subname">${esc(softenCaps(name))}</span>${meta ? `<span class="fp-imeta">${esc(meta)}</span>` : ""}</summary><div class="fv-rich fp-subtext">${flavourHTML(x)}${richHTML(x.rich || x.text)}</div></details>`;
+  const box = (title, entries) => `<div class="fp-subrow"><svg class="fp-arrow" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1v8.5h8"/><path d="M8.5 6.5 11 9l-2.5 2.5"/></svg><details class="fp-subbox"><summary>${title} · ${entries.length}</summary><div class="fp-subitems">${entries.join("") || `<div class="fp-imeta">None</div>`}</div></details></div>`;
+  const strats = d.stratagems.map(st => entry(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), st));
+  const enhs = d.enhancements.map(e => entry(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), e));
+  return `<div class="fp-subs">${box("Stratagems", strats)}${box("Enhancements", enhs)}</div>`;
 }
 
 function rightHTML(c) {
@@ -312,8 +326,7 @@ function rightHTML(c) {
       ${uq ? `<div class="fv-unique"><b>Unique: ${esc(uq)}</b><span>${rivals.length ? `Can't be taken in the same army as ${esc(rivals.join(", "))}.` : "No other detachment in your army may share this tag."}</span></div>` : ""}
       ${d.description ? panelHTML("", `<div class="fv-rich fp-text">${richHTML(d.description)}</div>`) : ""}
       ${rules.length ? panelHTML("Detachment Rules", rules.map(r => ab(r.name, "", fl(r) + richHTML(r.rich || r.text))).join("")) : ""}
-      ${d.enhancements.length ? panelHTML("Enhancements", d.enhancements.map(e => ab(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), fl(e) + richHTML(e.rich || e.text))).join("")) : ""}
-      ${d.stratagems.length ? panelHTML("Stratagems", d.stratagems.map(st => ab(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), fl(st) + richHTML(st.rich || st.text))).join("")) : ""}`;
+      `;
   }
   const ds = c.datasheets.find(x => normName(x.name) === s.k);
   if (!ds) return "";
@@ -331,7 +344,7 @@ function applyFilter() {
   let shown = 0;
   for (const g of document.querySelectorAll("#factionsHost .fp-grp")) {
     let any = 0;
-    for (const b of g.querySelectorAll(".fp-item")) { const hit = !q || b.dataset.name.includes(q); b.hidden = !hit; any += hit; }
+    for (const b of g.querySelectorAll(".fp-item")) { const hit = !q || b.dataset.name.includes(q); (b.closest(".fp-detwrap") || b).hidden = !hit; any += hit; }
     g.hidden = !any;
     if (q && any) g.open = true;
     shown += any;

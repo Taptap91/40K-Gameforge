@@ -258,7 +258,7 @@ function tools() {
   const el = $("#battleTools");
   if (!el) return;
   const lost = !!S.peerCode && link !== "connected";
-  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}${trackerActive() ? `<button type="button" class="btn" data-bt-end>End Battle</button>` : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
+  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}${trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
 }
 const STATUS_TEXT = { waiting: "Waiting for your opponent…", connecting: "Connecting…", connected: "Connected — swapping armies…", "not-found": "No one is waiting with that code.", offline: "Can't reach the internet: only another copy of RulesForge in this browser can pair.", lost: "Connection lost." };
 function startSync(reconnect) {
@@ -305,7 +305,7 @@ function startSetup() {
 }
 function exitSetup(renderHome) {
   S.active = false; save();
-  $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; sync?.close(); sync = null; closeSyncSheet(true); renderHome();
+  $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; $("#view-battle h1").textContent = "Battle"; document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove()); sync?.close(); sync = null; closeSyncSheet(true); renderHome();
 }
 
 /** The two armies for the battle screens: your list (by id) and your opponent's synced list with their faction's rules. */

@@ -549,7 +549,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .toast {
   position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
   background: #48484a; color: var(--text); padding: 8px 16px; border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4); font-size: 13px; z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); font-size: 13px; z-index: 50; white-space: nowrap; text-align: center;
   opacity: 0; transition: opacity .2s; pointer-events: none;
 }
 .toast.show { opacity: 1; }
@@ -617,6 +617,20 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-grp > summary::before { content: "▾"; width: 16px; text-align: center; font-size: 16px; line-height: 1; color: var(--text); transition: transform .15s; }
 .fp-grp:not([open]) > summary::before { transform: rotate(-90deg); }
 .fp-items { display: flex; flex-direction: column; gap: 4px; }
+/* Under a selected detachment: the arrow is indented 20px from its name box, and every gap in this block is 10px. */
+.fp-subs { display: flex; flex-direction: column; gap: 10px; padding: 6px 0 4px 20px; }
+.fp-subrow { display: flex; align-items: center; gap: 10px; }
+.fp-arrow { flex: none; width: 14px; height: 14px; color: var(--text-2); }
+.fp-arrow path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.fp-subbox { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.fp-subbox > summary { list-style: none; cursor: pointer; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+.fp-subbox > summary::-webkit-details-marker, .fp-subent > summary::-webkit-details-marker { display: none; }
+.fp-subitems { display: flex; flex-direction: column; gap: 0; padding: 0 12px 6px; }
+.fp-subent { border-top: 1px solid var(--border); }
+.fp-subent > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 7px 0; font-size: 13px; font-weight: 600; }
+.fp-subname { flex: 1 1 8em; min-width: 0; overflow-wrap: break-word; }
+.fp-subtext { font-size: 12px; padding: 0 0 8px; }
+
 .fp-item { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
 .fp-item:hover { border-color: var(--border-strong); background: var(--panel-2); }
 .fp-item.on { border-color: var(--accent); background: var(--accent-soft); }

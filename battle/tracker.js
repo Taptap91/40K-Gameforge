@@ -156,16 +156,38 @@ function boxesHTML(armies) {
     ${boxHTML("det", "Detachment Rules", "", detBody)}
   </div>`;
 }
-function trackerHTML(armies) {
+/** The strip under the header: whose turn it is and the phase bar. Compact, it keeps only the active phase, beside the turn. */
+function stickHTML(compact) {
   const active = B.turn === "you" ? B.me : B.them, st = factionStyle(active.faction || "");
   const whose = B.turn === "you" ? (B.me.name ? `${B.me.name}’s` : "Your") : `${B.them.name || "Opponent"}’s`;
-  return `<div class="bt-tracker">
-    <div class="bt-head"><h2 class="bt-round">Round ${B.round}</h2><div class="bt-turn">${esc(whose)} turn</div></div>
+  return `<div class="bt-stick${compact ? " compact" : ""}">
+    <div class="bt-turn">${esc(whose)} turn</div>
     <div class="bt-phases" style="--c1:${st.c1};--c2:${st.c2}" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => `<button type="button" role="tab" aria-selected="${i === B.phase}" class="${i === B.phase ? "on" : ""}" data-bt-phase="${i}" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>`).join("")}</div>
-    <button type="button" class="bt-nextphase" data-bt-next>Next Phase <span aria-hidden="true">→</span></button>
-    <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
-    ${boxesHTML(armies)}
   </div>`;
+}
+/** Two screens: the first (Next Phase and the two columns) and the second (the boxes), with a small gap between. */
+function trackerHTML(armies) {
+  return `<div class="bt-tracker">
+    <section class="bt-s1">
+      <button type="button" class="bt-nextphase" data-bt-next>Next Phase <span aria-hidden="true">→</span></button>
+      <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
+    </section>
+    <div class="bt-gap" aria-hidden="true"></div>
+    <section class="bt-s2">${boxesHTML(armies)}</section>
+  </div>`;
+}
+/** The strip sits under the header when it's full, and inside the header bar once the second screen is showing. */
+function mountStick(compact) {
+  const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
+  document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
+  if (!B?.active || !host || !header) return;
+  const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
+  const el = tpl.content.firstElementChild;
+  if (compact) header.append(el); else host.prepend(el);
+}
+function setCompact(on) {
+  const el = document.querySelector("#view-battle .bt-stick");
+  if (!!el?.classList.contains("compact") !== on) mountStick(on);
 }
 
 /* ---------- the armies ---------- */
@@ -241,7 +263,14 @@ function renderTracker(host) {
       <div class="bt-pane" data-pane="tracker">${trackerHTML(armies)}</div>
       <div class="bt-pane" data-pane="them">${armyHTML("them", armies.them)}</div>
     </div>
-    <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>`;
+    <nav class="bt-armynav" aria-label="Armies">${navBtn("me", B.me)}${navBtn("them", B.them)}</nav>
+    <div class="bt-foot"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></div>`;
+  // The header reads "Round N" while the battle is on.
+  const title = document.querySelector("#view-battle h1"); if (title) title.textContent = `Round ${B.round}`;
+  // Compact once the scroll is past the middle of the way to the second screen (decided from where the pane was left).
+  const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
+  const compact = !!tp && pane === "tracker" && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2;
+  mountStick(compact);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
 }
 function showPane(next, host) {
@@ -326,10 +355,19 @@ let snapTimer = 0, snapping = false, snapDir = 1, lastScroll = 0;
 /** Moves the tracker to a rest point. `flick` (+1 down, -1 up) asks for the next section in that direction. */
 function snapTo(pane, flick = 0) {
   if (!B?.active || snapping) return false;
-  const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
-  const pr = pane.getBoundingClientRect();
-  const boxes = [...pane.querySelectorAll(".bt-box")].map(el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; });
-  const rest = [0, ...boxes.map(b => b.top), max].map(v => Math.min(max, Math.max(0, v)));
+  const s2 = pane.querySelector(".bt-s2"), gap = pane.querySelector(".bt-gap");
+  if (!s2 || !gap) return false;
+  // Where everything sits now: the second screen's top (T), each box's top, and the largest scroll.
+  const measure = () => {
+    const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
+    const pr = pane.getBoundingClientRect(), at = el => { const r = el.getBoundingClientRect(); return { top: r.top - pr.top + cur, bottom: r.bottom - pr.top + cur }; };
+    const boxes = [...pane.querySelectorAll(".bt-box")].map(at);
+    return { cur, view, max, T: at(s2).top, boxes };
+  };
+  let m = measure();
+  const { cur, view, max, T, boxes } = m;
+  const G = gap.offsetHeight;   // the gap between the screens: a scroll this long is needed before the second screen comes up
+  const rest = [0, T, ...boxes.map(b => b.top), max].map(v => Math.min(max, Math.max(0, v)));
   const i = boxes.reduce((k, b, j) => (b.top <= cur + 1 ? j : k), -1);
   const inTall = i >= 0 && boxes[i].bottom > cur + view;
   let target;
@@ -340,12 +378,18 @@ function snapTo(pane, flick = 0) {
   } else {
     const near = rest.reduce((best, v) => (Math.abs(v - cur) < Math.abs(best - cur) ? v : best), rest[0]);
     if (Math.abs(near - cur) <= SNAP_NEAR) target = near;
-    else {
+    else if (cur < T - 1) {
+      // Between the screens: going down, the second comes up once it reaches the bottom edge of the screen;
+      // going up, the first comes up once the gap has been scrolled past.
+      target = snapDir > 0 ? (cur > T - view ? T : 0) : (cur < T - G ? 0 : T);
+    } else {
       if (inTall) return false;
       target = snapDir > 0 ? rest.find(v => v > cur + 1) : [...rest].reverse().find(v => v < cur - 1);
       if (target == null) target = snapDir > 0 ? max : 0;
     }
   }
+  // The second screen (and anything below it) moves the strip up into the header.
+  setCompact(target >= T - 1);
   if (Math.abs(target - cur) < 2) return false;
   snapping = true;
   pane.scrollTo({ top: target, behavior: "smooth" });
@@ -417,7 +461,12 @@ function receiveBattle(b, host, armies) {
   if (B?.active && b.updated && B.updated && b.updated < B.updated) { sendToPeer({ battle: B }); return; }
   B = mirror(b); B.active = true; save(); if (host?.classList.contains("bt-on")) renderTracker(host);
 }
-function endTracker() { if (B) { B.active = false; save(); } document.body.classList.remove("bt-fullscreen"); pane = "tracker"; sheet = null; }
+function endTracker() {
+  if (B) { B.active = false; save(); }
+  document.body.classList.remove("bt-fullscreen"); pane = "tracker"; sheet = null;
+  document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
+  const title = document.querySelector("#view-battle h1"); if (title) title.textContent = "Battle";
+}
 const currentBattle = () => B;
 
 export { currentBattle, endTracker, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };
