@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.9";
-import { factionStyle } from "../js/factions.js?v=8.9";
-import { armyData, evaluateList } from "../js/army.js?v=8.9";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.9";
-import { effectiveRules } from "../js/rules-doc.js?v=8.9";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.9";
-import { richHTML } from "../js/text.js?v=8.9";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.10";
+import { factionStyle } from "../js/factions.js?v=8.10";
+import { armyData, evaluateList } from "../js/army.js?v=8.10";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.10";
+import { effectiveRules } from "../js/rules-doc.js?v=8.10";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.10";
+import { richHTML } from "../js/text.js?v=8.10";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -581,13 +581,14 @@ function handleTrackerClick(e, host) {
   if (t.closest("[data-bt-dsback]")) { sheet = null; renderTracker(host); return true; }
   return false;
 }
-/* Scrolling in the tracker is steered here, not by the browser's momentum. A gesture is a run of wheel movement or one touch
-   drag; it makes exactly one decision when it ends. Each section's top is a stop. A section taller than the screen scrolls
-   freely between its top and its far end; past the far end, a firm gesture goes on to the next section. A firm move up from
-   inside a tall section goes to its top (then, from the top, on to the section above). A gesture that isn't firm settles
-   back where it started. Momentum after a decision is ignored until a new gesture starts. */
-const SNAP_TIME = 260, GESTURE_GAP = 200, FIRM_WHEEL = 40, FIRM_TOUCH = 60, STRONG_UP = 120, FAST_TOUCH = 0.35;
-let restPos = 0, tAnim = 0, tGesture = null, tGestureTimer = 0, tLast = 0, tTouch = null;
+/* Scrolling in the tracker is steered here. The screen follows the wheel or the finger as it moves. When a gesture ends
+   (a short pause for a wheel, the lift for a touch), it makes one decision, and the screen glides to the stop it chose.
+   Each section's top is a stop. A section taller than the screen scrolls freely between its top and its far end; past the
+   far end, a firm gesture goes on to the next section. A firm move up through a tall section goes to its top (then, from
+   the top, on to the section above). A gesture that isn't firm settles back where it started. A new gesture interrupts a
+   glide. Momentum after a decision is ignored until a new gesture starts. */
+const SNAP_TIME = 200, WHEEL_GAP = 110, FIRM_WHEEL = 40, FIRM_TOUCH = 60, STRONG_UP = 120, FAST_TOUCH = 0.35, SHORT_DRAG = 90;
+let restPos = 0, glideId = 0, glideOn = false, tGesture = null, tGestureTimer = 0, tLast = 0, tTouch = null;
 
 /** The top of each section, in the pane's scroll coordinates. */
 function sectionStarts(pane) {
@@ -603,15 +604,21 @@ function tLayout(pane) {
 const tSectionAt = (secs, p) => { let i = 0; secs.forEach((s, j) => { if (s.top <= p + 1) i = j; }); return i; };
 const nearest = (tops, p) => tops.reduce((b, t) => (Math.abs(t - p) < Math.abs(b - p) ? t : b), tops[0]);
 
-/** Scrolls by a wheel or drag amount, within a tall section only (short sections don't move until the gesture decides). */
-function tFree(pane, dy) {
-  const { secs, view } = tLayout(pane), pos = pane.scrollTop;
+/** Moves the screen with a wheel or drag amount, at once. A tall section moves within itself; a short one moves a little
+   way from where the gesture began, and the decision then takes it to a stop. */
+function tFree(pane, dy, g) {
+  const { secs, view } = tLayout(pane), pos = pane.scrollTop, max = Math.max(0, pane.scrollHeight - view);
   const i = tSectionAt(secs, pos), s = secs[i];
-  if (!s || s.end - s.top <= view + 1) return;
-  if (pos < s.top - 1 || pos > s.end - view + 1) return;
-  pane.scrollTop = Math.min(Math.max(pos + dy, s.top), s.end - view);
+  if (!s) return;
+  if (s.end - s.top > view + 1) {
+    if (pos < s.top - 1 || pos > s.end - view + 1) return;
+    pane.scrollTop = Math.min(Math.max(pos + dy, s.top), s.end - view);
+  } else {
+    const lo = Math.max(0, g.startPos - SHORT_DRAG), hi = Math.min(max, g.startPos + SHORT_DRAG);
+    pane.scrollTop = Math.min(Math.max(pos + dy, lo), hi);
+  }
 }
-/** Decides a finished gesture. `g.startPos`, the total movement `g.total` (down positive), and `g.firm` (how firm it was). */
+/** Decides a finished gesture from where it began (`g.startPos`), its total movement (down positive) and whether it was firm. */
 function tDecide(pane, g) {
   const { secs, view } = tLayout(pane), tops = secs.map(x => x.top), pos = pane.scrollTop;
   const i = tSectionAt(secs, g.startPos), s = secs[i], tall = s.end - s.top > view + 1;
@@ -622,30 +629,31 @@ function tDecide(pane, g) {
     else target = g.firm ? (tops.find(t => t > g.startPos + 1) ?? anchor) : anchor;
   } else {
     if (tall) {
-      if (g.firm && Math.abs(g.total) >= STRONG_UP) target = pos > s.top + 1 ? s.top : (tops.filter(t => t < s.top - 1).pop() ?? null);
+      if (g.firm && Math.abs(g.total) >= STRONG_UP) target = g.startPos > s.top + 1 ? s.top : (tops.filter(t => t < s.top - 1).pop() ?? null);   // judged from where the gesture began: moving to the top is one step
     } else target = g.firm ? (tops.filter(t => t < g.startPos - 1).pop() ?? anchor) : anchor;
   }
   if (target == null || Math.abs(target - pos) < 2) return;
   animateTo(pane, target);
 }
-/** Glides to a stop. Input is ignored while it runs. */
+/** Glides from where the screen is to a stop. A new gesture cancels it. */
 function animateTo(pane, target) {
-  const from = pane.scrollTop, id = ++tAnim;
+  const from = pane.scrollTop, id = ++glideId;
+  glideOn = true;
   restPos = target;
   // The second section (and any below it) moves the strip up into the header.
   const starts = sectionStarts(pane), second = starts[1];
   setCompact(second != null && target >= second - 1);
   const t0 = performance.now();
   const step = now => {
-    if (id !== tAnim) return;
+    if (id !== glideId) return;
     const k = Math.min(1, (now - t0) / SNAP_TIME), e = 1 - Math.pow(1 - k, 3);
     pane.scrollTop = from + (target - from) * e;
-    if (k < 1) requestAnimationFrame(step); else tAnim = -id;   // a finished glide: input resumes, the old id is retired
+    if (k < 1) requestAnimationFrame(step); else glideOn = false;
   };
   requestAnimationFrame(step);
 }
-const gliding = () => tAnim > 0;
-/** A gesture ends after a pause; the decision is made then, once. */
+function cancelGlide() { glideId++; glideOn = false; }
+/** A gesture ends after a pause (or a lift); the decision is made then, once. */
 function endGesture(pane) {
   if (!tGesture || tGesture.decided) return;
   tGesture.decided = true;
@@ -660,18 +668,23 @@ function wireTrackerSnap(host) {
     if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
     e.preventDefault();
     const now = performance.now(), dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    if (!tGesture || now - tLast > GESTURE_GAP) tGesture = { startPos: pane.scrollTop, total: 0, firm: false, decided: false };
+    if (!tGesture || now - tLast > WHEEL_GAP) {
+      if (tGesture && !tGesture.decided) endGesture(pane);   // the previous gesture ends first
+      cancelGlide();
+      tGesture = { startPos: pane.scrollTop, total: 0, firm: false, decided: false };
+    }
     tLast = now;
-    if (tGesture.decided || gliding()) return;
+    if (tGesture.decided) return;   // momentum after a decision
     tGesture.total += dy;
     tGesture.firm = tGesture.firm || Math.abs(tGesture.total) >= FIRM_WHEEL;
-    tFree(pane, dy);
-    clearTimeout(tGestureTimer); tGestureTimer = setTimeout(() => endGesture(pane), GESTURE_GAP);
+    tFree(pane, dy, tGesture);
+    clearTimeout(tGestureTimer); tGestureTimer = setTimeout(() => endGesture(pane), WHEEL_GAP);
   }, { capture: true, passive: false });
-  // Touch: a drag moves a tall section with the finger; a short section moves only by the decision.
+  // Touch: the screen follows the finger; the lift makes the decision.
   host.addEventListener("touchstart", e => {
     const pane = isTracker(e.target);
-    tTouch = pane && !gliding() && B?.active ? { pane, y0: e.touches[0].clientY, last: e.touches[0].clientY, t0: performance.now(), startPos: pane.scrollTop } : null;
+    if (pane && B?.active) cancelGlide();
+    tTouch = pane && B?.active ? { pane, y0: e.touches[0].clientY, last: e.touches[0].clientY, t0: performance.now(), startPos: pane.scrollTop, g: { startPos: pane.scrollTop, total: 0, firm: false, decided: false } } : null;
   }, { passive: true, capture: true });
   host.addEventListener("touchmove", e => {
     if (!tTouch) return;
@@ -680,18 +693,18 @@ function wireTrackerSnap(host) {
     if (Math.abs(tTouch.y0 - y) < 6 && !tTouch.moved) return;
     tTouch.moved = true;
     e.preventDefault();
-    tFree(tTouch.pane, dy);
+    tTouch.g.total = tTouch.y0 - y;
+    tFree(tTouch.pane, dy, tTouch.g);
   }, { passive: false, capture: true });
   host.addEventListener("touchend", e => {
     const t = tTouch; tTouch = null;
     if (!t || !t.moved) return;
-    const y = e.changedTouches[0].clientY, total = t.y0 - y, dt = Math.max(1, performance.now() - t0OrNow(t));
+    const y = e.changedTouches[0].clientY, total = t.y0 - y, dt = Math.max(1, performance.now() - t.t0);
     const fast = Math.abs(total) >= 20 && Math.abs(total) / dt >= FAST_TOUCH;
     tGesture = { startPos: t.startPos, total, firm: Math.abs(total) >= FIRM_TOUCH || fast, decided: false };
     endGesture(t.pane);
   }, { passive: true, capture: true });
 }
-const t0OrNow = t => t.t0 || performance.now();
 
 /** Swipe right for the screen to the left (your army), left for the screen to the right (your opponent's). */
 function wireTrackerSwipes(host) {

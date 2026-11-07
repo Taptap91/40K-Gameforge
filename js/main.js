@@ -1,21 +1,21 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.9";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.9";
-import { exportDocToExcel } from "./excel.js?v=8.9";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.9";
-import * as core from "./core.js?v=8.9";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.9";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.9";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.9";
-import { buildIndex } from "./search.js?v=8.9";
-import { openDataViewer } from "./viewer.js?v=8.9";
-import { openMissionViewer } from "./mission-viewer.js?v=8.9";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.9";
-import { fixApostrophes } from "./text.js?v=8.9";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.9";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.9";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.10";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.10";
+import { exportDocToExcel } from "./excel.js?v=8.10";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.10";
+import * as core from "./core.js?v=8.10";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.10";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.10";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.10";
+import { buildIndex } from "./search.js?v=8.10";
+import { openDataViewer } from "./viewer.js?v=8.10";
+import { openMissionViewer } from "./mission-viewer.js?v=8.10";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.10";
+import { fixApostrophes } from "./text.js?v=8.10";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.10";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.10";
 
 function renderAll() {
   renderScope();
