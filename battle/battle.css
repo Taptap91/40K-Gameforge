@@ -248,7 +248,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bs-begin:disabled { background: var(--control); color: var(--text-3); box-shadow: none; cursor: not-allowed; }
 
 /* ---------- Primary and Secondary Missions (above the Stratagems) ---------- */
-.bt-mpair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; margin-bottom: 10px; }   /* each box keeps its own height */
+.bt-mpair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; margin-bottom: 10px; }
 /* A body spans both columns, so it drops down under the two headers: the Primary one reads from the left, the Secondary one from the right. */
 .bt-mh { display: flex; align-items: center; gap: 10px; min-height: 36px; }
 .bt-mh b { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; text-align: left; }
@@ -302,9 +302,16 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-mhead { align-items: center; }
 .bt-mhead b { font-size: 16px; }
 .bt-arrow { flex: none; display: block; color: var(--text-2); transition: transform .2s ease; }
-.bt-mbox.open .bt-arrow { transform: rotate(90deg); }
-.bt-mbox.open > .bt-mhead { border-bottom: 1px solid var(--border); }   /* a faint line under the header while open */
-.bt-mbody { padding: 12px 14px 14px; }
+.bt-mhead.open .bt-arrow { transform: rotate(90deg); }
+.bt-mhead { position: relative; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); }
+/* An open header drops a stem one gap tall, so the box reads as one outline down to the full-width part below. */
+.bt-mhead.open { border-bottom-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.bt-mhead.open::after { content: ""; position: absolute; top: 100%; left: -1px; right: -1px; height: 10px; border: 1px solid var(--border); border-top: 0; border-bottom: 0; background: var(--panel); }
+.bt-mbody { padding: 12px 14px 14px; border: 1px solid var(--border); border-radius: 0 0 14px 14px; background: var(--panel); }
+/* The top corner that isn't joined to a stem is rounded: under the unselected button. */
+.bt-mbody.pri { border-radius: 0 14px 14px 14px; }
+.bt-mbody.sec { border-radius: 14px 0 14px 14px; }
+.bt-mbody .bt-hr { margin-inline: 6px; }
 .bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
 .bt-addsec { white-space: normal; min-height: 44px; height: auto; padding: 8px 10px; font-size: 14px; line-height: 1.25; }
 /* End Battle sits at the bottom of the Event Log screen, above the footer, and scrolls with the log when the log grows. */
