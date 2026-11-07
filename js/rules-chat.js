@@ -1,11 +1,11 @@
 /* RulesForge · rules-chat.js
  * Ask Rules: prompts, answer clean-up and the chat page.
  */
-import { AI, isOverflow } from "./ai.js?v=8.16";
-import { $, $$, esc, state, store } from "./core.js?v=8.16";
-import { factionsInLibrary } from "./library.js?v=8.16";
-import { buildContext, keyLines, planRetrieval } from "./search.js?v=8.16";
-import { md, normName, tokens } from "./text.js?v=8.16";
+import { AI, isOverflow } from "./ai.js?v=8.17";
+import { $, $$, esc, state, store } from "./core.js?v=8.17";
+import { factionsInLibrary } from "./library.js?v=8.17";
+import { buildContext, keyLines, planRetrieval } from "./search.js?v=8.17";
+import { md, normName, tokens } from "./text.js?v=8.17";
 
 const RULES_SYSTEM = `You are a Warhammer 40,000 rules assistant. Answer ONLY from the numbered rules excerpts in the prompt. Never guess and never use outside knowledge.
 

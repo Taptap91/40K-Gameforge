@@ -339,12 +339,12 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 /* Wide screens (desktop, 1280px and up). Three columns: your army | the tracker (760px, sections 728px) | your opponent's army.
    The army columns are as narrow as their unit names need, and do not move when the tracker scrolls. */
 @media (min-width: 1280px) {
-  :root { --bt-side: 204px; }
-  .bt-shell { width: 100%; transform: none; transition: none; display: grid; grid-template-columns: var(--bt-side) minmax(0, 760px) var(--bt-side); justify-content: center; grid-template-rows: minmax(0, 1fr); }
+  :root { --bt-side: 232px; }
+  .bt-shell { width: 100%; transform: none; transition: none; display: grid; grid-template-columns: var(--bt-side) minmax(0, 760px) var(--bt-side); justify-content: space-between; grid-template-rows: minmax(0, 1fr); }
   .bt-pane { width: auto; min-width: 0; }
-  .bt-pane[data-pane="them"] { grid-column: 1; grid-row: 1; padding: 0 8px 24px; overscroll-behavior: contain; }
+  .bt-pane[data-pane="them"] { grid-column: 1; grid-row: 1; padding: 0 0 24px 16px; overscroll-behavior: contain; }
   .bt-pane[data-pane="tracker"] { grid-column: 2; grid-row: 1; }
-  .bt-pane[data-pane="me"] { grid-column: 3; grid-row: 1; padding: 0 8px 24px; overscroll-behavior: contain; }
+  .bt-pane[data-pane="me"] { grid-column: 3; grid-row: 1; padding: 0 16px 24px 0; overscroll-behavior: contain; }
   .bt-pane[data-pane="me"] > *, .bt-pane[data-pane="them"] > * { max-width: none; }
   /* No health or points in the army columns: just the names, cut with "..." when too long. */
   .bt-pane[data-pane="me"] .bt-unit-top > span, .bt-pane[data-pane="them"] .bt-unit-top > span,
@@ -358,14 +358,17 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 8px; padding-left: calc(50% - 364px); padding-right: calc(50% - 364px); }
   #view-battle > header.toolbar > h1 { grid-column: 1; grid-row: 1; justify-self: start; }
   #view-battle > header.toolbar > .spacer { display: none; }
-  #view-battle > header.toolbar > #battleTools { grid-column: 2; grid-row: 1; justify-self: end; }
+  #view-battle > header.toolbar { position: relative; }
+  /* Sync status and Cancel: the far right of the screen, standard padding from the edge. */
+  #view-battle > header.toolbar > #battleTools { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
   /* The phase tracker in the header, once scrolled past section one: all six phases, centred on the sections, with the turn text beside Round #. */
   #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
   #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-strow { display: contents; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-turn { grid-column: 2; grid-row: 1; justify-self: end; font-size: 20px; text-align: right; color: var(--text-2); }
-  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 1 / -1; grid-row: 2; width: 100%; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); padding: 4px; border-radius: 14px; }
-  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button:not(.on) { display: block; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 1 / -1; grid-row: 2; width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px; border-radius: 14px; }
+  /* Only the phase the players are in, centred. */
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button:not(.on) { display: none; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 50px; font-size: 20px; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases .short { display: none; }
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases .full { display: inline; }
@@ -374,3 +377,8 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-stick .bt-phases button { font-size: 20px; }
   .bt-s1 { padding-top: 14px; }
 }
+
+/* Once past section one, the header's phase tracker is only as big as the current phase's text. Tapping it goes back to the top section. */
+#view-battle > header.toolbar > .bt-stick.compact .bt-phases { width: max-content; max-width: 100%; justify-self: center; align-self: center; margin: 0 auto; padding: 4px 14px; grid-template-columns: minmax(0, 1fr); cursor: pointer; pointer-events: auto; }
+#view-battle > header.toolbar > .bt-stick.compact .bt-phases button.on { padding: 0 14px; min-height: 40px; }
+@media (min-width: 793px) { #view-battle > header.toolbar > .bt-stick.compact .bt-phases button.on { min-height: 50px; } }

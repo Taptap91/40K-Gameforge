@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.16";
-import { factionStyle } from "../js/factions.js?v=8.16";
-import { armyData, evaluateList } from "../js/army.js?v=8.16";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.16";
-import { effectiveRules } from "../js/rules-doc.js?v=8.16";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.16";
-import { richHTML } from "../js/text.js?v=8.16";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.17";
+import { factionStyle } from "../js/factions.js?v=8.17";
+import { armyData, evaluateList } from "../js/army.js?v=8.17";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.17";
+import { effectiveRules } from "../js/rules-doc.js?v=8.17";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.17";
+import { richHTML } from "../js/text.js?v=8.17";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -569,6 +569,8 @@ function handleTrackerClick(e, host) {
   if (!B?.active) return false;
   const t = e.target;
   if (t.closest("[data-bt-next]")) { change(nextPhase, host); return true; }
+  // The phase in the header bar (past section one) takes you back to the top section.
+  if (t.closest(".bt-stick.compact .bt-phases")) { const tp = host.querySelector('.bt-pane[data-pane="tracker"]'); if (tp) glideTo(tp, 0); return true; }
   if (t.closest("[data-bt-round]")) { openRoundPicker(host); return true; }
   const ph = t.closest("[data-bt-phase]");
   if (ph) { change(b => { b.phase = +ph.dataset.btPhase; }, host); return true; }
