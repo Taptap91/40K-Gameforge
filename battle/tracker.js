@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.17";
-import { factionStyle } from "../js/factions.js?v=8.17";
-import { armyData, evaluateList } from "../js/army.js?v=8.17";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.17";
-import { effectiveRules } from "../js/rules-doc.js?v=8.17";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.17";
-import { richHTML } from "../js/text.js?v=8.17";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.18";
+import { factionStyle } from "../js/factions.js?v=8.18";
+import { armyData, evaluateList } from "../js/army.js?v=8.18";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.18";
+import { effectiveRules } from "../js/rules-doc.js?v=8.18";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.18";
+import { richHTML } from "../js/text.js?v=8.18";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -412,7 +412,16 @@ function renderTracker(host) {
   }
   // Compact once the scroll is past the middle of the way to the second screen (decided from where the pane was left).
   const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
-  const compact = !!tp && pane === "tracker" && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2;
+  // On a phone or tablet, an army list on screen takes the header strip the same way as sections past the first.
+  // Wide screens: the turn sits in the header box beside Round #, whatever section is showing.
+  const hdr = document.querySelector("#view-battle > header.toolbar");
+  if (hdr) {
+    let ht = hdr.querySelector(".bt-hturn");
+    if (!ht) { ht = document.createElement("div"); ht.className = "bt-hturn"; hdr.insertBefore(ht, hdr.querySelector("#battleTools")); }
+    const who = B.turn === "you" ? (B.me.name ? `${B.me.name}’s` : "Your") : `${B.them.name || "Opponent"}’s`;
+    ht.textContent = `${who} turn`;
+  }
+  const compact = pane !== "tracker" || (!!tp && keep[1] > (tp.querySelector(".bt-s1").offsetHeight + tp.querySelector(".bt-gap").offsetHeight) / 2);
   mountStick(compact);
   if (tp) watchView(tp);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
@@ -570,7 +579,7 @@ function handleTrackerClick(e, host) {
   const t = e.target;
   if (t.closest("[data-bt-next]")) { change(nextPhase, host); return true; }
   // The phase in the header bar (past section one) takes you back to the top section.
-  if (t.closest(".bt-stick.compact .bt-phases")) { const tp = host.querySelector('.bt-pane[data-pane="tracker"]'); if (tp) glideTo(tp, 0); return true; }
+  if (t.closest(".bt-stick.compact .bt-phases")) { if (pane !== "tracker") showPane("tracker", host); const tp = host.querySelector('.bt-pane[data-pane="tracker"]'); if (tp) glideTo(tp, 0); return true; }
   if (t.closest("[data-bt-round]")) { openRoundPicker(host); return true; }
   const ph = t.closest("[data-bt-phase]");
   if (ph) { change(b => { b.phase = +ph.dataset.btPhase; }, host); return true; }
