@@ -1,9 +1,9 @@
 /* RulesForge · viewer.js
  * Library → View: the faction viewer (datasheets, detachments, army rules).
  */
-import { $, $$, esc, openSheet, state } from "./core.js?v=8.14";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.14";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.14";
+import { $, $$, esc, openSheet, state } from "./core.js?v=8.15";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, lowestPoints, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.15";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.15";
 
 function openDataViewer(docId) {
   const doc = state.docs.find(d => d.id === docId);

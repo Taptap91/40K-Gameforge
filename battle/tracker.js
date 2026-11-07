@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.14";
-import { factionStyle } from "../js/factions.js?v=8.14";
-import { armyData, evaluateList } from "../js/army.js?v=8.14";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.14";
-import { effectiveRules } from "../js/rules-doc.js?v=8.14";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.14";
-import { richHTML } from "../js/text.js?v=8.14";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.15";
+import { factionStyle } from "../js/factions.js?v=8.15";
+import { armyData, evaluateList } from "../js/army.js?v=8.15";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.15";
+import { effectiveRules } from "../js/rules-doc.js?v=8.15";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.15";
+import { richHTML } from "../js/text.js?v=8.15";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -214,11 +214,7 @@ function boxesHTML(armies) {
 function stickHTML(compact) {
   const active = B.turn === "you" ? B.me : B.them, st = factionStyle(active.faction || "");
   const whose = B.turn === "you" ? (B.me.name ? `${B.me.name}’s` : "Your") : `${B.them.name || "Opponent"}’s`;
-  if (compact) return `<div class="bt-stick compact" style="--c1:${st.c1};--c2:${st.c2}">
-    <div class="bt-strow"><div class="bt-turn">${esc(whose)} turn</div><span class="bt-statslot"></span></div>
-    <div class="bt-phases" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => i === B.phase ? `<button type="button" role="tab" aria-selected="true" class="on" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>` : "").join("")}</div>
-  </div>`;
-  return `<div class="bt-stick">
+  return `<div class="bt-stick${compact ? " compact" : ""}">
     <div class="bt-turn">${esc(whose)} turn</div>
     <div class="bt-phases" style="--c1:${st.c1};--c2:${st.c2}" role="tablist" aria-label="Phase">${PHASES.map(([full, short], i) => `<button type="button" role="tab" aria-selected="${i === B.phase}" class="${i === B.phase ? "on" : ""}" data-bt-phase="${i}" title="${full} phase"><span class="full">${full}</span><span class="short">${short}</span></button>`).join("")}</div>
   </div>`;
@@ -310,8 +306,6 @@ function mountStick(compact, animate = false) {
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
-  const statusNow = document.getElementById("battleStatus");
-  el.querySelector(".bt-statslot")?.insertAdjacentHTML("beforeend", statusNow ? statusNow.innerHTML : "");
   fitView(pane);
   // The pane's height changed under the scroll: put the position back (the browser may have clamped it).
   if (pane && pane.scrollTop !== keepTop) pane.scrollTop = keepTop;
@@ -427,6 +421,7 @@ function renderTracker(host) {
 }
 /** Round choice: five boxes the same width, a double gap, then Cancel. Sits over a blurred screen, not the whole of it. */
 function openRoundPicker(host) {
+  document.querySelectorAll(".bt-rpick").forEach(x => x.remove());   // only one picker can be open
   const rst = factionStyle((B.turn === "you" ? B.me : B.them).faction || "");
   const el = document.createElement("div");
   el.className = "bt-rpick"; el.style.cssText = `--c1:${rst.c1};--c2:${rst.c2}`;
