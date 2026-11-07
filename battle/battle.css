@@ -108,3 +108,106 @@
 .bs-linked { margin-right: 10px; font-size: 13.5px; font-weight: 600; color: var(--green); }
 #battleTools { display: flex; align-items: center; }
 @media (prefers-reduced-motion: reduce) { .bs-reconnect { animation: none; } }
+
+/* ---------- Battle tracker ---------- */
+.bt-tracker { display: flex; flex-direction: column; gap: 12px; }
+.bt-round { margin: 4px 0 0; text-align: center; font-size: 30px; letter-spacing: .02em; }
+.bt-turn { margin-top: -8px; text-align: center; font-size: 14px; color: var(--text-2); }
+/* Phases: one bar in the faction colours of whoever's turn it is. Full names when they fit, short ones on phones. */
+.bt-phases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; border-radius: 14px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c1) 70%, #000), color-mix(in srgb, var(--c2) 55%, #000)); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.bt-phases button { min-height: 48px; padding: 0 2px; border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,.82); font: 800 13px var(--font); letter-spacing: .04em; white-space: nowrap; overflow: hidden; cursor: pointer; text-shadow: 0 1px 3px rgba(0,0,0,.55); }
+.bt-phases button.on { background: rgba(255,255,255,.94); color: #111; text-shadow: none; box-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.bt-phases .full { display: none; }
+@media (min-width: 600px) { .bt-phases .full { display: inline; } .bt-phases .short { display: none; } .bt-phases button { font-size: 14px; letter-spacing: 0; } }
+.bt-nextphase { align-self: center; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 26px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); color: var(--text); font: 700 18px var(--font); cursor: pointer; }
+.bt-nextphase:hover { background: var(--panel-2); }
+/* Two players side by side. */
+.bt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bt-col { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 0; }
+.bt-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 10px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--c1) 40%, var(--border));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 26%, var(--panel)), color-mix(in srgb, var(--c2) 8%, var(--panel))); margin-bottom: 4px; }
+.bt-pname { text-align: center; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-vp { display: flex; align-items: baseline; justify-content: center; gap: 6px; color: var(--fc); font-weight: 800; line-height: 1; margin: 2px 0 4px; text-shadow: 0 2px 12px color-mix(in srgb, var(--fc) 35%, transparent); }
+.bt-vp b { font-size: 44px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.bt-vp span { font-size: 20px; }
+.bt-tlabel { text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-top: 4px; }
+.bt-track { display: flex; align-items: baseline; justify-content: center; min-height: 48px; padding: 8px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); font: 800 26px var(--font); font-variant-numeric: tabular-nums; }
+.bt-track span { font-size: 15px; font-weight: 600; color: var(--text-3); margin-left: 2px; }
+.bt-cpbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bt-cpbtn { min-height: 48px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--control); color: var(--text); font: 600 26px/1 var(--font); cursor: pointer; }
+.bt-cpbtn:disabled { opacity: .35; cursor: not-allowed; }
+.bt-ready { margin-top: 4px; text-align: center; font-size: 13px; font-weight: 600; }
+.bt-ready.yes { color: var(--green); }
+.bt-ready.no { color: var(--red); }
+@media (max-width: 360px) { .bt-vp b { font-size: 38px; } .bt-track { font-size: 22px; } }
+
+/* ---------- Battle screens: tracker in the middle, your army to the left, your opponent's to the right ---------- */
+body.bt-fullscreen .sidebar { display: none !important; }   /* the app's menu bar is hidden during a battle */
+body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; }
+#view-battle:has(.bt-on) .scroll { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+.bt-on.bt-content { max-width: none; width: 100%; min-width: 0; margin: 0; flex: 1; min-height: 0; padding: 0 !important; gap: 0; overflow: hidden; overflow: clip; position: relative; display: flex; flex-direction: column; }   /* clip: the sliding screens can't be scrolled sideways by focus or click */
+.bt-shell { flex: 1; min-height: 0; display: flex; width: 300%; transform: translateX(calc(var(--i) * -33.3333%)); transition: transform .3s ease; }
+.bt-pane { width: 33.3333%; min-width: 0; flex: none; overflow-y: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+.bt-pane > * { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+.bt-armynav { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--sidebar); }
+.bt-navbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 56px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--c1) 45%, var(--border)); border-radius: 12px; color: #fff; text-align: left; cursor: pointer; min-width: 0; font: inherit;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 55%, var(--window)), color-mix(in srgb, var(--c2) 30%, var(--window))); }
+.bt-navbtn:last-child { align-items: flex-end; text-align: right; }
+.bt-navbtn b { font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.bt-navbtn span { font-size: 13px; opacity: .85; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-navbtn.on { box-shadow: 0 0 0 2px #fff inset; }
+.bt-armyhead { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; color: #fff; background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 55%, var(--window)), color-mix(in srgb, var(--c2) 25%, var(--window))); }
+.bt-armyhead img { width: 48px; height: 48px; object-fit: contain; }
+.bt-armyhead div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bt-armyhead b { font-size: 19px; }
+.bt-armyhead span { font-size: 14px; opacity: .85; }
+.bt-hint { font-size: 14px; color: var(--text-2); }
+.bt-units { display: flex; flex-direction: column; gap: 10px; }
+.bt-unitwrap { display: flex; flex-direction: column; gap: 4px; }
+.bt-unit { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.bt-unit:hover { border-color: var(--border-strong); }
+.bt-unit-top { display: flex; justify-content: space-between; gap: 10px; }
+.bt-unit-top b { font-size: 16px; }
+.bt-unit-top span, .bt-unit-meta, .bt-unit-orig { font-size: 14px; color: var(--text-2); }
+.bt-attached { flex-direction: row; align-items: center; gap: 8px; margin-left: 28px; width: calc(100% - 28px); padding: 8px 12px; background: var(--panel-2); }
+.bt-attached b { font-size: 14px; flex: 1; }
+.bt-attached span:last-child { font-size: 13px; color: var(--text-2); }
+.bt-dsback { align-self: flex-start; width: auto !important; margin-left: 0 !important; min-height: 44px; }
+.bt-ds { display: flex; flex-direction: column; gap: 12px; }
+.bt-ds-head h3 { margin: 0; font-size: 22px; }
+.bt-carried { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-bottom: 8px; font-size: 14px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .bt-shell { transition: none; } }
+
+/* ---------- Under the tracker: Stratagems, Opponent's Stratagems, Army Rules, Detachment Rules ---------- */
+.bt-boxes { display: flex; flex-direction: column; gap: 10px; }
+.bt-box { border: 1px solid var(--border); border-radius: 14px; background: var(--panel); overflow: hidden; }
+.bt-boxhead { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 16px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.bt-boxhead b { font-size: 17px; font-weight: 700; flex: 1; min-width: 0; }
+.bt-count { font-size: 13.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bt-chev { font-size: 18px; color: var(--text-2); transition: transform .2s ease; }
+.bt-box.open .bt-chev { transform: rotate(180deg); }
+.bt-boxbody { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+.bt-hint { margin: 0; padding: 4px 4px 8px; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.bt-strat { border: 1px solid var(--border); border-radius: 12px; background: var(--panel-2); transition: opacity .15s ease; }
+.bt-strat.dim { opacity: .42; filter: grayscale(.6); }
+.bt-strat.used .bt-stext b { text-decoration: line-through; text-decoration-thickness: 1px; }
+.bt-srow { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px 8px 14px; cursor: pointer; }
+.bt-stext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bt-stext b { font-size: 15px; overflow-wrap: anywhere; }
+.bt-stext span { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
+.bt-use { flex: none; min-width: 84px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: 700 15px var(--font); cursor: pointer; }
+.bt-use:disabled { background: var(--control); color: var(--text-3); cursor: not-allowed; }
+.bt-tag { flex: none; font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); padding: 4px 8px; border-radius: 6px; background: var(--control); }
+.bt-sdetail { padding: 10px 14px 14px; border-top: 1px solid var(--border); font-size: 14px; line-height: 1.5; cursor: auto; }
+.bt-rule { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--border); }
+.bt-rule:first-child { border-top: 0; padding-top: 4px; }
+.bt-rule b { font-size: 15px; }
+.bt-rule.bt-sub { padding-left: 14px; border-left: 2px solid var(--border-strong); border-top: 0; }
+.bt-rule.bt-sub b { font-size: 14px; color: var(--text-2); }
+.bt-det { display: flex; flex-direction: column; gap: 6px; }
+.bt-det h4 { margin: 4px 0 0; font-size: 15px; }
+.bt-spend { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.bt-spendbtn { min-height: 56px; font-size: 18px; }
+.bt-spendbtn:disabled { opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .bt-chev, .bt-strat { transition: none; } }

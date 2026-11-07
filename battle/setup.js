@@ -2,11 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.3";
-import { factionStyle } from "../js/factions.js?v=8.3";
-import { evaluateList } from "../js/army.js?v=8.3";
-import { missionCard } from "../js/mission-viewer.js?v=8.3";
-import { openSync } from "./sync.js?v=8.3";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.5";
+import { factionStyle } from "../js/factions.js?v=8.5";
+import { evaluateList } from "../js/army.js?v=8.5";
+import { missionCard } from "../js/mission-viewer.js?v=8.5";
+import { openSync } from "./sync.js?v=8.5";
+import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.5";
+import { confirmSheet } from "../js/core.js?v=8.5";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -45,6 +47,7 @@ function myPayload(full = true) {
   const list = myList();
   const p = { code: S.myCode, name: username(), list: list ? { name: list.name, faction: list.faction, points: list.points, detachments: list.detachments, units: list.units } : null, faction: list?.faction || "", disposition: S.disposition, battleReady: S.battleReady };
   if (full) p.shared = Object.fromEntries(SHARED.map(k => [k, S[k]]));
+  if (full && trackerActive()) p.battle = currentBattle();
   if (full && list) {
     const doc = state.docs.filter(d => d.kind === "faction" && d.faction === list.faction && d.structured?.datasheets).sort((a, b) => b.importedAt - a.importedAt)[0];
     if (doc) p.rules = { title: doc.title, faction: doc.faction, structured: doc.structured, theme: doc.theme || null };
@@ -53,6 +56,8 @@ function myPayload(full = true) {
 }
 function receive(p, fullHello) {
   if (!p) return;
+  // The battle tracker: the other phone began the battle, or changed something on it.
+  if (p.battle) { receiveBattle(p.battle, $("#battleHost"), armies()); if (!fullHello) return render(); delete p.battle; }
   if (fullHello) {
     const again = !!opponent && S.peerCode === sync?.peerCode;
     opponentRules = p.rules || null; delete p.rules; opponent = { ...p };
@@ -169,6 +174,8 @@ function screen5() {
 function render() {
   const host = $("#battleHost");
   if (!host || !host.classList.contains("bs-on")) return;
+  if (trackerActive()) { host.classList.add("bt-on"); renderTracker(host); tools(); return; }
+  host.classList.remove("bt-on");
   const body = [screen1, screen2, screen3, screen4, screen5][S.step - 1]();
   host.innerHTML = `<div class="bs-steps" role="tablist" aria-label="Battle setup steps">${STEPS.map((t, i) => `<button type="button" role="tab" class="${S.step === i + 1 ? "on" : ""}${i + 1 < S.step ? " done" : ""}" aria-selected="${S.step === i + 1}" data-bs-step="${i + 1}" title="${esc(t)}">${i + 1}</button>`).join("")}</div>
     <h2 class="bs-title"><span>${S.step}.</span><span>${esc(STEPS[S.step - 1])}</span></h2>${body}`;
@@ -214,14 +221,14 @@ function pickList() {
 
 /** Back on the Battle screen after closing or refreshing the app mid-setup: carry on where you were
  *  (with Reconnect showing if you had synced with an opponent). */
-const resumeSetup = () => { if (!S.active) return false; $("#battleHost").classList.add("bs-on"); return true; };
+const resumeSetup = () => { if (!S.active && !trackerActive()) return false; $("#battleHost").classList.add("bs-on"); return true; };
 
 /* Top right: Reconnect (when the two phones have lost each other) and Cancel. */
 function tools() {
   const el = $("#battleTools");
   if (!el) return;
   const lost = !!S.peerCode && link !== "connected";
-  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}<button type="button" class="btn" data-bs-exit>Cancel</button>`;
+  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}${trackerActive() ? `<button type="button" class="btn" data-bt-end>End Battle</button>` : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
 }
 const STATUS_TEXT = { waiting: "Waiting for your opponent…", connecting: "Connecting…", connected: "Connected — swapping armies…", "not-found": "No one is waiting with that code.", offline: "Can't reach the internet: only another copy of RulesForge in this browser can pair.", lost: "Connection lost." };
 function startSync(reconnect) {
@@ -234,6 +241,7 @@ function startSync(reconnect) {
       if (was !== link) tools();
     } });
   if (!reconnect) { S.myCode = sync.code; S.peerCode = ""; save(); }
+  setTrackerSend(m => sync?.send(m));
   return sync;
 }
 
@@ -247,11 +255,20 @@ function exitSetup(renderHome) {
   $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; sync?.close(); sync = null; closeSyncSheet(true); renderHome();
 }
 
+/** The two armies for the battle screens: your list (by id) and your opponent's synced list with their faction's rules. */
+const armies = () => ({ me: S.listId ? { listId: S.listId } : null, them: opponent?.list ? { list: opponent.list, rules: opponentRules } : null });
+
 function wireSetup(renderHome) {
   const view = $("#view-battle");
+  wireTrackerSwipes($("#battleHost"));
   view.addEventListener("click", e => {
     const t = e.target;
     if (t.closest("[data-bt-start]")) return startSetup();
+    if (handleTrackerClick(e, $("#battleHost"))) return tools();
+    if (t.closest("[data-bt-end]")) {
+      confirmSheet("End this battle?", "The battle tracker closes on this device. (Saving the result to your battle records comes next.)", "End Battle").then(ok => { if (!ok) return; endTracker(); exitSetup(renderHome); });
+      return;
+    }
     if (t.closest("[data-bs-exit]")) return exitSetup(renderHome);
     // Reconnect: both phones listen on the codes they first connected with and look for each other again.
     if (t.closest("[data-bs-reconnect]")) { startSync(true); toast("Looking for your opponent…"); return; }
@@ -268,8 +285,11 @@ function wireSetup(renderHome) {
     }
     if (t.closest("[data-bs-begin]")) {
       if (!myList()) { set({ step: 2 }); return toast("Choose your army list first."); }
-      store.set("rf.currentBattle", { started: Date.now(), setup: S, you: { name: username(), list: myList()?.name, faction: myList()?.faction }, opponent });
-      toast("Battle begins! The battle tracker is coming next.");
+      // Both phones go to the battle tracker; the opponent's Battle Ready comes from their own setup.
+      const b = startTracker({ me: { name: username(), faction: myList()?.faction, battleReady: S.battleReady, army: myList()?.name }, them: { name: opponent?.name || "", faction: opponent?.faction || opponent?.list?.faction || "", battleReady: !!opponent?.battleReady, army: opponent?.list?.name || "" }, firstTurn: S.firstTurn || "you" }, m => sync?.send(m), armies());
+      sync?.send({ battle: b });
+      view.querySelector(".scroll").scrollTop = 0;
+      render();
     }
   });
   view.addEventListener("change", e => {

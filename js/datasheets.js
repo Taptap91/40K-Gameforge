@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.3";
-import { wargearOf } from "./loadout.js?v=8.3";
-import { factionMatches } from "./search.js?v=8.3";
-import { coreAbilityRule } from "./rules-doc.js?v=8.3";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.3";
+import { esc, state, uid } from "./core.js?v=8.5";
+import { wargearOf } from "./loadout.js?v=8.5";
+import { factionMatches } from "./search.js?v=8.5";
+import { coreAbilityRule } from "./rules-doc.js?v=8.5";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.5";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -337,7 +337,9 @@ function attachLists(ds, siblings = []) {
 
 function datasheetDetailsHTML(ds, armyRules, opts = {}) {
   const v = viewerDatasheet(ds);
-  const own = v.abilities.filter(a => !a.wargear), gear = v.abilities.filter(a => a.wargear);
+  const own = v.abilities.filter(a => !a.wargear);
+  // In a battle, only wargear the unit has: abilities of wargear it isn't carrying are left out.
+  const gear = v.abilities.filter(a => a.wargear && (!opts.equipped || opts.equipped.some(w => normName(a.name).includes(normName(w)) || normName(w).includes(normName(a.name)))));
   const kws = niceKeywords(ds.keywords), fkws = niceKeywords(ds.factionKeywords);
   const unitName = n => opts.link ? `<button type="button" class="fv-link" data-fp="unit" data-k="${esc(normName(n))}">${esc(n)}</button>` : `<span class="fv-link fv-nolink">${esc(n)}</span>`;
   return [
@@ -346,11 +348,11 @@ function datasheetDetailsHTML(ds, armyRules, opts = {}) {
     own.length ? panelHTML("Datasheet Abilities", abilitiesHTML(own)) : "",
     gear.length ? panelHTML("Wargear Abilities", abilitiesHTML(gear)) : "",
     ...v.extras.map(s => panelHTML(esc(titleCase(s.heading)), `<div class="fv-rich">${richHTML(s.rich || s.text)}</div>`)),
-    ...attachLists(ds, opts.siblings).map(l => panelHTML(l.heading,
+    ...(opts.battle ? [] : attachLists(ds, opts.siblings)).map(l => panelHTML(l.heading,
       `${l.intro ? `<div class="fv-intro">${esc(l.intro)}</div>` : ""}<ul class="fv-units">${l.units.sort((a, b) => a.localeCompare(b)).map(n => `<li>${unitName(n)}</li>`).join("")}</ul>`)),
     kws || fkws ? panelHTML("Keywords", (ds.modelKeywords?.length ? `<div class="fv-kh">Keywords</div>${ds.modelKeywords.map(m => `<div class="fv-kv"><span class="fv-kmodel">${esc(m.model)}:</span> ${esc(niceKeywords(m.keywords))}</div>`).join("")}` : kws ? `<div class="fv-kh">Keywords</div><div class="fv-kv">${esc(kws)}</div>` : "") + (fkws ? `<div class="fv-kh">Faction Keywords</div><div class="fv-kv">${esc(fkws)}</div>` : "")) : "",
     // Text the PDF reader couldn't place, folded away at the bottom so it can be moved to the right place in Excel.
-    ds.unsorted?.length ? panelHTML("", `<details class="fv-unsorted"><summary>Unsorted text <span class="fv-ab-count">${ds.unsorted.length} line${ds.unsorted.length === 1 ? "" : "s"} the PDF reader couldn't place</span></summary>
+    ds.unsorted?.length && !opts.battle ? panelHTML("", `<details class="fv-unsorted"><summary>Unsorted text <span class="fv-ab-count">${ds.unsorted.length} line${ds.unsorted.length === 1 ? "" : "s"} the PDF reader couldn't place</span></summary>
       <p class="lb-subtle">This is also in the "Unsorted text" sheet of the faction's Excel download. Copy it into the right sheet, then add the file back in Library.</p>
       <div class="fv-unsorted-text">${ds.unsorted.map(t => `<div>${esc(t)}</div>`).join("")}</div></details>`) : "",
   ].join("");

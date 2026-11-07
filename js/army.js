@@ -1,12 +1,12 @@
 /* RulesForge · army.js
  * Army rules and list legality (battle sizes, detachments, enhancements, attachments), and the list generator.
  */
-import { DB, state, toast, uid } from "./core.js?v=8.3";
-import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.3";
-import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.3";
-import { factionMatches } from "./search.js?v=8.3";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.3";
-import { battleSizes, compareEditions } from "./rules-doc.js?v=8.3";
+import { DB, state, toast, uid } from "./core.js?v=8.5";
+import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.5";
+import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.5";
+import { factionMatches } from "./search.js?v=8.5";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.5";
+import { battleSizes, compareEditions } from "./rules-doc.js?v=8.5";
 
 /* Lists are built from the structured faction data (converted faction PDFs).
    Battle sizes (points, detachment points, enhancement and unit limits) come from the Core Rules in the Library,
@@ -92,8 +92,9 @@ function canTakeEnhancement(unit, enh) {
 }
 
 /** Units and detachments for one faction, from the converted faction documents. */
-function armyData(faction) {
-  const docs = state.docs.filter(d => d.structured?.datasheets && (!faction || factionMatches(d.faction, faction)));
+/** Units and detachments for a faction, from your library — or from `docs` given (an opponent's synced rules). */
+function armyData(faction, docsGiven = null) {
+  const docs = docsGiven || state.docs.filter(d => d.structured?.datasheets && (!faction || factionMatches(d.faction, faction)));
   const units = new Map(), dets = new Map();
   for (const doc of docs) {
     for (const ds of doc.structured.datasheets) {
