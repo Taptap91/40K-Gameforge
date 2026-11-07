@@ -306,5 +306,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-mbox.open > .bt-mhead { border-bottom: 1px solid var(--border); }   /* a faint line under the header while open */
 .bt-mbody { padding: 12px 14px 14px; }
 .bt-s3 { box-sizing: border-box; min-height: var(--view, 100vh); padding: 32px 0 16px; display: flex; flex-direction: column; gap: 0; }
-.bt-s4 { box-sizing: border-box; padding: 16px 0 16px; }
 .bt-addsec { white-space: normal; min-height: 44px; height: auto; padding: 8px 10px; font-size: 14px; line-height: 1.25; }
+/* End Battle sits at the bottom of the Event Log screen, above the footer, and scrolls with the log when the log grows. */
+.bt-logl { display: flex; flex-direction: column; padding-bottom: 16px; }
+.bt-s3 .bt-end { margin-top: auto; flex: none; }

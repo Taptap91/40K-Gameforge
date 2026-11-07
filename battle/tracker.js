@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.7";
-import { factionStyle } from "../js/factions.js?v=8.7";
-import { armyData, evaluateList } from "../js/army.js?v=8.7";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.7";
-import { effectiveRules } from "../js/rules-doc.js?v=8.7";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.7";
-import { richHTML } from "../js/text.js?v=8.7";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.8";
+import { factionStyle } from "../js/factions.js?v=8.8";
+import { armyData, evaluateList } from "../js/army.js?v=8.8";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.8";
+import { effectiveRules } from "../js/rules-doc.js?v=8.8";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.8";
+import { richHTML } from "../js/text.js?v=8.8";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -45,6 +45,28 @@ const lum = hex => { const v = parseInt(String(hex).slice(1), 16) || 0; return (
 const bright = st => lum(st.c1) >= lum(st.c2) || lum(st.c1) > 90 ? st.c1 : st.c2;
 
 /* ---------- missions and the event log: the data ---------- */
+/** Takes back what an event did (a Command Point change, a stratagem's use, a score, a secondary drawn or removed). */
+function undoEffect(b, ev) {
+  const u = ev.undo; if (!u) return;
+  const p = b[ev.by === "you" ? "me" : "them"]; if (!p) return;
+  if (u.t === "cp") {
+    p.cp = Math.max(0, p.cp - u.d);
+    if (u.key && p.used?.sig === u.sig) p.used.keys = p.used.keys.filter(k => k !== u.key);
+  } else if (u.t === "score") {
+    if (u.kind === "pri") {
+      const i = p.priScores.findIndex(r => r.round === u.round);
+      if (!u.had) { if (i >= 0) p.priScores.splice(i, 1); }
+      else if (i >= 0) { p.priScores[i].checks = u.checks; p.priScores[i].vp = u.vp; }
+    } else {
+      const s = p.secs.find(x => x.name === u.name);
+      if (s) { s.checks = u.checks; s.vp = u.vp; s.round = u.prevRound; }
+    }
+  } else if (u.t === "add") {
+    const i = p.secs.findIndex(x => x.name === u.name); if (i >= 0) p.secs.splice(i, 1);
+  } else if (u.t === "remove") {
+    p.secs.push({ ...u.mission });
+  }
+}
 /* Older battles may lack these fields; they're filled in before anything is drawn or changed. */
 function ensure(b) {
   if (!b) return;
@@ -208,8 +230,6 @@ function trackerHTML(armies) {
     <section class="bt-s2">${missionsHTML()}${boxesHTML(armies)}</section>
     <div class="bt-gap" aria-hidden="true"></div>
     <section class="bt-s3">${logHTML()}</section>
-    <div class="bt-gap" aria-hidden="true"></div>
-    <section class="bt-s4"><button type="button" class="btn bt-end" data-bt-end>End Battle</button></section>
   </div>`;
 }
 /** One mission's scoring lines, read from the pack: each round's heading, then its lines and their VP. */
@@ -247,18 +267,20 @@ function missionsHTML() {
       <button type="button" class="btn bt-addsec" data-bt-secadd>Add Secondary Mission</button>`;
   return `<div class="bt-mpair">${box("pri", "Primary", `${me.primary} VP`, priBody)}${box("sec", "Secondary", `${me.secs.length}`, secBody)}</div>`;
 }
-/** The Event Log: one line for each event, in the colour of the player who did it. Struck-through lines are the ones removed. */
+/** The Event Log, newest first. End Battle sits at its bottom: it isn't a snap stop, and it scrolls with the log. */
 function logHTML() {
-  const rows = (B.events || []).map(e => {
+  const rows = [...(B.events || [])].reverse().map(e => {
     const p = e.by === "you" ? B.me : B.them, col = bright(factionStyle(p.faction || ""));
     return `<div class="bt-ev${e.struck ? " struck" : ""}" style="--fc:${col}">
       <span class="bt-evr">R${e.round}</span>
       ${e.badge ? `<span class="bt-evbadge ${e.tone || ""}">${esc(e.badge)}</span>` : ""}
       <span class="bt-evtext">${esc(e.text)}</span>
-      ${e.struck ? "" : `<button type="button" class="bt-iconbtn" data-bt-evdel="${esc(e.id)}" aria-label="Remove this event">${TRASH}</button>`}
+      ${e.struck ? "" : `<button type="button" class="bt-iconbtn" data-bt-evdel="${esc(e.id)}" aria-label="Remove this event and undo what it did">${TRASH}</button>`}
     </div>`;
   }).join("");
-  return `<div class="bt-logh"><h2>Event Log</h2></div>${rows || `<p class="bt-hint">Nothing yet. Command Points, stratagems and scoring appear here as they happen.</p>`}`;
+  return `<div class="bt-logh"><h2>Event Log</h2></div>
+    <div class="bt-logl">${rows || `<p class="bt-hint">Nothing yet. Command Points, stratagems and scoring appear here as they happen.</p>`}</div>
+    <button type="button" class="btn bt-end" data-bt-end>End Battle</button>`;
 }
 
 /** The strip sits under the header when it's full, and inside the header bar once the second screen is showing.
@@ -421,7 +443,7 @@ function spend(key, cost, host) {
     if (b.me.used?.sig !== sg) b.me.used = { sig: sg, keys: [] };
     if (!b.me.used.keys.includes(key)) b.me.used.keys.push(key);
     b.me.cp -= cost;
-    if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}` });
+    if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}`, undo: { t: "cp", d: -cost, key, sig: sg } });
   }, host);
 }
 /** Points for a mission, from the boxes ticked. Up to the round's limit; what was counted is what's recorded. */
@@ -452,16 +474,19 @@ function openScoreSheet(kind, host, idx) {
     d.close();
     change(b => {
       const pl = b.me;
-      const prev = kind === "pri" ? (pl.priScores.find(r => r.round === b.round)?.vp || 0) : (pl.secs[idx]?.vp || 0);
+      let undo;
       if (kind === "pri") {
         let r = pl.priScores.find(x => x.round === b.round);
+        undo = { t: "score", kind, name, round: b.round, had: !!r, checks: r?.checks || [], vp: r?.vp || 0 };
         if (!r) pl.priScores.push(r = { round: b.round, checks: [], vp: 0 });
         r.checks = keys; r.vp = vp;
       } else {
         const s = pl.secs[idx]; if (!s) return;
+        undo = { t: "score", kind, name: s.name, round: s.round, checks: s.checks || [], vp: s.vp || 0, prevRound: s.round };
         s.checks = keys; s.vp = vp; s.round = b.round;
       }
-      if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${name} (${kind === "pri" ? "Primary" : "Secondary"})` });
+      const prev = undo.vp;
+      if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${name} (${kind === "pri" ? "Primary" : "Secondary"})`, undo });
     }, host);
   };
 }
@@ -473,7 +498,7 @@ function openRemoveSheet(idx, host) {
   d.onclick = e => {
     if (!e.target.closest("[data-accept]")) return;
     d.close();
-    change(b => { const [gone] = b.me.secs.splice(idx, 1); if (gone) logEv(b, "you", { badge: "Removed", tone: "sec", text: gone.name }); }, host);
+    change(b => { const [gone] = b.me.secs.splice(idx, 1); if (gone) logEv(b, "you", { badge: "Removed", tone: "sec", text: gone.name, undo: { t: "remove", mission: { ...gone } } }); }, host);
   };
 }
 /** The Secondary Missions in the pack that aren't on the list yet. */
@@ -488,7 +513,7 @@ function openAddSheet(host) {
     const row = e.target.closest("[data-add]"); if (!row) return;
     const name = row.dataset.add;
     d.close();
-    change(b => { b.me.secs.push({ name, checks: [], vp: 0, round: b.round }); logEv(b, "you", { badge: "New", tone: "sec", text: `Drew ${name}` }); }, host);
+    change(b => { b.me.secs.push({ name, checks: [], vp: 0, round: b.round }); logEv(b, "you", { badge: "New", tone: "sec", text: `Drew ${name}`, undo: { t: "add", name } }); }, host);
   };
 }
 /** A stratagem with two costs: a pop-up asks how many Command Points to spend. */
@@ -525,7 +550,8 @@ function handleTrackerClick(e, host) {
     change(b => {
       const p = b[who], before = p.cp;
       p.cp = Math.max(0, p.cp + d);
-      if (p.cp !== before) logEv(b, who === "me" ? "you" : "opponent", { badge: d > 0 ? "+1" : "-1", tone: d > 0 ? "cp-plus" : "cp-minus", text: `${d > 0 ? "Gained" : "Spent"} a Command Point (${name})` });
+      const delta = p.cp - before;
+      if (delta) logEv(b, who === "me" ? "you" : "opponent", { badge: delta > 0 ? "+1" : "-1", tone: delta > 0 ? "cp-plus" : "cp-minus", text: `${delta > 0 ? "Gained" : "Spent"} a Command Point (${name})`, undo: { t: "cp", d: delta } });
     }, host);
     return true;
   }
@@ -545,7 +571,7 @@ function handleTrackerClick(e, host) {
   if (sd) { openRemoveSheet(+sd.dataset.btSecdel, host); return true; }
   if (t.closest("[data-bt-secadd]")) { openAddSheet(host); return true; }
   const evd = t.closest("[data-bt-evdel]");
-  if (evd) { change(b => { const e = (b.events || []).find(x => x.id === evd.dataset.btEvdel); if (e) e.struck = true; }, host); return true; }
+  if (evd) { change(b => { const e = (b.events || []).find(x => x.id === evd.dataset.btEvdel); if (e && !e.struck) { undoEffect(b, e); e.struck = true; } }, host); return true; }
   const box = t.closest("[data-bt-box]");
   if (box) { toggleIn(openBoxes, box.dataset.btBox); renderTracker(host); return true; }
   const srow = t.closest("[data-bt-strat]");
@@ -555,68 +581,48 @@ function handleTrackerClick(e, host) {
   if (t.closest("[data-bt-dsback]")) { sheet = null; renderTracker(host); return true; }
   return false;
 }
-/* Snapping in the tracker. Each section's top is a stop. A firm wheel notch, swipe or flick moves on to the next section.
-   A weaker scroll bounces back to the top of the section it started from. Going down, the next section comes up once its top
-   reaches the bottom edge of the screen; going up, the section above comes up once the gap has been scrolled past. The page
-   settles when the scroll has ended (so a finger's momentum isn't cut short). After a snap, the screen is held on that stop
-   until the scrolling has been still for a moment, so momentum or trackpad flicks can't carry it past to the next section.
-   While a box is open and taller than the screen, the scroll is free until the box's bottom edge is on screen. */
-const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35, LOCK_IDLE = 250;
+/* Snapping in the tracker. Each section's top is a stop. A firm wheel notch, swipe or flick moves on to the next section
+   (going up, to the top of the section being read). A weaker scroll settles back to the top of the section it started from.
+   A section taller than the screen is read by scrolling: nothing snaps inside it until its far edge (going down), and going
+   up it snaps to the top only on a firm move. The browser keeps the momentum; a snap starts only once scrolling has ended. */
+const SNAP_NEAR = 40, SNAP_PAUSE = 20, SNAP_TIME = 180, WHEEL_PX = 40, FLICK_PX = 60, FLICK_SPEED = 0.35, STRONG_PX = 120;
 const HAS_SCROLLEND = "onscrollend" in window;
 let snapTimer = 0, snapping = false, snapId = 0, snapDir = 1, lastScroll = 0, restPos = 0;
-let lockTarget = null, lockTimer = 0, lockEnd = 0;
-const LOCK_MAX = 600;   // a hold never lasts longer than this, however long the scrolling goes on
 
 /** The top of each section, in the pane's scroll coordinates. */
 function sectionStarts(pane) {
   const pr = pane.getBoundingClientRect(), cur = pane.scrollTop;
   return [...pane.querySelectorAll(".bt-tracker > section")].map(s => s.getBoundingClientRect().top - pr.top + cur);
 }
-/** Holds the screen on a stop until the scrolling has been still for LOCK_IDLE, then lets it settle. */
-function holdFor(pane) {
-  clearTimeout(lockTimer);
-  if (performance.now() > lockEnd) { lockTarget = null; snapTo(pane); return; }
-  lockTimer = setTimeout(() => { lockTarget = null; snapTo(pane); }, LOCK_IDLE);
-}
-/** The bottom of each section, in the pane's scroll coordinates. */
+/** The bottom of each section, in the same coordinates. */
 function sectionEnds(pane) {
   const pr = pane.getBoundingClientRect(), cur = pane.scrollTop;
   return [...pane.querySelectorAll(".bt-tracker > section")].map(s => s.getBoundingClientRect().bottom - pr.top + cur);
 }
-/** Moves the tracker to a section top. `flick` (+1 down, -1 up) asks for the next section that way at once.
-   A section taller than the screen is read by scrolling: nothing snaps inside it until its far edge is reached,
-   and a firm move at that edge goes on to the next section. */
-function snapTo(pane, flick = 0) {
-  if (!B?.active || snapping || lockTarget != null) return false;
+/** Moves the tracker to a section top. `flick` (+1 down, -1 up) and `force` (how firm the move was, in px) come from a gesture. */
+function snapTo(pane, flick = 0, force = 0) {
+  if (!B?.active || snapping) return false;
   const starts = sectionStarts(pane), ends = sectionEnds(pane);
   if (!starts.length) return false;
-  const cur = pane.scrollTop, view = pane.clientHeight, max = Math.max(0, pane.scrollHeight - view);
+  const cur = pane.scrollTop, view = pane.clientHeight;
   const G = pane.querySelector(".bt-gap")?.offsetHeight || 0;
   const dir = flick || snapDir;
   let i = 0; starts.forEach((v, j) => { if (v <= cur + 1) i = j; });   // the section the screen's top is in
   const top = starts[i], end = ends[i], tall = end - top > view + 1;
   const nxt = starts[i + 1] ?? null, prv = i > 0 ? starts[i - 1] : null;
-  if (tall) {
-    if (dir > 0 && cur < end - view - 1) return false;   // still reading this section downward
-    if (dir < 0 && cur > top + 1) return false;          // still reading it upward
-  }
+  if (tall && dir > 0 && cur < end - view - 1) return false;                         // reading it downward
+  if (tall && dir < 0 && cur > top + 1 && !(flick && force >= STRONG_PX)) return false;   // reading it upward
   let target;
-  if (dir > 0) {
-    if (nxt == null) return false;                         // the last section: scroll freely
-    if (tall) {
-      if (!flick && cur - (end - view) < SNAP_NEAR) return false;   // at the bottom but not pushed on
-      target = nxt;
-    } else {
-      // Down: the next section comes up once the screen has moved far enough (it shows at the bottom edge at most).
-      target = flick || cur - top >= Math.max(SNAP_NEAR, Math.min(nxt - top, nxt - view - top)) ? nxt : top;
-    }
+  if (tall && dir < 0 && cur > top + 1) target = top;          // a firm move up through a tall section: to its top
+  else if (flick) target = dir > 0 ? nxt : (cur > top + 1 ? top : prv);
+  else if (dir > 0) {
+    if (nxt == null) return false;                              // the last section: scroll freely
+    if (tall) { if (cur - (end - view) < SNAP_NEAR) return false; target = nxt; }
+    else target = cur - top >= Math.max(SNAP_NEAR, Math.min(nxt - top, nxt - view - top)) ? nxt : top;
   } else {
-    if (flick) target = cur > top + 1 ? top : prv;        // a firm move up: this section's top, then the one above
-    else {
-      if (nxt == null) return false;
-      // Up: back to the section the screen came from unless it has been scrolled past firmly, then up to this section's top.
-      target = nxt - cur >= Math.max(SNAP_NEAR, G) ? top : nxt;
-    }
+    if (nxt == null) return false;
+    // Up: back to the section the screen came from, unless it has been scrolled past firmly; then up to this section's top.
+    target = nxt - cur >= Math.max(SNAP_NEAR, G) ? top : nxt;
   }
   if (target == null) return false;
   restPos = target;
@@ -625,7 +631,6 @@ function snapTo(pane, flick = 0) {
   setCompact(second != null && target >= second - 1);
   if (Math.abs(target - cur) < 2) return false;
   snapping = true; const id = ++snapId;
-  lockTarget = target; lockEnd = performance.now() + LOCK_MAX; holdFor(pane);
   pane.scrollTo({ top: target, behavior: "smooth" });
   const done = () => { if (id === snapId) snapping = false; };
   pane.addEventListener("scrollend", done, { once: true });
@@ -639,46 +644,35 @@ function wireTrackerSnap(host) {
     const pane = e.target;
     if (!pane.classList?.contains("bt-pane") || pane.dataset.pane !== "tracker") return;
     if (pane.scrollTop !== lastScroll) { if (!snapping) snapDir = pane.scrollTop > lastScroll ? 1 : -1; lastScroll = pane.scrollTop; }
-    // Held on a stop: any momentum that carries past it is brought back to it.
-    if (lockTarget != null && !snapping) {
-      if (Math.abs(pane.scrollTop - lockTarget) > 2) pane.scrollTo({ top: lockTarget });
-      holdFor(pane);
-      return;
-    }
     if (snapping || HAS_SCROLLEND) return;
     clearTimeout(snapTimer); snapTimer = setTimeout(() => snapTo(pane), SNAP_PAUSE);
   }, { capture: true, passive: true });
   // Settled: the scroll has ended, after any momentum.
-  host.addEventListener("scrollend", e => { const pane = e.target; if (pane?.dataset?.pane === "tracker" && lockTarget == null) snapTo(pane); }, { capture: true, passive: true });
-  // A firm wheel scroll (a notch, or enough trackpad movement) goes on to the next section.
+  host.addEventListener("scrollend", e => { const pane = e.target; if (pane?.dataset?.pane === "tracker") snapTo(pane); }, { capture: true, passive: true });
+  // A firm wheel scroll (a notch, or enough trackpad movement) goes on to the next section. The wheel waits while a snap moves.
   let acc = 0, last = 0;
   host.addEventListener("wheel", e => {
     const pane = isTracker(e.target);
     if (!pane || !B?.active) return;
-    const now = performance.now(), fresh = now - last > 120;   // a pause ends the gesture; momentum arrives without one
-    last = now;
-    if (fresh) acc = 0;
-    // A new gesture releases a hold. While a snap is moving, the wheel waits for it.
-    if (fresh && lockTarget != null && !snapping) { lockTarget = null; clearTimeout(lockTimer); }
+    const now = performance.now(); if (now - last > 120) acc = 0; last = now;
     if (snapping) { e.preventDefault(); acc = 0; return; }
-    if (lockTarget != null) { acc = 0; return; }
     if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
     // Movement counts while it keeps coming: a mouse notch is one step, a trackpad flick is many small ones close together.
     acc += e.deltaY;
     if (Math.abs(acc) < WHEEL_PX) return;
-    const dir = Math.sign(acc); acc = 0;
+    const dir = Math.sign(acc), force = Math.abs(acc); acc = 0;
     clearTimeout(snapTimer);
-    if (snapTo(pane, dir)) e.preventDefault();
+    if (snapTo(pane, dir, force)) e.preventDefault();
   }, { capture: true, passive: false });
-  // A quick, firm swipe up or down goes on to the next section. A new touch releases a hold.
+  // A quick, firm swipe up or down goes on to the next section.
   let tp = null, tx = 0, ty = 0, tt = 0;
-  host.addEventListener("touchstart", e => { lockTarget = null; clearTimeout(lockTimer); tp = isTracker(e.target); const t = e.touches[0]; tx = t.clientX; ty = t.clientY; tt = performance.now(); }, { passive: true, capture: true });
+  host.addEventListener("touchstart", e => { tp = isTracker(e.target); const t = e.touches[0]; tx = t.clientX; ty = t.clientY; tt = performance.now(); }, { passive: true, capture: true });
   host.addEventListener("touchend", e => {
     const pane = tp; tp = null;
     if (!pane || !B?.active) return;
     const t = e.changedTouches[0], dy = ty - t.clientY, dx = tx - t.clientX, dt = Math.max(1, performance.now() - tt);
     if (Math.abs(dy) < FLICK_PX || Math.abs(dy) < Math.abs(dx) * 1.5 || Math.abs(dy) / dt < FLICK_SPEED) return;
-    clearTimeout(snapTimer); snapTo(pane, Math.sign(dy));
+    clearTimeout(snapTimer); snapTo(pane, Math.sign(dy), Math.abs(dy));
   }, { passive: true, capture: true });
 }
 
