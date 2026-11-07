@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=8.19";
+import { esc } from "./core.js?v=8.20";
 
 function normalize(raw) {
   return raw

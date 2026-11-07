@@ -360,7 +360,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar > .spacer { display: none; }
   #view-battle > header.toolbar { position: relative; }
   /* Sync status and Cancel: the far right of the screen, standard padding from the edge. */
-  #view-battle > header.toolbar > #battleTools { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
+  #view-battle > header.toolbar > #battleTools { position: absolute; right: 16px; top: 39px; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
   /* The phase tracker in the header, once scrolled past section one: all six phases, centred on the sections, with the turn text beside Round #. */
   #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
   #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
@@ -388,7 +388,6 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle:not(:has(header .bt-stick.compact)) > * .bt-pane[data-pane="me"], #view-battle:not(:has(header .bt-stick.compact)) .bt-pane[data-pane="them"] { margin-top: -62px; }
   #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="me"], #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="them"] { margin-top: 28px; }
   /* Sync status sits level with Round # and the turn text in the header. */
-  #view-battle > header.toolbar:has(.bt-stick.compact) > #battleTools { top: 35px; transform: translateY(-50%); }
 }
 
 /* Wide screens: the turn text is always in the header box, level with Round #; the copy inside the strip is hidden. */
