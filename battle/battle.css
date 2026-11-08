@@ -347,10 +347,10 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-pane[data-pane="me"] { grid-column: 3; grid-row: 1; padding: 0 var(--bt-pad) 24px calc(var(--bt-gap) - var(--bt-pad)); overscroll-behavior: contain; }
   .bt-pane[data-pane="me"] > *, .bt-pane[data-pane="them"] > * { max-width: none; }
   /* No health or points in the army columns: just the names, cut with "..." when too long. */
-  .bt-pane[data-pane="me"] .bt-unit-top > span, .bt-pane[data-pane="them"] .bt-unit-top > span,
+  .bt-pane[data-pane="me"] .bt-unit-top > span:not(.bt-hp), .bt-pane[data-pane="them"] .bt-unit-top > span:not(.bt-hp),
   .bt-pane[data-pane="me"] .bt-unit-meta, .bt-pane[data-pane="them"] .bt-unit-meta,
   .bt-pane[data-pane="me"] .bt-unit-orig, .bt-pane[data-pane="them"] .bt-unit-orig,
-  .bt-pane[data-pane="me"] .bt-attached > span:not([aria-hidden]), .bt-pane[data-pane="them"] .bt-attached > span:not([aria-hidden]) { display: none; }
+  .bt-pane[data-pane="me"] .bt-attached > span:not([aria-hidden]):not(.bt-hp), .bt-pane[data-pane="them"] .bt-attached > span:not([aria-hidden]):not(.bt-hp) { display: none; }
   .bt-pane[data-pane="me"] .bt-unit-top b, .bt-pane[data-pane="them"] .bt-unit-top b,
   .bt-pane[data-pane="me"] .bt-attached b, .bt-pane[data-pane="them"] .bt-attached b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bt-footer { display: none; }
@@ -501,7 +501,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-unit-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .bt-hp { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; flex: none; max-width: 50%; }
 .bt-hp-box { width: 14px; height: 14px; border-radius: 3px; background: #30c46b; border: 1px solid rgba(255,255,255,.25); cursor: pointer; flex: none; }
-.bt-hp-box.dead { background: repeating-linear-gradient(45deg, #e5484d 0 2px, transparent 2px 5px); border-color: #e5484d; }
+.bt-hp-box.dead { background: var(--border-strong, #4a4e58); border-color: var(--border-strong, #4a4e58); opacity: .6; }
 .bt-hp-more { font-size: 12px; color: var(--text-2); }
 
 /* Warlord tag: on the name's line, the same size as the name, with standard padding between them. */
@@ -554,3 +554,13 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-wstats small { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
 .bt-wstats b { width: 100%; text-align: center; padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; }
 .bt-wkw { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Pips on the unit's name line: the name keeps its room, then the pips narrow evenly, all on one line. */
+.bt-unit-top { align-items: center; justify-content: flex-start; }
+.bt-unit-top > .bt-namewrap { flex: 0 1 auto; max-width: 72%; min-width: 0; }
+.bt-unit-top > .bt-hp, .bt-attached > .bt-hp { flex: 0 1 auto; min-width: 0; max-width: none; margin-left: 10px; justify-content: flex-start; flex-wrap: nowrap; }
+.bt-unit-top > .bt-hp .bt-hp-box, .bt-attached > .bt-hp .bt-hp-box { flex: 0 1 12px; width: 12px; height: 12px; min-width: 3px; }
+.bt-unit-top > span:last-child { margin-left: auto; white-space: nowrap; }
+.bt-attached { align-items: center; }
+.bt-attached > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-attached > .bt-hp { margin-left: 4px; }

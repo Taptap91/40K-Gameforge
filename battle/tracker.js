@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.27";
-import { factionStyle } from "../js/factions.js?v=8.27";
-import { armyData, evaluateList } from "../js/army.js?v=8.27";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.27";
-import { effectiveRules } from "../js/rules-doc.js?v=8.27";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.27";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.27";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.28";
+import { factionStyle } from "../js/factions.js?v=8.28";
+import { armyData, evaluateList } from "../js/army.js?v=8.28";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.28";
+import { effectiveRules } from "../js/rules-doc.js?v=8.28";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.28";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.28";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -400,21 +400,27 @@ function armyHTML(side, army = armyOf(side)) {
     const x = army.r.entries.find(e => e.id === sheet.id);
     if (x?.unit) return head + `<button type="button" class="btn bt-dsback" data-bt-dsback>‹ ${esc(army.list.name)}</button>` + battleDatasheet(x, army);
   }
-  // A→Z, no categories; a unit's attached leaders and supporters sit under it in smaller boxes.
+  // A→Z, no categories. Every unit has its own full box; the units it is attached to or that are attached to it sit
+  // beneath it at reduced size (a leader under its unit, a unit under its leader), each with its own pips.
   const entries = army.r.entries.filter(e => e.unit);
-  const hosted = new Set(entries.filter(e => e.attachTo && entries.some(h => h.id === e.attachTo)).map(e => e.id));
-  const top = entries.filter(e => !hosted.has(e.id)).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  const byId = new Map(entries.map(e => [e.id, e]));
+  const byName = (a, b) => nameOf(a).localeCompare(nameOf(b));
+  const top = [...entries].sort(byName);
   // The warlord is marked on the list's own unit; the evaluated entries may not carry the flag.
   const wlId = entries.find(e => e.warlord)?.id ?? army.list.units?.find(e => e.warlord)?.id;
+  const related = x => {
+    const kids = entries.filter(c => c.attachTo === x.id);
+    const host = x.attachTo ? byId.get(x.attachTo) : null;
+    return [...kids, ...(host ? [host] : [])].sort(byName);
+  };
   const card = x => {
-    const kids = entries.filter(c => c.attachTo === x.id).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
     const isWl = x.warlord || x.id === wlId;
     const tags = [x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
-        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span></span>
+        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span>${hpHTML(x, side)}<span>${x.total} pts</span></span>
         <span class="bt-unit-row"><span class="bt-unit-left">${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
-        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span>${hpHTML(x, side)}</span></button>
-      ${kids.map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span></button>`).join("")}</div>`;
+        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span></span></button>
+      ${related(x).map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b>${hpHTML(c, side)}<span>${c.total} pts</span></button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
 }
