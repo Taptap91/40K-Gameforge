@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.22";
-import { factionStyle } from "../js/factions.js?v=8.22";
-import { armyData, evaluateList } from "../js/army.js?v=8.22";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.22";
-import { effectiveRules } from "../js/rules-doc.js?v=8.22";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.22";
-import { richHTML } from "../js/text.js?v=8.22";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.23";
+import { factionStyle } from "../js/factions.js?v=8.23";
+import { armyData, evaluateList } from "../js/army.js?v=8.23";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.23";
+import { effectiveRules } from "../js/rules-doc.js?v=8.23";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.23";
+import { richHTML } from "../js/text.js?v=8.23";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -316,6 +316,7 @@ function mountStick(compact, animate = false) {
   const old = document.querySelector("#view-battle .bt-stick");
   const before = animate && old ? [...old.querySelectorAll(".bt-turn, .bt-phases")].map(el => el.getBoundingClientRect()) : null;
   const paneTop = animate && pane ? pane.getBoundingClientRect().top : null;
+  const htRect = animate ? document.querySelector("#view-battle > header .bt-hturn")?.getBoundingClientRect() : null;
   const keepTop = pane ? pane.scrollTop : 0;
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   if (!B?.active || !host || !header) return;
@@ -334,6 +335,11 @@ function mountStick(compact, animate = false) {
     const dx = a.left - b.left, dy = a.top - b.top;
     if (dx || dy) node.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }], { duration: ms, easing: ease });
   });
+  const htNow = header.querySelector(".bt-hturn");
+  if (htRect && htNow && matchMedia("(min-width: 1280px)").matches) {
+    const dx = htRect.left - htNow.getBoundingClientRect().left;
+    if (Math.abs(dx) > 0.5) htNow.animate([{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], { duration: ms, easing: ease });
+  }
   if (pane && paneTop != null) {
     const dy = paneTop - pane.getBoundingClientRect().top;
     if (Math.abs(dy) > 0.5) pane.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: ms, easing: ease });
@@ -361,6 +367,13 @@ function armyOf(side) {
 }
 const nameOf = x => x.label || x.unit?.name || x.key;
 
+/** Health boxes: one per model (up to ten), tap one to mark that model and the ones before it destroyed. */
+function hpHTML(x) {
+  const n = x.models || 0, d = Math.min((B.destroyed || {})[x.id] || 0, n), shown = Math.min(n, 10);
+  let boxes = "";
+  for (let i = 0; i < shown; i++) boxes += `<span class="bt-hp-box${i < d ? " dead" : ""}" data-bt-hp="${esc(x.id)}|${i}" aria-label="Model ${i + 1}${i < d ? ", destroyed" : ""}"></span>`;
+  return `<span class="bt-hp">${boxes}${n > 10 ? `<span class="bt-hp-more">+${n - 10}</span>` : ""}</span><span class="bt-destroyed">${d} of ${n} destroyed</span>`;
+}
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
   const head = `<div class="bt-armyhead" style="--c1:${st.c1};--c2:${st.c2}">${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc(army?.list.name || p.army || "")}${army ? ` · ${army.r.total} pts` : ""}</span></div></div>`;
@@ -379,7 +392,7 @@ function armyHTML(side, army = armyOf(side)) {
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
         <span class="bt-unit-top"><b>${esc(nameOf(x))}</b><span>${x.total} pts</span></span>
         ${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
-        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</button>
+        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}${hpHTML(x)}</button>
       ${kids.map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span></button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
@@ -637,6 +650,12 @@ function handleTrackerClick(e, host) {
   if (box) { toggleIn(openBoxes, box.dataset.btBox); renderTracker(host); return true; }
   const srow = t.closest("[data-bt-strat]");
   if (srow) { toggleIn(openStrats, srow.dataset.btStrat); renderTracker(host); return true; }
+  const hp = t.closest("[data-bt-hp]");
+  if (hp) {
+    const [id, i] = hp.dataset.btHp.split("|"), k = +i;
+    change(b => { b.destroyed ||= {}; const cur = b.destroyed[id] || 0; b.destroyed[id] = cur > k ? k : k + 1; }, host);
+    return true;
+  }
   const u = t.closest("[data-bt-unit]");
   if (u) { sheet = { side: u.dataset.side, id: u.dataset.btUnit }; renderTracker(host); host.querySelector(`.bt-pane[data-pane="${u.dataset.side}"]`)?.scrollTo(0, 0); return true; }
   if (t.closest("[data-bt-dsback]")) { sheet = null; renderTracker(host); return true; }
