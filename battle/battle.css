@@ -543,7 +543,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-grp-name { flex: 1 1 auto; min-width: 0; font-size: 16px; }
 .bt-grp-pips { flex: none; justify-content: flex-start; }
 .bt-hp[data-bt-wound] { cursor: pointer; }
-.bt-grp-count { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.bt-grp-count { flex: none; display: inline-flex; align-items: center; gap: 8px; margin-left: 16px; }
 .bt-cnt { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-2, transparent); color: inherit; font: 700 18px var(--font); cursor: pointer; }
 .bt-cnt:disabled { opacity: .35; cursor: default; }
 .bt-cnt-n { min-width: 24px; text-align: center; font-weight: 700; font-size: 18px; }
@@ -560,7 +560,10 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-unit-top > .bt-namewrap { flex: 0 1 auto; max-width: 72%; min-width: 0; }
 .bt-unit-top > .bt-hp, .bt-attached > .bt-hp { flex: 0 1 auto; min-width: 0; max-width: none; margin-left: 10px; justify-content: flex-start; flex-wrap: nowrap; }
 .bt-unit-top > .bt-hp .bt-hp-box, .bt-attached > .bt-hp .bt-hp-box { flex: 0 1 12px; width: 12px; height: 12px; min-width: 3px; }
-.bt-unit-top > span:last-child { margin-left: auto; white-space: nowrap; }
+.bt-unit-top > span:not(.bt-namewrap):not(.bt-hp) { margin-left: auto; white-space: nowrap; }
+.bt-unit-top > .bt-hp { justify-content: flex-end; margin-left: 10px; }
+.bt-attached > span:not([aria-hidden]):not(.bt-hp) { margin-left: auto; }
+.bt-attached > .bt-hp { justify-content: flex-end; }
 .bt-attached { align-items: center; }
 .bt-attached > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bt-attached > .bt-hp { margin-left: 4px; }

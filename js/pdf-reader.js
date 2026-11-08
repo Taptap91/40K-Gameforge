@@ -1,7 +1,7 @@
 /* RulesForge · pdf-reader.js
  * Reads a PDF's text with positions, using pdf.js (loaded only when a PDF is added).
  */
-import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.28";
+import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.29";
 
 const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
