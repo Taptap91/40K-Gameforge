@@ -534,3 +534,23 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 @media (min-width: 1280px) {
   .bt-pane[data-pane="them"] { padding: 0 var(--bt-pad) 24px var(--bt-pad); margin-right: calc(var(--bt-gap) - 2 * var(--bt-pad)); }
 }
+
+/* Datasheet in battle: one block per loadout row, each weapon profile in its own panel. */
+.bt-grps { display: flex; flex-direction: column; gap: 12px; }
+.bt-grp { border: 1px solid var(--border); border-radius: 14px; background: var(--panel); padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: opacity .25s ease; }
+.bt-grp.done { opacity: .55; }
+.bt-grp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.bt-grp-name { flex: 1 1 auto; min-width: 0; font-size: 16px; }
+.bt-grp-pips { flex: none; justify-content: flex-start; }
+.bt-grp-pips .bt-hp-box { cursor: pointer; }
+.bt-grp-count { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.bt-cnt { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-2, transparent); color: inherit; font: 700 18px var(--font); cursor: pointer; }
+.bt-cnt:disabled { opacity: .35; cursor: default; }
+.bt-cnt-n { min-width: 24px; text-align: center; font-weight: 700; font-size: 18px; }
+.bt-wpn { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--panel-2, transparent); }
+.bt-wpn-name { font-weight: 700; }
+.bt-wstats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.bt-wstats > span { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.bt-wstats small { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.bt-wstats b { width: 100%; text-align: center; padding: 8px 4px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; }
+.bt-wkw { display: flex; flex-wrap: wrap; gap: 6px; }

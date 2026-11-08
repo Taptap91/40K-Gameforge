@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.25";
-import { wargearOf } from "./loadout.js?v=8.25";
-import { factionMatches } from "./search.js?v=8.25";
-import { coreAbilityRule } from "./rules-doc.js?v=8.25";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.25";
+import { esc, state, uid } from "./core.js?v=8.26";
+import { wargearOf } from "./loadout.js?v=8.26";
+import { factionMatches } from "./search.js?v=8.26";
+import { coreAbilityRule } from "./rules-doc.js?v=8.26";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.26";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -459,4 +459,4 @@ function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
   </div>`;
 }
 
-export { weaponPanelsHTML, armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };
+export { weaponPanelsHTML, armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, modStat, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };

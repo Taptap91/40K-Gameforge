@@ -1,7 +1,7 @@
 /* RulesForge · loadout.js
  * Wargear: model groups, default weapons, swap options and limits read from datasheets, and weapon changes in the list builder.
  */
-import { normName, stripRich, titleCase } from "./text.js?v=8.25";
+import { normName, stripRich, titleCase } from "./text.js?v=8.26";
 
 /** "Bolt Rifle - Focused Fire" → "Bolt Rifle". */
 const weaponBase = name => String(name || "").split(/\s+[-–—]\s+/)[0].replace(/\s+non-?\s*$/i, "").trim();/** Loose name key for matching wargear text to weapons ("Lightning Claws" → "lightning claw"). */
@@ -103,7 +103,7 @@ function wargearOf(ds) {
     }
     for (const n of named) add(n);
     for (const l of leaders.slice(0, 2)) {
-      groups.unshift({ name: l.name, key: l.key, min: 1, max: 1, defaults: [...main.defaults] });
+      groups.unshift({ name: l.name, key: l.key, min: 1, max: 1, defaults: [...main.defaults], leader: true });
       // Take the leader out of the main count when the composition counted every model.
       if (main.fallback || main.max >= squadMax) { main.min = Math.max(0, main.min - 1); main.max = Math.max(main.min, main.max - 1); }
     }
@@ -187,6 +187,40 @@ function groupSizes(wg, size) {
 }
 const optionMax = (o, groupN, unitSize) => Math.min(groupN, o.max.all ? groupN : o.max.per ? Math.floor(unitSize / o.max.per) * o.max.n : o.max.n);
 
+/** Brings each model's weapons in line with the wanted counts, changing as few models as it can. A weapon added
+ *  is given to a model that has no extras; a default weapon that a swap pushes out comes off the model that took
+ *  the swap-in, so the swap stays on one model. Returns new arrays of weapon names, sorted per model. */
+function reconcileModels(models, want, defaults) {
+  const out = models.map(s => new Set(s));
+  const has = w => out.filter(s => s.has(w)).length;
+  const extras = s => [...s].filter(x => !defaults.includes(x)).length;
+  const pick = (cands, most) => cands.reduce((best, i) => (best == null || (most ? extras(out[i]) >= extras(out[best]) : extras(out[i]) < extras(out[best])) ? i : best), null);
+  const fresh = new Set(); // models that just took an extra weapon: a default pushed out by a swap comes off one of these
+  const all = [...new Set([...Object.keys(want), ...out.flatMap(s => [...s])])];
+  const step = w => {
+    const isDef = defaults.includes(w);
+    let delta = (want[w] ?? 0) - has(w);
+    while (delta < 0) {
+      const holders = out.map((s, k) => (s.has(w) ? k : -1)).filter(k => k >= 0);
+      const swapped = isDef ? holders.filter(k => fresh.has(k)) : [];
+      const i = pick(swapped.length ? swapped : holders, true);
+      if (i == null) break;
+      out[i].delete(w); delta++;
+    }
+    while (delta > 0) {
+      const lacking = out.map((s, k) => (s.has(w) ? -1 : k)).filter(k => k >= 0);
+      const i = pick(lacking, isDef);
+      if (i == null) break;
+      out[i].add(w); delta--;
+      if (!isDef) fresh.add(i);
+    }
+  };
+  // Extra weapons first, so a swap-in is already on a model when the default it replaces is taken off.
+  for (const w of all) if (!defaults.includes(w)) step(w);
+  for (const w of all) if (defaults.includes(w)) step(w);
+  return out.map(s => [...s].sort());
+}
+
 /** Weapons each group can carry, the most models that can carry each, and current counts. */
 function loadoutOf(x) {
   const wg = wargearOf(x.unit.ds);
@@ -199,14 +233,21 @@ function loadoutOf(x) {
     for (const o of opts) for (const c of o.choices) for (const w of c) if (!g.defaults.includes(w)) reach.set(w, Math.min(N, (reach.get(w) || 0) + optionMax(o, N, x.models)));
     if (wg.free) for (const b of wg.bases) reach.set(b, N);
     const saved = x.load?.[g.name];
-    const counts = {};
-    for (const w of reach.keys()) {
-      const base = g.defaults.includes(w) ? N : 0;
-      let c = saved && w in saved.c ? saved.c[w] + (g.defaults.includes(w) ? N - saved.n : 0) : base;
-      counts[w] = Math.max(0, Math.min(N, c));
+    // Each model's own weapons. Saved lists from before this kept only counts: those are converted once, here.
+    let models = saved?.m && saved.m.length === N ? saved.m.map(s => [...s]) : null;
+    if (!models) {
+      const legacy = {};
+      for (const w of reach.keys()) {
+        const base = g.defaults.includes(w) ? N : 0;
+        const c = saved && saved.c && w in saved.c ? saved.c[w] + (g.defaults.includes(w) ? N - saved.n : 0) : base;
+        legacy[w] = Math.max(0, Math.min(N, c));
+      }
+      models = reconcileModels(Array.from({ length: N }, () => [...g.defaults]), legacy, g.defaults);
     }
+    const counts = {};
+    for (const w of reach.keys()) counts[w] = models.filter(s => s.includes(w)).length;
     const types = new Map([...reach.keys()].map(w => [w, (x.unit.ds.weapons || []).find(v => weaponBase(v.name) === w)?.type || ""]));
-    return { name: g.name, N, defaults: g.defaults, options: opts, reach, counts, types, free: wg.free };
+    return { name: g.name, N, defaults: g.defaults, options: opts, reach, counts, models, types, free: wg.free, leader: !!g.leader };
   }).filter(g => g.N > 0);
 }
 
@@ -430,4 +471,4 @@ function weaponSummary(x) {
   return Object.entries(total).map(([w, n]) => `${n}× ${w}`).join(", ");
 }
 
-export { attackBuffs, buffsFor, loadoutIssues, loadoutOf, loadoutProblem, setWeapon, wargearOf, weaponBase, weaponLimits, weaponSummary };
+export { attackBuffs, buffsFor, loadoutIssues, loadoutOf, loadoutProblem, reconcileModels, setWeapon, wargearOf, weaponBase, weaponLimits, weaponSummary };

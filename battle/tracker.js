@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.25";
-import { factionStyle } from "../js/factions.js?v=8.25";
-import { armyData, evaluateList } from "../js/army.js?v=8.25";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.25";
-import { effectiveRules } from "../js/rules-doc.js?v=8.25";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.25";
-import { richHTML } from "../js/text.js?v=8.25";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.26";
+import { factionStyle } from "../js/factions.js?v=8.26";
+import { armyData, evaluateList } from "../js/army.js?v=8.26";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.26";
+import { effectiveRules } from "../js/rules-doc.js?v=8.26";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.26";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.26";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -401,39 +401,74 @@ function armyHTML(side, army = armyOf(side)) {
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
 }
 
-/** Models: one row per model. Tap a row to open its weapons; its wound boxes are tapped to mark wounds lost;
- *  Destroy Model marks it (and the ones before it) destroyed; Revive takes it back. */
-const openModels = new Set();
-function modelsHTML(x, ds, weaponsPanel) {
-  const n = x.models || 0, dead = Math.min((B.destroyed || {})[x.id] || 0, n), W = Math.min(Math.max(1, +(ds.profiles?.[0]?.W) || 1), 12);
-  const body = `${weaponsPanel("Ranged", "Ranged weapons")}${weaponsPanel("Melee", "Melee weapons")}`;
-  const rows = Array.from({ length: n }, (_, i) => {
-    const key = `${x.id}|${i}`, isDead = i < dead, lost = (B.wounds || {})[key] || 0, open = openModels.has(key);
-    const boxes = Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k < lost ? " dead" : ""}" data-bt-wound="${esc(key)}|${k}" aria-label="Wound ${k + 1}${k < lost ? ", lost" : ""}"></span>`).join("");
-    return `<div class="bt-model${open ? " open" : ""}${isDead ? " dead" : ""}" data-bt-mrow="${esc(key)}">
-      <div class="bt-model-top">
-        <span class="bt-model-x">x1</span>
-        <span class="bt-model-mid"><b>${esc(nameOf(x))}</b><span class="bt-hp">${boxes}</span></span>
-        <button type="button" class="bt-model-kill${isDead ? " revive" : ""}" data-bt-mkill="${esc(key)}">${isDead ? "Revive" : "Destroy Model"}</button>
-      </div>
-      <div class="bt-model-wrap"><div class="bt-model-body">${body}</div></div>
-    </div>`;
-  }).join("");
-  return `<section class="bt-models"><div class="bt-models-head"><b>Models</b><span>${n - dead} of ${n} alive</span></div>${rows}</section>`;
+/** The unit as it is carried, one row per distinct loadout: the plain model, then each extra-weapon variant, then leaders
+ *  on their own. A variant is named "Model - Weapon"; a leader keeps its own name. */
+function rowsOf(x) {
+  const rows = [];
+  const groups = loadoutOf(x);
+  // Plain models first, leaders last; within a group, each distinct loadout is one row (the plain one first).
+  for (const g of [...groups.filter(g => !g.leader), ...groups.filter(g => g.leader)]) {
+    const sigs = new Map();
+    for (const s of g.models) { const k = s.join("|"); if (!sigs.has(k)) sigs.set(k, { weapons: s, n: 0 }); sigs.get(k).n++; }
+    const extrasOf = sg => g.leader ? [] : sg.weapons.filter(w => !g.defaults.includes(w));
+    const sorted = [...sigs.values()].sort((a, b) => extrasOf(a).length - extrasOf(b).length);
+    for (const sg of sorted) {
+      const ex = extrasOf(sg);
+      rows.push({ name: ex.length ? `${g.name} - ${ex.map(capWords).join(" + ")}` : g.name, n: sg.n, weapons: sg.weapons });
+    }
+  }
+  if (!rows.length) rows.push({ name: nameOf(x), n: x.models || 0, weapons: [...new Set((x.unit.ds.weapons || []).map(w => weaponBase(w.name)))] });
+  return rows;
+}
+/** Destroyed models per row. Kept per row once set; otherwise filled from the unit's total in row order. */
+function splitDestroyed(b, x, rows) {
+  const D = Math.min((b.destroyed || {})[x.id] || 0, x.models || 0), saved = (b.destroyedG || {})[x.id];
+  if (saved?.length === rows.length && saved.reduce((s, v, i) => s + Math.min(v, rows[i].n), 0) === D) return rows.map((r, i) => Math.min(saved[i], r.n));
+  let left = D;
+  return rows.map(r => { const k = Math.min(left, r.n); left -= k; return k; });
 }
 /** A unit's datasheet for the battle: its profile, only the wargear it has, and its abilities. No options, no leader lists. */
 function battleDatasheet(x, army) {
-  const ds = x.unit.ds, buffs = buffsFor(x, army.r);
+  const ds = x.unit.ds, buffs = buffsFor(x, army.r), W = Math.min(Math.max(1, +(ds.profiles?.[0]?.W) || 1), 12);
   const counts = new Map();
   for (const g of x.loadout || []) for (const [w, n] of Object.entries(g.counts || {})) if (n > 0) counts.set(w, (counts.get(w) || 0) + n);
-  const equipped = (ds.weapons || []).filter(w => counts.has(weaponBase(w.name)));
-  const byType = t => equipped.filter(w => w.type === t);
-  const weaponsPanel = (t, label) => byType(t).length ? panelHTML(label, `<div class="bt-carried">${[...new Set(byType(t).map(w => weaponBase(w.name)))].map(b => `<span>${counts.get(b)}× ${esc(b)}</span>`).join("")}</div>${weaponGridHTML(byType(t), t, buffs)}`) : "";
+  const rows = rowsOf(x), dg = splitDestroyed(B, x, rows);
   const taken = [x.enh, x.upg].filter(Boolean).map(n => army.r.enhPool?.find(e => e.name === n)).filter(Boolean);
+  // A profile's stat, with any attached-character buff worked in (as on the list).
+  const statOf = (p, k, stat) => {
+    const bs = stat ? buffs.filter(b => b.stat === stat && (!b.type || b.type === p.type)) : [];
+    return { v: bs.reduce((acc, b) => modStat(acc, b.delta, b.stat), p[k]), buffed: bs.length > 0 };
+  };
+  const profileHTML = p => {
+    const melee = p.type === "Melee";
+    const cells = [["Range", "range", null], ["A", "A", "A"], [melee ? "WS" : "BS", "skill", null], ["S", "S", "S"], ["AP", "AP", "AP"], ["D", "D", "D"]];
+    const kws = keywordList(p.tags);
+    return `<div class="bt-wpn"><div class="bt-wpn-name">${esc(capWords(p.name))}</div>
+      <div class="bt-wstats">${cells.map(([l, k, stat]) => { const s = statOf(p, k, stat); return `<span><small>${esc(l)}</small><b class="${s.buffed ? "lb-buffed" : ""}">${esc(s.v ?? "")}</b></span>`; }).join("")}</div>
+      ${kws.length ? `<div class="bt-wkw">${kws.map(k => `<span class="fv-kw">${esc(k)}</span>`).join("")}</div>` : ""}</div>`;
+  };
+  let start = 0;
+  const rowHTML = (r, ri) => {
+    const alive = r.n - dg[ri], front = start + dg[ri];
+    start += r.n;
+    const lost = alive > 0 ? (B.wounds || {})[`${x.id}|${front}`] || 0 : 0;
+    const pips = alive > 0 ? Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k < lost ? " dead" : ""}" data-bt-wound="${esc(x.id)}|${front}|${k}" aria-label="Wound ${k + 1}${k < lost ? ", lost" : ""}"></span>`).join("") : "";
+    const profiles = (ds.weapons || []).filter(w => r.weapons.includes(weaponBase(w.name)));
+    return `<section class="bt-grp${alive ? "" : " done"}">
+      <div class="bt-grp-head"><b class="bt-grp-name">${esc(r.name)}</b><span class="bt-hp bt-grp-pips">${pips}</span>
+        <span class="bt-grp-count"><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|1" aria-label="Destroy one" ${alive ? "" : "disabled"}>−</button><span class="bt-cnt-n">${alive}</span><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|-1" aria-label="Revive one" ${dg[ri] ? "" : "disabled"}>+</button></span></div>
+      ${profiles.map(profileHTML).join("")}
+    </section>`;
+  };
+  const groupsHTML = rows.map(rowHTML).join("");
+  // Stat lines: one per distinct statline in the datasheet, in the same style as a weapon profile (no name, no keywords).
+  const seen = new Set();
+  const statLines = (ds.profiles || []).filter(p => { const k = [p.M, p.T, p.SV, p.W, p.LD, p.OC].join("|"); if (seen.has(k)) return false; seen.add(k); return true; });
+  const statHTML = statLines.map(p => `<div class="bt-wpn bt-statline"><div class="bt-wstats">${[["M", p.M], ["T", p.T], ["Sv", p.SV], ["W", p.W], ["Ld", p.LD], ["OC", p.OC]].map(([l, v]) => `<span><small>${esc(l)}</small><b>${esc(v ?? "")}</b></span>`).join("")}</div></div>`).join("");
   return `<div class="bt-ds">
     <div class="bt-ds-head"><h3>${esc(nameOf(x))}</h3>${x.label ? `<div class="bt-unit-orig">${esc(x.unit.name)}</div>` : ""}<div class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"} · ${x.total} pts${x.warlord ? " · Warlord" : ""}</div></div>
-    ${modelsHTML(x, ds, weaponsPanel)}
-    ${statsHTML(ds)}
+    ${statHTML}
+    <div class="bt-grps">${groupsHTML}</div>
     ${taken.map(e => panelHTML(`${e.upgrade ? "Upgrade" : "Enhancement"} · ${esc(e.name)}`, `<div class="fv-rich">${richHTML(e.rich || e.text)}</div>`)).join("")}
     ${datasheetDetailsHTML(ds, army.armyRules, { battle: true, equipped: [...counts.keys()] })}
   </div>`;
@@ -673,10 +708,16 @@ function handleTrackerClick(e, host) {
   if (box) { toggleIn(openBoxes, box.dataset.btBox); renderTracker(host); return true; }
   const srow = t.closest("[data-bt-strat]");
   if (srow) { toggleIn(openStrats, srow.dataset.btStrat); renderTracker(host); return true; }
-  const mk = t.closest("[data-bt-mkill]");
-  if (mk) {
-    const [id, i] = mk.dataset.btMkill.split("|"), k = +i;
-    change(b => { b.destroyed ||= {}; const cur = b.destroyed[id] || 0; b.destroyed[id] = cur > k ? k : k + 1; }, host);
+  const gs = t.closest("[data-bt-gset]");
+  if (gs) {
+    const [id, r, d] = gs.dataset.btGset.split("|"), ri = +r, delta = +d;
+    const x = sheet && armyOf(sheet.side)?.r.entries.find(e => e.id === id);
+    if (x) change(b => {
+      const rows = rowsOf(x), dg = splitDestroyed(b, x, rows);
+      dg[ri] = Math.max(0, Math.min(rows[ri].n, dg[ri] + delta));
+      b.destroyedG ||= {}; b.destroyedG[id] = dg;
+      b.destroyed ||= {}; b.destroyed[id] = dg.reduce((s, v) => s + v, 0);
+    }, host);
     return true;
   }
   const wb = t.closest("[data-bt-wound]");
@@ -685,8 +726,6 @@ function handleTrackerClick(e, host) {
     change(b => { b.wounds ||= {}; const cur = b.wounds[key] || 0; b.wounds[key] = cur > kk ? kk : kk + 1; }, host);
     return true;
   }
-  const mr = t.closest("[data-bt-mrow]");
-  if (mr) { toggleIn(openModels, mr.dataset.btMrow); renderTracker(host); return true; }
   const hp = t.closest("[data-bt-hp]");
   if (hp) {
     const [id, i] = hp.dataset.btHp.split("|"), k = +i;
