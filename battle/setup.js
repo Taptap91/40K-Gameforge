@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.20";
-import { factionStyle } from "../js/factions.js?v=8.20";
-import { evaluateList } from "../js/army.js?v=8.20";
-import { missionCard } from "../js/mission-viewer.js?v=8.20";
-import { openSync } from "./sync.js?v=8.20";
-import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.20";
-import { confirmSheet } from "../js/core.js?v=8.20";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.21";
+import { factionStyle } from "../js/factions.js?v=8.21";
+import { evaluateList } from "../js/army.js?v=8.21";
+import { missionCard } from "../js/mission-viewer.js?v=8.21";
+import { openSync } from "./sync.js?v=8.21";
+import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.21";
+import { confirmSheet } from "../js/core.js?v=8.21";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -259,7 +259,9 @@ function tools() {
   const el = $("#battleTools");
   if (!el) return;
   const lost = !!S.peerCode && link !== "connected";
-  el.innerHTML = `${lost ? `<button type="button" class="btn bs-reconnect" data-bs-reconnect>⟳ Reconnect</button>` : S.peerCode ? `<span class="bs-linked" title="Connected to ${esc(opponent?.name || "your opponent")}">● Synced</span>` : ""}${trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
+  // A rounded box with a light: green when synced with your opponent, red when not (tap it to reconnect when the link has dropped).
+  const status = lost ? `<button type="button" class="bs-sync off" data-bs-reconnect title="Reconnect"><i></i>Not synced</button>` : S.peerCode ? `<span class="bs-sync on" title="Connected to ${esc(opponent?.name || "your opponent")}"><i></i>Synced</span>` : `<span class="bs-sync off"><i></i>Not synced</span>`;
+  el.innerHTML = `${status}${trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
 }
 const STATUS_TEXT = { waiting: "Waiting for your opponent…", connecting: "Connecting…", connected: "Connected — swapping armies…", "not-found": "No one is waiting with that code.", offline: "Can't reach the internet: only another copy of RulesForge in this browser can pair.", lost: "Connection lost." };
 function startSync(reconnect) {

@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.20";
-import { factionStyle } from "../js/factions.js?v=8.20";
-import { armyData, evaluateList } from "../js/army.js?v=8.20";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.20";
-import { effectiveRules } from "../js/rules-doc.js?v=8.20";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.20";
-import { richHTML } from "../js/text.js?v=8.20";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.21";
+import { factionStyle } from "../js/factions.js?v=8.21";
+import { armyData, evaluateList } from "../js/army.js?v=8.21";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.21";
+import { effectiveRules } from "../js/rules-doc.js?v=8.21";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.21";
+import { richHTML } from "../js/text.js?v=8.21";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -294,6 +294,22 @@ function watchView(pane) {
   viewWatch.disconnect(); viewWatch.observe(pane);
 }
 const reduceMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+/* Phone and tablet: once past section one, the first section starts where the phase tracker's top was in section one. */
+let phaseTopS1 = null;
+function alignSectionTop(compact, el, header, pane) {
+  if (!pane) return;
+  const narrow = matchMedia("(max-width: 1279px)").matches;
+  if (!compact) {
+    const ph = el.querySelector(".bt-phases");
+    if (ph) phaseTopS1 = ph.getBoundingClientRect().top;
+    pane.style.marginTop = "";
+    return;
+  }
+  if (!narrow || phaseTopS1 == null) { pane.style.marginTop = ""; return; }
+  const headerBottom = header.getBoundingClientRect().bottom, paneTop = pane.getBoundingClientRect().top;
+  // The pane starts under the header; the padding puts its first section at the phase tracker's old top.
+  pane.style.marginTop = Math.max(0, Math.round(phaseTopS1 - headerBottom)) + "px";
+}
 function mountStick(compact, animate = false) {
   const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
   const pane = document.querySelector('.bt-pane[data-pane="tracker"]');
@@ -306,6 +322,7 @@ function mountStick(compact, animate = false) {
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
+  alignSectionTop(compact, el, header, pane);
   fitView(pane);
   // The pane's height changed under the scroll: put the position back (the browser may have clamped it).
   if (pane && pane.scrollTop !== keepTop) pane.scrollTop = keepTop;

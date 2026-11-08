@@ -386,7 +386,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 /* Army columns sit at the same distance below the header box as the viewed section's top does. */
 @media (min-width: 1280px) {
   #view-battle:not(:has(header .bt-stick.compact)) > * .bt-pane[data-pane="me"], #view-battle:not(:has(header .bt-stick.compact)) .bt-pane[data-pane="them"] { margin-top: -62px; }
-  #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="me"], #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="them"] { margin-top: 28px; }
+  #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="me"], #view-battle:has(header .bt-stick.compact) .bt-pane[data-pane="them"] { margin-top: 32px; }
   /* Sync status sits level with Round # and the turn text in the header. */
 }
 
@@ -404,3 +404,77 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 
 /* Compact phase box: no outline, centred vertically with Round # and the turn text. */
 @media (min-width: 1280px) { #view-battle > header.toolbar > .bt-stick.compact .bt-phases { border: 0; box-shadow: none; } }
+
+/* ---------- Battle header on every screen size: Round # left, the phase box centred, the turn text right; the sync light in its own box. ---------- */
+.bs-sync { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); color: var(--text); font: 700 14px var(--font); white-space: nowrap; }
+.bs-sync i { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 6px rgba(229,72,77,.7); flex: none; }
+.bs-sync.on i { background: #30c46b; box-shadow: 0 0 6px rgba(48,196,107,.7); }
+#view-battle > header.toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 8px; row-gap: 8px; position: relative; padding-left: max(16px, calc(50% - 364px)); padding-right: max(16px, calc(50% - 364px)); }
+#view-battle > header.toolbar > h1 { grid-column: 1; grid-row: 1; justify-self: start; }
+#view-battle > header.toolbar > .spacer { display: none; }
+/* Wide screens: the sync box sits at the far right; elsewhere it sits under Round #, with the turn text to its right. */
+#view-battle > header.toolbar > #battleTools { grid-column: 1; grid-row: 2; justify-self: start; display: flex; align-items: center; }
+#view-battle > header.toolbar > .bt-hturn { display: block; grid-column: 2 / 4; grid-row: 2; justify-self: start; font-size: 15px; color: var(--text-2); white-space: nowrap; padding-left: 8px; }
+#view-battle > header.toolbar > .bt-stick.compact .bt-turn { display: none; }
+#view-battle > header.toolbar > .bt-stick.compact { display: contents; }
+#view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 2; grid-row: 1; justify-self: center; align-self: center; width: max-content; display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px; border: 0; box-shadow: none; border-radius: 14px; cursor: pointer; pointer-events: auto; }
+#view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 40px; padding: 0 12px; font-size: 16px; }
+#view-battle > header.toolbar > .bt-stick.compact .bt-phases button:not(.on) { display: none; }
+#view-battle > header.toolbar > h1 { font-size: 17px; }
+#view-battle > header.toolbar .bt-round { min-height: 40px; padding: 0 14px; font-size: 16px; }
+@media (min-width: 793px) {
+  #view-battle > header.toolbar { row-gap: 10px; }
+  #view-battle > header.toolbar > #battleTools { grid-column: 3; grid-row: 1; justify-self: end; }
+  #view-battle > header.toolbar > .bt-hturn { grid-column: 3; grid-row: 1; justify-self: end; font-size: 20px; padding-left: 0; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 50px; font-size: 20px; }
+  #view-battle > header.toolbar .bt-round { min-height: 50px; padding: 0 30px; font-size: 20px; }
+  #view-battle > header.toolbar > h1 { font-size: 20px; }
+}
+
+/* Smaller screens: section one shrinks from the cards inwards, so the whole section fits; buttons keep a comfortable size. */
+@media (max-height: 760px) {
+  .bt-s1 { gap: 8px; padding-top: 6px; }
+  .bt-gap { height: 24px; }
+  .bt-cols, .bt-col { gap: 6px; }
+  .bt-card { padding: 8px 8px; gap: 4px; }
+  .bt-vp { margin: 0; }
+  .bt-vp b { font-size: 32px; }
+  .bt-vp span { font-size: 16px; }
+  .bt-cpbtns { gap: 6px; }
+  .bt-cpbtn { min-height: 42px; }
+  .bt-nextphase { min-height: 44px; }
+  .bt-score b { font-size: 28px; }
+}
+@media (max-height: 640px) {
+  .bt-card { padding: 6px; }
+  .bt-vp b { font-size: 26px; }
+  .bt-vp span { font-size: 14px; }
+  .bt-cpbtn { min-height: 40px; }
+  .bt-nextphase { min-height: 40px; font-size: 16px; }
+}
+/* Narrow phones: the header and phase strip shrink so section one still fits on screen. */
+@media (max-width: 430px) {
+  #view-battle > header.toolbar { padding-top: 8px; padding-bottom: 8px; row-gap: 6px; }
+  #view-battle > header.toolbar > h1 { font-size: 15px; }
+  #view-battle > header.toolbar .bt-round { min-height: 34px; padding: 0 10px; font-size: 14px; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 34px; padding: 0 8px; font-size: 13px; }
+  #view-battle > header.toolbar > .bt-hturn { font-size: 13px; }
+  .bs-sync { min-height: 28px; padding: 0 9px; font-size: 12px; }
+  .bt-stick:not(.compact) { padding-top: 8px; padding-bottom: 6px; }
+  .bt-stick:not(.compact) .bt-phases button { min-height: 34px; font-size: 13px; }
+  .bt-nextphase { min-height: 40px; font-size: 16px; }
+}
+/* Short phones: a little tighter again so section one ends above the footer. */
+@media (max-height: 700px) {
+  .bt-s1 { gap: 6px; }
+  .bt-gap { height: 16px; }
+  .bt-card { padding: 6px; gap: 3px; }
+  .bt-col { gap: 4px; }
+  .bt-vp b { font-size: 26px; }
+  .bt-vp span { font-size: 14px; }
+  .bt-cpbtn { min-height: 38px; }
+  .bt-cols { gap: 8px; }
+  .bt-score { padding-top: 12px; }
+}
+/* The turn text lives in the header on every screen, so the copy above the phase bar goes. */
+.bt-stick:not(.compact) .bt-turn { display: none; }
