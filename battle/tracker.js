@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.26";
-import { factionStyle } from "../js/factions.js?v=8.26";
-import { armyData, evaluateList } from "../js/army.js?v=8.26";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.26";
-import { effectiveRules } from "../js/rules-doc.js?v=8.26";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.26";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.26";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.27";
+import { factionStyle } from "../js/factions.js?v=8.27";
+import { armyData, evaluateList } from "../js/army.js?v=8.27";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.27";
+import { effectiveRules } from "../js/rules-doc.js?v=8.27";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.27";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.27";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -368,11 +368,29 @@ function armyOf(side) {
 const nameOf = x => x.label || x.unit?.name || x.key;
 
 /** Health boxes: one per model (up to ten), tap one to mark that model and the ones before it destroyed. */
-function hpHTML(x) {
-  const n = x.models || 0, d = Math.min((B.destroyed || {})[x.id] || 0, n), shown = Math.min(n, 10);
-  let boxes = "";
-  for (let i = 0; i < shown; i++) boxes += `<span class="bt-hp-box${i < d ? " dead" : ""}" data-bt-hp="${esc(x.id)}|${i}" aria-label="Model ${i + 1}${i < d ? ", destroyed" : ""}"></span>`;
-  return `<span class="bt-hp">${boxes}${n > 10 ? `<span class="bt-hp-more">+${n - 10}</span>` : ""}</span>`;
+/** Wound pips for a model: W of them, the wounds greying out from the right. */
+function pipsHTML(W, lost) {
+  return Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k >= W - lost ? " dead" : ""}"></span>`).join("");
+}
+/** The unit's model whose wounds the list shows: a wounded model by priority (basic, basic with another loadout,
+ *  leader), else the basic model. Returns its row, front model index and wounds, or null when nothing is left. */
+function focusOf(x) {
+  const rows = rowsOf(x), dg = splitDestroyed(B, x, rows);
+  let s = 0;
+  const spans = rows.map((r, i) => {
+    const sp = { i, front: s + dg[i], alive: r.n - dg[i], pri: r.pri, lost: 0 };
+    s += r.n;
+    sp.lost = sp.alive > 0 ? (B.wounds || {})[`${x.id}|${sp.front}`] || 0 : 0;
+    return sp;
+  }).filter(sp => sp.alive > 0);
+  const byPri = (a, b) => a.pri - b.pri || a.i - b.i;
+  const pick = spans.filter(sp => sp.lost > 0).sort(byPri)[0] || [...spans].sort(byPri)[0];
+  return pick ? { ...pick, W: Math.min(Math.max(1, +(x.unit.ds.profiles?.[0]?.W) || 1), 12) } : null;
+}
+function hpHTML(x, side) {
+  const f = focusOf(x);
+  if (!f) return "";
+  return `<span class="bt-hp" data-bt-wound="${esc(x.id)}|${f.i}|${side}" title="Tap to wound this model">${pipsHTML(f.W, f.lost)}</span>`;
 }
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
@@ -395,7 +413,7 @@ function armyHTML(side, army = armyOf(side)) {
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
         <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span></span>
         <span class="bt-unit-row"><span class="bt-unit-left">${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
-        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span>${hpHTML(x)}</span></button>
+        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span>${hpHTML(x, side)}</span></button>
       ${kids.map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span></button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
@@ -414,7 +432,7 @@ function rowsOf(x) {
     const sorted = [...sigs.values()].sort((a, b) => extrasOf(a).length - extrasOf(b).length);
     for (const sg of sorted) {
       const ex = extrasOf(sg);
-      rows.push({ name: ex.length ? `${g.name} - ${ex.map(capWords).join(" + ")}` : g.name, n: sg.n, weapons: sg.weapons });
+      rows.push({ name: ex.length ? `${g.name} - ${ex.map(capWords).join(" + ")}` : g.name, n: sg.n, weapons: sg.weapons, pri: g.leader ? 2 : ex.length ? 1 : 0 });
     }
   }
   if (!rows.length) rows.push({ name: nameOf(x), n: x.models || 0, weapons: [...new Set((x.unit.ds.weapons || []).map(w => weaponBase(w.name)))] });
@@ -452,10 +470,10 @@ function battleDatasheet(x, army) {
     const alive = r.n - dg[ri], front = start + dg[ri];
     start += r.n;
     const lost = alive > 0 ? (B.wounds || {})[`${x.id}|${front}`] || 0 : 0;
-    const pips = alive > 0 ? Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k < lost ? " dead" : ""}" data-bt-wound="${esc(x.id)}|${front}|${k}" aria-label="Wound ${k + 1}${k < lost ? ", lost" : ""}"></span>`).join("") : "";
+    const pips = alive > 0 ? pipsHTML(W, lost) : "";
     const profiles = (ds.weapons || []).filter(w => r.weapons.includes(weaponBase(w.name)));
     return `<section class="bt-grp${alive ? "" : " done"}">
-      <div class="bt-grp-head"><b class="bt-grp-name">${esc(r.name)}</b><span class="bt-hp bt-grp-pips">${pips}</span>
+      <div class="bt-grp-head"><b class="bt-grp-name">${esc(r.name)}</b><span class="bt-hp bt-grp-pips" data-bt-wound="${esc(x.id)}|${ri}|${sheet?.side}" title="Tap to wound this model">${pips}</span>
         <span class="bt-grp-count"><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|1" aria-label="Destroy one" ${alive ? "" : "disabled"}>−</button><span class="bt-cnt-n">${alive}</span><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|-1" aria-label="Revive one" ${dg[ri] ? "" : "disabled"}>+</button></span></div>
       ${profiles.map(profileHTML).join("")}
     </section>`;
@@ -720,16 +738,26 @@ function handleTrackerClick(e, host) {
     }, host);
     return true;
   }
+  // Tapping a row's pips wounds its front model; the pip greys from the right. A model with no pips left is destroyed,
+  // and the next model in the row takes the wounds.
   const wb = t.closest("[data-bt-wound]");
   if (wb) {
-    const [id, i, k] = wb.dataset.btWound.split("|"), key = `${id}|${i}`, kk = +k;
-    change(b => { b.wounds ||= {}; const cur = b.wounds[key] || 0; b.wounds[key] = cur > kk ? kk : kk + 1; }, host);
-    return true;
-  }
-  const hp = t.closest("[data-bt-hp]");
-  if (hp) {
-    const [id, i] = hp.dataset.btHp.split("|"), k = +i;
-    change(b => { b.destroyed ||= {}; const cur = b.destroyed[id] || 0; b.destroyed[id] = cur > k ? k : k + 1; }, host);
+    const [id, ri, side] = wb.dataset.btWound.split("|"), r = +ri;
+    const x = armyOf(side)?.r.entries.find(e => e.id === id);
+    if (x) change(b => {
+      const rows = rowsOf(x), dg = splitDestroyed(b, x, rows);
+      let start = 0;
+      for (let i = 0; i < r; i++) start += rows[i].n;
+      const key = `${id}|${start + dg[r]}`, W = Math.min(Math.max(1, +(x.unit.ds.profiles?.[0]?.W) || 1), 12);
+      b.wounds ||= {};
+      const lost = (b.wounds[key] || 0) + 1;
+      if (lost >= W) {
+        b.wounds[key] = 0;
+        dg[r] = Math.min(rows[r].n, dg[r] + 1);
+        b.destroyedG ||= {}; b.destroyedG[id] = dg;
+        b.destroyed ||= {}; b.destroyed[id] = dg.reduce((s, v) => s + v, 0);
+      } else b.wounds[key] = lost;
+    }, host);
     return true;
   }
   const u = t.closest("[data-bt-unit]");

@@ -542,7 +542,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-grp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .bt-grp-name { flex: 1 1 auto; min-width: 0; font-size: 16px; }
 .bt-grp-pips { flex: none; justify-content: flex-start; }
-.bt-grp-pips .bt-hp-box { cursor: pointer; }
+.bt-hp[data-bt-wound] { cursor: pointer; }
 .bt-grp-count { flex: none; display: inline-flex; align-items: center; gap: 8px; }
 .bt-cnt { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-2, transparent); color: inherit; font: 700 18px var(--font); cursor: pointer; }
 .bt-cnt:disabled { opacity: .35; cursor: default; }

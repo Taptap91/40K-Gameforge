@@ -1,10 +1,10 @@
 /* RulesForge · search.js
  * Rules search: finds the passages that answer a question, and works out which units and factions it's about.
  */
-import { KNOWN_FACTIONS, state } from "./core.js?v=8.26";
-import { scopeLabel } from "./rules-chat.js?v=8.26";
-import { normName, tokens } from "./text.js?v=8.26";
-import { editionLabel, effectiveRules, isRulesDoc, sectionChunks } from "./rules-doc.js?v=8.26";
+import { KNOWN_FACTIONS, state } from "./core.js?v=8.27";
+import { scopeLabel } from "./rules-chat.js?v=8.27";
+import { normName, tokens } from "./text.js?v=8.27";
+import { editionLabel, effectiveRules, isRulesDoc, sectionChunks } from "./rules-doc.js?v=8.27";
 
 const SHORTHAND = {
   fnp: "feel no pain", ds: "deep strike", oc: "objective control", mw: "mortal wounds", mws: "mortal wounds",
