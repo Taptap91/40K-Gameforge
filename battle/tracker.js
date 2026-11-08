@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.23";
-import { factionStyle } from "../js/factions.js?v=8.23";
-import { armyData, evaluateList } from "../js/army.js?v=8.23";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.23";
-import { effectiveRules } from "../js/rules-doc.js?v=8.23";
-import { buffsFor, weaponBase } from "../js/loadout.js?v=8.23";
-import { richHTML } from "../js/text.js?v=8.23";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.24";
+import { factionStyle } from "../js/factions.js?v=8.24";
+import { armyData, evaluateList } from "../js/army.js?v=8.24";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, weaponGridHTML } from "../js/datasheets.js?v=8.24";
+import { effectiveRules } from "../js/rules-doc.js?v=8.24";
+import { buffsFor, weaponBase } from "../js/loadout.js?v=8.24";
+import { richHTML } from "../js/text.js?v=8.24";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -372,7 +372,7 @@ function hpHTML(x) {
   const n = x.models || 0, d = Math.min((B.destroyed || {})[x.id] || 0, n), shown = Math.min(n, 10);
   let boxes = "";
   for (let i = 0; i < shown; i++) boxes += `<span class="bt-hp-box${i < d ? " dead" : ""}" data-bt-hp="${esc(x.id)}|${i}" aria-label="Model ${i + 1}${i < d ? ", destroyed" : ""}"></span>`;
-  return `<span class="bt-hp">${boxes}${n > 10 ? `<span class="bt-hp-more">+${n - 10}</span>` : ""}</span><span class="bt-destroyed">${d} of ${n} destroyed</span>`;
+  return `<span class="bt-hp">${boxes}${n > 10 ? `<span class="bt-hp-more">+${n - 10}</span>` : ""}</span>`;
 }
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
@@ -391,8 +391,8 @@ function armyHTML(side, army = armyOf(side)) {
     const tags = [x.warlord ? `<span class="lb-tag">Warlord</span>` : "", x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
         <span class="bt-unit-top"><b>${esc(nameOf(x))}</b><span>${x.total} pts</span></span>
-        ${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
-        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}${hpHTML(x)}</button>
+        <span class="bt-unit-row"><span class="bt-unit-left">${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
+        <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span>${hpHTML(x)}</span></button>
       ${kids.map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span></button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;

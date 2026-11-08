@@ -497,8 +497,9 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 }
 
 /* Army list units: health boxes, one per model; a destroyed model is a red hatched box. */
-.bt-hp { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.bt-unit-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bt-unit-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bt-hp { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; flex: none; max-width: 50%; }
 .bt-hp-box { width: 14px; height: 14px; border-radius: 3px; background: #30c46b; border: 1px solid rgba(255,255,255,.25); cursor: pointer; flex: none; }
 .bt-hp-box.dead { background: repeating-linear-gradient(45deg, #e5484d 0 2px, transparent 2px 5px); border-color: #e5484d; }
 .bt-hp-more { font-size: 12px; color: var(--text-2); }
-.bt-destroyed { display: block; margin-top: 2px; font-size: 13px; color: var(--text-2); }
