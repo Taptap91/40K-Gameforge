@@ -478,3 +478,19 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 }
 /* The turn text lives in the header on every screen, so the copy above the phase bar goes. */
 .bt-stick:not(.compact) .bt-turn { display: none; }
+
+/* ---------- Header, round 3: sync status on the right, turn text hidden past section one on phones and tablets, desktop swaps the phase box and turn text. ---------- */
+/* Phones and tablets: the sync status sits on the right, level with Round #, at the standard edge padding. */
+@media (max-width: 1279px) {
+  #view-battle > header.toolbar > #battleTools { position: static; transform: none; top: auto; right: auto; grid-column: 3; grid-row: 1; justify-self: end; }
+@media (min-width: 793px) { #view-battle > header.toolbar > #battleTools { position: relative; right: calc(380px - 50vw); } }
+}
+/* Phones and tablets: once past section one the turn text is not shown. */
+@media (max-width: 1279px) {
+  #view-battle > header.toolbar:has(.bt-stick.compact) > .bt-hturn { display: none; }
+}
+/* Wide screens, past section one: the phase box takes the turn text's place on the right, and the turn text moves to the centre. */
+@media (min-width: 1280px) {
+  #view-battle > header.toolbar:has(.bt-stick.compact) > .bt-stick.compact .bt-phases { grid-column: 3; grid-row: 1; justify-self: end; margin: 0; }
+  #view-battle > header.toolbar:has(.bt-stick.compact) > .bt-hturn { grid-column: 2; grid-row: 1; justify-self: center; text-align: center; }
+}
