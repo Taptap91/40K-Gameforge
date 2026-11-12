@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.30";
-import { factionStyle } from "../js/factions.js?v=8.30";
-import { evaluateList } from "../js/army.js?v=8.30";
-import { missionCard } from "../js/mission-viewer.js?v=8.30";
-import { openSync } from "./sync.js?v=8.30";
-import { currentBattle, endTracker, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.30";
-import { confirmSheet } from "../js/core.js?v=8.30";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.33";
+import { factionStyle } from "../js/factions.js?v=8.33";
+import { evaluateList } from "../js/army.js?v=8.33";
+import { missionCard } from "../js/mission-viewer.js?v=8.33";
+import { openSync } from "./sync.js?v=8.33";
+import { currentBattle, discardPaused, endTracker, pauseTracker, resumeBattle, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.33";
+import { confirmSheet } from "../js/core.js?v=8.33";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -84,7 +84,10 @@ function receive(p, fullHello) {
 /* ---------- pieces ---------- */
 const toggle = (key, options, value) => `<div class="bs-toggle" role="radiogroup" style="--n:${options.length}">${options.map(([v, l]) => `<button type="button" role="radio" aria-checked="${String(v) === String(value)}" class="${String(v) === String(value) ? "on" : ""}" data-bs-set="${key}" data-v="${esc(v)}">${l}</button>`).join("")}</div>`;
 const section = (title, body) => `<section class="bs-section">${title ? `<h3>${title}</h3>` : ""}${body}</section>`;
-const nextBtn = (label, step) => `<button type="button" class="bs-next" data-bs-step="${step}">${label} <span aria-hidden="true">→</span></button>`;
+/* The bottom row of every setup page: Cancel (red) in the left half, the next step (when there is one) in the right half. */
+const cancelBtn = `<button type="button" class="bs-cancelbtn" data-bs-exit>Cancel</button>`;
+const navRow = next => `<div class="bs-navrow">${cancelBtn}${next || ""}</div>`;
+const nextBtn = (label, step) => navRow(`<button type="button" class="bs-next" data-bs-step="${step}"><span>${label}</span> <span aria-hidden="true">→</span></button>`);
 
 function armyBox(list, who) {
   if (!list) return `<button type="button" class="bs-army empty" data-bs-pick>${who === "me" ? `Choose your ${S.size} pts army list` : ""}<span class="bs-caret">▾</span></button>`;
@@ -114,7 +117,7 @@ function screen2() {
         ${opp.list?.detachments?.length ? `<div class="bs-dets">${opp.list.detachments.map(d => `<span>${esc(d)}</span>`).join("")}</div>` : ""}
         <div class="bs-hint">${opp.disposition ? `Force Disposition: <b>${esc(opp.disposition)}</b>` : "Hasn't chosen a Force Disposition yet."}${opp.battleReady ? " · Battle Ready" : ""}</div></div>
         <button type="button" class="btn bs-sync-again" data-bs-sync>Sync again</button>`
-      : `<button type="button" class="bs-sync" data-bs-sync>Sync with Opponent</button>`)
+      : `<button type="button" class="bs-syncbtn" data-bs-sync>Sync with Opponent</button>`)
     + nextBtn("Mission & Battlefield", 3);
 }
 /** The Force Dispositions an army list can choose: those of its selected detachments (all five while that isn't known). */
@@ -188,7 +191,7 @@ function screen5() {
   return section("First Turn", `${toggle("firstTurn", [["you", esc(username() || "You")], ["opponent", esc(opponent?.name || "Opponent")]], S.firstTurn)}
       <div class="bs-hint">Each player rolls a D6, highest roll must go first.</div>`)
     + `<ol class="bs-seq">${steps.map(([h, t]) => `<li><h4>${h}</h4><p>${t}</p></li>`).join("")}</ol>
-      ${readyBlock()}`;
+      ${readyBlock()}` + navRow("");
 }
 
 /** Slides the maps to the layout chosen, in place, so the change animates (no redraw, no reload). */
@@ -261,7 +264,7 @@ function tools() {
   const lost = !!S.peerCode && link !== "connected";
   // A rounded box with a light: green when synced with your opponent, red when not (tap it to reconnect when the link has dropped).
   const status = lost ? `<button type="button" class="bs-sync off" data-bs-reconnect title="Reconnect"><i></i>Not synced</button>` : S.peerCode ? `<span class="bs-sync on" title="Connected to ${esc(opponent?.name || "your opponent")}"><i></i>Synced</span>` : `<span class="bs-sync off"><i></i>Not synced</span>`;
-  el.innerHTML = `${status}${trackerActive() ? "" : `<button type="button" class="btn" data-bs-exit>Cancel</button>`}`;
+  el.innerHTML = status;
 }
 const STATUS_TEXT = { waiting: "Waiting for your opponent…", connecting: "Connecting…", connected: "Connected — swapping armies…", "not-found": "No one is waiting with that code.", offline: "Can't reach the internet: only another copy of RulesForge in this browser can pair.", lost: "Connection lost." };
 function startSync(reconnect) {
@@ -312,7 +315,7 @@ function startSetup() {
 }
 function exitSetup(renderHome) {
   S.active = false; save();
-  $("#battleHost").classList.remove("bs-on"); $("#battleTools").innerHTML = ""; $("#view-battle h1").textContent = "Battle"; document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove()); sync?.close(); sync = null; closeSyncSheet(true); renderHome();
+  $("#battleHost").classList.remove("bs-on", "bt-on"); document.querySelector("#view-battle .bt-hturn")?.remove(); $("#battleTools").innerHTML = ""; $("#view-battle h1").textContent = "Battle"; document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove()); sync?.close(); sync = null; closeSyncSheet(true); renderHome();
 }
 
 /** The two armies for the battle screens: your list (by id) and your opponent's synced list with their faction's rules. */
@@ -327,6 +330,18 @@ function wireSetup(renderHome) {
     const t = e.target;
     if (t.closest("[data-bt-start]")) return startSetup();
     if (handleTrackerClick(e, $("#battleHost"))) return tools();
+    if (t.closest("[data-bt-pause]")) {
+      confirmSheet("Leave this battle?", "Your battle is saved automatically. You can resume it any time from the Battle screen.", "Leave").then(ok => { if (!ok) return; pauseTracker(); toast("Battle saved. Resume it from the Battle screen."); exitSetup(renderHome); });
+      return;
+    }
+    const rs = t.closest("[data-bt-resume]");
+    if (rs) { if (resumeBattle(rs.dataset.btResume)) { renderHome(); } return; }
+    const dp = t.closest("[data-bt-discard]");
+    if (dp) {
+      const id = dp.dataset.btDiscard;
+      confirmSheet("Delete this paused battle?", "It can't be resumed afterwards.", "Delete").then(ok => { if (ok) { discardPaused(id); renderHome(); } });
+      return;
+    }
     if (t.closest("[data-bt-end]")) {
       confirmSheet("End this battle?", "The battle tracker closes on this device. (Saving the result to your battle records comes next.)", "End Battle").then(ok => { if (!ok) return; endTracker(); exitSetup(renderHome); });
       return;

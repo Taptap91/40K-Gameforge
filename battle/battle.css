@@ -41,7 +41,10 @@
 .bs-toggle { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: var(--control); }
 .bs-toggle button { min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: 600 16px var(--font); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; }
 .bs-toggle button.on { background: var(--accent); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
-.bs-next { align-self: flex-end; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: 700 16px var(--font); cursor: pointer; }
+/* Cancel and the next step share the bottom row, half each, a standard gap apart. */
+.bs-navrow { align-self: stretch; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.bs-cancelbtn { grid-column: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--red); color: #fff; font: 700 16px var(--font); cursor: pointer; }
+.bs-next { grid-column: 2; display: inline-flex; align-items: center; justify-content: center; text-align: center; gap: 8px; min-height: 48px; padding: 6px 12px; line-height: 1.2; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: 700 16px var(--font); cursor: pointer; }
 .bs-user { font-size: 20px; font-weight: 700; }
 .bs-army { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: 12px; color: var(--text); text-align: left; cursor: pointer; font: inherit;
   background: linear-gradient(100deg, color-mix(in srgb, var(--c1, #555) 30%, var(--window)), color-mix(in srgb, var(--c1, #555) 10%, var(--window)) 60%, color-mix(in srgb, var(--c2, #555) 12%, var(--window))); }
@@ -65,7 +68,8 @@
 .bs-check span { display: flex; flex-direction: column; gap: 2px; }
 .bs-check b { font-size: 16px; }
 .bs-check small { font-size: 13.5px; color: var(--text-2); }
-.bs-sync { min-height: 56px; border: 1px solid var(--accent); border-radius: 12px; background: var(--accent-soft); color: var(--text); font: 700 17px var(--font); cursor: pointer; }
+/* Sync with Opponent: the same button as the next step (colour, font, size). */
+.bs-syncbtn { align-self: stretch; width: 100%; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 20px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: 700 16px var(--font); cursor: pointer; }
 .bs-sync-again { align-self: flex-start; }
 .bs-opp { display: flex; flex-direction: column; gap: 10px; }
 .bs-pair { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 700; }
@@ -595,3 +599,18 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar:has(.bt-stick.compact) .bt-round::before { opacity: 1; }
   #view-battle > header.toolbar:has(.bt-stick.compact) .bt-round .bt-rph { max-height: 18px; opacity: 1; }
 }
+
+/* Pause Battle sits beside End Battle at the bottom of the event log. */
+.bt-endrow { display: flex; gap: 10px; margin-top: auto; flex: none; }
+.bt-endrow .btn { display: inline-flex; align-items: center; justify-content: center; text-align: center; flex: 1 1 0; width: auto; min-width: 0; margin-top: 0; min-height: 52px; font-weight: 800; }
+/* Battles set aside, on the Battle screen above the records. */
+.bt-paused { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--border-strong); border-radius: 14px; background: linear-gradient(90deg, color-mix(in srgb, var(--m1) 22%, var(--panel)), color-mix(in srgb, var(--t1) 22%, var(--panel))); }
+.bt-ptop { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-2); }
+.bt-pround { font-weight: 700; color: var(--text); }
+.bt-pscore { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 16px; font-weight: 600; }
+.bt-pscore span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-pscore b { font-size: 22px; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.bt-pscore i { font-style: normal; font-size: 13px; color: var(--text-3); flex: none; }
+.bt-pbtns { display: flex; gap: 8px; }
+.bt-presume { flex: 1; min-height: 48px; font-weight: 800; }
+.bt-pdel { min-height: 48px; }

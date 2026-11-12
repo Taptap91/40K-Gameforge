@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.30";
-import { factionStyle } from "../js/factions.js?v=8.30";
-import { armyData, evaluateList } from "../js/army.js?v=8.30";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.30";
-import { effectiveRules } from "../js/rules-doc.js?v=8.30";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.30";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.30";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.33";
+import { factionStyle } from "../js/factions.js?v=8.33";
+import { armyData, evaluateList } from "../js/army.js?v=8.33";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.33";
+import { effectiveRules } from "../js/rules-doc.js?v=8.33";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.33";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.33";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -280,7 +280,7 @@ function logHTML() {
   }).join("");
   return `<div class="bt-logh"><h2>Event Log</h2></div>
     <div class="bt-logl">${rows || `<p class="bt-hint">Nothing yet. Command Points, stratagems and scoring appear here as they happen.</p>`}</div>
-    <button type="button" class="btn bt-end" data-bt-end>End Battle</button>`;
+    <div class="bt-endrow"><button type="button" class="btn bt-pause" data-bt-pause>Leave Battle</button><button type="button" class="btn bt-end" data-bt-end>End Battle</button></div>`;
 }
 
 /** The strip sits under the header when it's full, and inside the header bar once the second screen is showing.
@@ -923,6 +923,29 @@ function endTracker() {
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   const title = document.querySelector("#view-battle h1"); if (title) title.textContent = "Battle";
 }
+/* ---------- paused battles: set aside on this device, and picked up again where they were left ---------- */
+const PAUSED_KEY = "rf.pausedBattles";
+const pausedBattles = () => store.get(PAUSED_KEY, []);
+/** Sets the battle in progress aside (with its armies) and closes the tracker. Returns false if there is nothing to pause. */
+function pauseTracker() {
+  if (!B?.active) return false;
+  const copy = JSON.parse(JSON.stringify(B));
+  store.set(PAUSED_KEY, [{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), saved: Date.now(), battle: copy, armies: JSON.parse(JSON.stringify(A)) }, ...pausedBattles()]);
+  endTracker();
+  return true;
+}
+/** Brings a paused battle back as the battle in progress. Does nothing while another battle is open. */
+function resumeBattle(id) {
+  const list = pausedBattles(), entry = list.find(e => e.id === id);
+  if (!entry || B?.active) return false;
+  A = entry.armies || { me: null, them: null }; saveArmies();
+  B = entry.battle; B.active = true; B.updated = Date.now(); ensure(B); save();
+  pane = "tracker"; sheet = null;
+  store.set(PAUSED_KEY, list.filter(e => e.id !== id));
+  return true;
+}
+const discardPaused = id => store.set(PAUSED_KEY, pausedBattles().filter(e => e.id !== id));
+
 const currentBattle = () => B;
 
-export { currentBattle, endTracker, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };
+export { currentBattle, discardPaused, endTracker, pauseTracker, pausedBattles, resumeBattle, score as battleScore, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };

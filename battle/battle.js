@@ -3,9 +3,10 @@
  * A record keeps both players' names as they were when the battle was played: your player name (Settings → Player)
  * and, when two devices are synced, your opponent's. Without a name, "You" and "Opponent" are shown.
  */
-import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.30";
-import { factionStyle } from "../js/factions.js?v=8.30";
-import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.30";
+import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.33";
+import { factionStyle } from "../js/factions.js?v=8.33";
+import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.33";
+import { battleScore, pausedBattles } from "./tracker.js?v=8.33";
 
 /* A battle record:
    { id, date: ms, you: { name, faction, score }, opponent: { name, faction, score }, ...more to come with the battle itself } */
@@ -32,12 +33,25 @@ function recordHTML(b) {
   </div>`;
 }
 
+/** A battle set aside (Pause Battle): who is playing, the round and the score, with Resume and Delete. */
+function pausedHTML(e) {
+  const b = e.battle || {}, me = b.me || {}, them = b.them || {};
+  const sm = factionStyle(me.faction || ""), st = factionStyle(them.faction || "");
+  return `<div class="bt-paused" style="--m1:${sm.c1};--m2:${sm.c2};--t1:${st.c1};--t2:${st.c2}">
+    <div class="bt-ptop"><span class="bt-date">Paused ${ddmmyyyy(e.saved)}</span><span class="bt-pround">Round ${+b.round || 1}</span></div>
+    <div class="bt-pscore"><span>${esc(me.name || "You")} <b>${battleScore(me)}</b></span><i>vs</i><span>${esc(them.name || "Opponent")} <b>${battleScore(them)}</b></span></div>
+    <div class="bt-pbtns"><button type="button" class="btn primary bt-presume" data-bt-resume="${esc(e.id)}">Resume Battle</button><button type="button" class="btn bt-pdel" data-bt-discard="${esc(e.id)}" aria-label="Delete this paused battle">Delete</button></div>
+  </div>`;
+}
+
 function renderBattlePage() {
   const host = $("#battleHost");
   if (!host) return;
   if (host.classList.contains("bs-on") || resumeSetup()) return renderSetup();   // setting up a battle
   const list = battles();
-  host.innerHTML = `<button type="button" class="bt-start" data-bt-start>${SWORDS}Start Battle</button>
+  const paused = pausedBattles();
+  host.innerHTML = `<button type="button" class="bt-start" data-bt-start>${SWORDS}New Battle</button>
+    ${paused.length ? `<div class="bt-label">In progress · ${paused.length}</div>${paused.map(pausedHTML).join("")}` : ""}
     ${list.length ? `<div class="bt-label">Previous battles · ${list.length}</div>${list.map(recordHTML).join("")}`
       : `<div class="empty">No battles yet. Start one to keep score, and it'll be recorded here.</div>`}`;
 }
