@@ -567,3 +567,31 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-attached { align-items: center; }
 .bt-attached > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bt-attached > .bt-hp { margin-left: 4px; }
+
+/* ---------- Phones and tablets: the header changes as you scroll from section 1 to section 2 ----------
+   Section 1: the turn on the left, a plain "Round N" in the middle, sync on the right, the phase strip under the header.
+   Section 2: the phase strip folds into the middle button, which turns into the turn's faction colours and reads
+   "Round N" over the phase name. Section 2 starts with its own Next Phase button. Wide screens are unchanged. */
+.bt-nextphase2 { display: none; }
+.bt-round .bt-rph { display: none; }
+@media (max-width: 1279px) {
+  #view-battle > header.toolbar > .bt-hturn,
+  #view-battle > header.toolbar:has(.bt-stick.compact) > .bt-hturn { display: block; grid-column: 1; grid-row: 1; justify-self: start; position: static; opacity: 1; visibility: visible; transform: none; pointer-events: none; padding: 0; font-size: 14px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  #view-battle > header.toolbar > h1 { grid-column: 2; grid-row: 1; justify-self: center; }
+  .bt-stick .bt-turn, #view-battle > header.toolbar > .bt-stick.compact .bt-turn { display: none; }
+  #view-battle > header.toolbar > .bt-stick.compact .bt-phases { display: none; }
+  #view-battle > header.toolbar > .bt-stick.compact { display: none; }
+  .bt-stick:not(.compact) { grid-template-rows: 48px; padding-top: 8px; }
+  .bt-stick:not(.compact) .bt-phases { grid-row: 1; }
+  .bt-nextphase2 { display: inline-flex; margin-bottom: 20px; }
+  .bt-s2 { padding-top: 4px; }
+  /* The middle button: plain in section 1, faction-coloured with the phase name in section 2. */
+  #view-battle > header.toolbar .bt-round { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 120px; min-height: 48px; padding: 0 18px; overflow: hidden; background: var(--panel); border-color: var(--border-strong); color: var(--text); box-shadow: none; text-shadow: none; transition: border-color .25s ease, color .25s ease; }
+  #view-battle > header.toolbar .bt-round::before { content: ""; position: absolute; inset: 0; z-index: 0; opacity: 0; transition: opacity .25s ease; background: linear-gradient(90deg, color-mix(in srgb, var(--c1) 70%, #000), color-mix(in srgb, var(--c2) 55%, #000)); }
+  #view-battle > header.toolbar .bt-round > span { position: relative; z-index: 1; }
+  #view-battle > header.toolbar .bt-round .bt-rn { font-size: 14px; font-weight: 600; line-height: 16px; }
+  #view-battle > header.toolbar .bt-round .bt-rph { display: block; max-height: 0; opacity: 0; overflow: hidden; font-size: 15px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 18px; transition: max-height .25s ease, opacity .25s ease; }
+  #view-battle > header.toolbar:has(.bt-stick.compact) .bt-round { color: #fff; border-color: transparent; text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+  #view-battle > header.toolbar:has(.bt-stick.compact) .bt-round::before { opacity: 1; }
+  #view-battle > header.toolbar:has(.bt-stick.compact) .bt-round .bt-rph { max-height: 18px; opacity: 1; }
+}

@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.29";
-import { factionStyle } from "../js/factions.js?v=8.29";
-import { armyData, evaluateList } from "../js/army.js?v=8.29";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.29";
-import { effectiveRules } from "../js/rules-doc.js?v=8.29";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.29";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.29";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.30";
+import { factionStyle } from "../js/factions.js?v=8.30";
+import { armyData, evaluateList } from "../js/army.js?v=8.30";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.30";
+import { effectiveRules } from "../js/rules-doc.js?v=8.30";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.30";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.30";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -227,7 +227,7 @@ function trackerHTML(armies) {
       <div class="bt-cols">${column(B.me, "me", "You")}${column(B.them, "them", "Opponent")}</div>
     </section>
     <div class="bt-gap" aria-hidden="true"></div>
-    <section class="bt-s2">${missionsHTML()}${boxesHTML(armies)}</section>
+    <section class="bt-s2"><button type="button" class="bt-nextphase bt-nextphase2" data-bt-next>Next Phase <span aria-hidden="true">→</span></button>${missionsHTML()}${boxesHTML(armies)}</section>
     <div class="bt-gap" aria-hidden="true"></div>
     <section class="bt-s3">${logHTML()}</section>
   </div>`;
@@ -305,10 +305,10 @@ function alignSectionTop(compact, el, header, pane) {
     pane.style.marginTop = "";
     return;
   }
-  if (!narrow || phaseTopS1 == null) { pane.style.marginTop = ""; return; }
+  if (!narrow) { pane.style.marginTop = ""; return; }
   const headerBottom = header.getBoundingClientRect().bottom, paneTop = pane.getBoundingClientRect().top;
   // The pane starts under the header; the padding puts its first section at the phase tracker's old top.
-  pane.style.marginTop = Math.max(0, Math.round(phaseTopS1 - headerBottom)) + "px";
+  pane.style.marginTop = "16px";   // the Next Phase button at the top of section 2 sits a standard gap under the header
 }
 function mountStick(compact, animate = false) {
   const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
@@ -520,7 +520,7 @@ function renderTracker(host) {
   const title = document.querySelector("#view-battle h1");
   if (title) {
     const act = B.turn === "you" ? B.me : B.them, rst = factionStyle(act.faction || "");
-    title.innerHTML = `<button type="button" class="bt-round" data-bt-round style="--c1:${rst.c1};--c2:${rst.c2}" aria-haspopup="dialog">Round ${B.round}</button>`;
+    title.innerHTML = `<button type="button" class="bt-round" data-bt-round style="--c1:${rst.c1};--c2:${rst.c2}" aria-haspopup="dialog"><span class="bt-rn">Round ${B.round}</span><span class="bt-rph">${esc(PHASES[B.phase][0])}</span></button>`;
   }
   // Compact once the scroll is past the middle of the way to the second screen (decided from where the pane was left).
   const tp = host.querySelector('.bt-pane[data-pane="tracker"]');
@@ -808,7 +808,14 @@ function glideTo(pane, index) {
     if (glide !== g) return;
     const k = Math.min(1, (now - g.t0) / SNAP_TIME), e = 1 - Math.pow(1 - k, 3);
     pane.scrollTop = from + (target - from) * e;
-    if (k < 1) requestAnimationFrame(step); else glide = null;
+    if (k < 1) requestAnimationFrame(step);
+    else {
+      glide = null;
+      // The header's size may have settled since the stop was measured: land exactly on the section's top.
+      const t = sectionStarts(pane)[index];
+      if (Math.abs(t - pane.scrollTop) >= 1) { pane.scrollTop = t; }
+      restPos = t;
+    }
   };
   requestAnimationFrame(step);
 }
