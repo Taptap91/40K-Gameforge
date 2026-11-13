@@ -49,7 +49,7 @@
       </button>
     </nav>
     <div class="sidebar-spacer"></div>
-    <div class="app-version" title="App version">Version 8.5 · List builder</div>
+    <div class="app-version" title="App version">Version 8.46 · List builder</div>
     <button class="ai-status" id="aiStatusBtn" type="button">
       <span class="dot" id="aiDot"></span>
       <span><span class="label">AI model</span><small id="aiStatusText">Not set up</small></span>
@@ -93,21 +93,11 @@
       <aside class="lib-panel" id="libPanel" aria-label="Library">
         <div class="lib-head"><h2>Library</h2><button class="lib-x" type="button" data-lib-close aria-label="Close library"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
         <div class="lib-body">
-          <div class="dropzone" id="dropzone" data-lib-add>
-            <strong>Drop rules PDFs here</strong>
-            or click to choose files · Core Rules, faction packs, Munitorum Field Manual, FAQs · or a RulesForge Excel file you've edited
-          </div>
-          <div class="card hidden" id="importProgress">
-            <div class="status-line"><span class="spinner"></span><span id="importText">Reading…</span></div>
-            <div class="progress"><div id="importBar"></div></div>
-          </div>
-          <div class="check problem hidden" id="importError"></div>
           <div id="docList" class="stack"></div>
-          <button class="lib-addtile" type="button" data-lib-add><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/><path d="M14 2v6h6"/><path d="M20 8v5"/><path d="M18 16v6M15 19h6"/></svg>Add a faction or rules PDF</button>
-          <p class="hint">Your PDFs are read and stored only on this device. Nothing is uploaded.</p>
+          <button class="lib-addtile" type="button" data-lib-packs><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Click to add Game Pack</button>
+          <p class="hint">Everything in your Library comes from a Game Pack you've downloaded.</p>
         </div>
       </aside>
-      <input type="file" id="fileInput" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
     </section>
 
 

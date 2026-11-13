@@ -2,10 +2,7 @@
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
 import { tidyApostrophes } from "./faction-parser.js?v=8.46";
-import { formatGB, toast } from "./core.js?v=8.46";
 import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.46";
-import { rulesToSheets } from "./rules-doc.js?v=8.46";
-import { missionPackToSheets } from "./mission-parser.js?v=8.46";
 import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.46";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
@@ -285,34 +282,4 @@ function structuredFromWorkbook(book) {
   return { datasheets, detachments, armyRules, faction: about.faction || "", theme: c1 || icon ? { c1, c2, icon } : null };
 }
 
-async function downloadBlob(blob, fileName) {
-  // Inside the Claude preview, files are offered through its own save prompt.
-  if (window.claude?.use) {
-    const downloads = await window.claude.use("downloads").catch(() => null);
-    if (downloads) {
-      try { await downloads.save({ filename: fileName, data: blob }); return true; }
-      catch (err) {
-        if (err?.code !== "declined") toast("Couldn't save the file here — try it on your own site");
-        return false;
-      }
-    }
-  }
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
-  return true;
-}
-
-async function exportDocToExcel(doc) {
-  // Built fresh from the stored data: rules documents (Core Rules, updates), faction data, or a mission pack.
-  const missions = doc.kind === "missions";
-  const rules = !missions && !doc.structured.datasheets;
-  const blob = await buildXlsx(missions ? missionPackToSheets(doc.structured.missionPack) : rules ? rulesToSheets(doc) : structuredToSheets(doc.structured, doc.faction, { ...(doc.theme || {}), icon: doc.icon }));
-  const saved = await downloadBlob(blob, `${((missions || rules) ? doc.title : doc.faction || doc.title).replace(/[^\w\- ]+/g, "").trim() || "rules"} data.xlsx`);
-  if (saved) toast(`Excel file saved (${formatGB(blob.size)})`);
-}
-
-export { buildXlsx, exportDocToExcel, readXlsx, structuredFromWorkbook, structuredToSheets };
+export { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets };

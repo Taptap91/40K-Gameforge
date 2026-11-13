@@ -77,7 +77,6 @@ function factionButton(f, on) {
 }
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 const BOOK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg>`;
-const ADDPDF_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/><path d="M14 2v6h6"/><path d="M20 8v5"/><path d="M18 16v6M15 19h6"/></svg>`;
 /** Opens the library: on phones and tablets it's the Factions home; on desktop a panel slides in from the right. */
 function openLibrary() {
   if (isTouchLayout()) { fUI.home = true; fUI.open = false; return renderFactionsPage(); }
@@ -92,14 +91,13 @@ function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
   // Desktop shows every faction's button; phones and tablets show three group buttons that open a picker.
   const groups = FACTION_GROUPS.map(([g]) => [g, names.filter(n => groupOf(n) === g)]).filter(([, l]) => l.length);
-  // Phones and tablets: "‹ Factions" (back to the Factions home, which is the library) and an Add PDF icon.
-  // Desktop: "Library" (slides in from the right) and "Add PDF" beside the gear.
+  // Phones and tablets: "‹ Factions" (back to the Factions home, which is the library) and the Game Packs icon.
+  // Desktop: "Library" (slides in from the right) and "Game Packs" beside the gear.
   const html = `<button type="button" class="btn fp-homeback" data-fp-home>‹ Factions</button>
     ${names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
     <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>` : `<div class="fp-facs"></div>`}
     <button type="button" class="btn fp-libbtn" data-lib-show>${BOOK_SVG}Library</button>
-    <button type="button" class="btn fp-packs" data-lib-packs title="Game Packs" aria-label="Game Packs">${icon("download")}<span>Game Packs</span></button>
-    <button type="button" class="btn primary fp-addpdf" data-lib-add title="Add PDF" aria-label="Add PDF">${ADDPDF_SVG}<span>Add PDF</span></button>
+    <button type="button" class="btn primary fp-packs" data-lib-packs title="Game Packs" aria-label="Game Packs">${icon("download")}<span>Game Packs</span></button>
     ${names.length ? `<button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : ""}`;
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
@@ -231,7 +229,7 @@ function renderFactionsPage() {
   if (!names.length) {
     renderFactionBar([]);
     $("#view-factions").classList.remove("fp-unitmode");
-    host.innerHTML = `<div class="fp-empty">No factions yet. Use Add PDF to add a faction pack PDF (or a RulesForge Excel file), and its army rules, detachments and units appear here.</div>`;
+    host.innerHTML = `<div class="fp-empty">No factions yet. Download a Game Pack, and its army rules, detachments and units appear here.</div>`;
     return;
   }
   if (!names.some(n => n === fUI.faction)) fUI.faction = names[0];

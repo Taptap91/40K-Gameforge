@@ -3,8 +3,7 @@
  */
 import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.46";
 import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.46";
-import { exportDocToExcel } from "./excel.js?v=8.46";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.46";
+import { factionsInLibrary, openLibraryMenu, renderLibrary } from "./library.js?v=8.46";
 import { openPacksSheet } from "./packs.js?v=8.46";
 import * as core from "./core.js?v=8.46";
 import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.46";
@@ -94,34 +93,15 @@ function showView(name) {
   $("#scopeSelect").addEventListener("change", e => { state.scope = e.target.value; });
 
   // Library
-  const input = $("#fileInput");
-  const pick = () => input.click();
-  document.addEventListener("click", e => { if (e.target.closest("[data-lib-add]")) pick(); });
   document.addEventListener("click", e => { if (e.target.closest("[data-lib-packs]")) openPacksSheet(); });
-  input.addEventListener("change", () => {
-    const files = [...input.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf" || isExcelFile(f));
-    input.value = "";
-    if (files.length) addLibraryFiles(files);
-  });
-  const dz = $("#dropzone");
-  ["dragenter", "dragover"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("over"); }));
-  ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("over"); }));
-  dz.addEventListener("drop", e => {
-    const files = [...e.dataTransfer.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf" || isExcelFile(f));
-    if (files.length) addLibraryFiles(files);
-  });
   document.addEventListener("click", async e => {
     if (!e.target.closest(".lib-panel, .lb-menu")) return;
     const menu = e.target.closest("[data-lib-menu]");
     if (menu) return openLibraryMenu(menu);
     const mv = e.target.closest("[data-mission-view]");
     if (mv) return openMissionViewer(mv.dataset.missionView);
-    const pts = e.target.closest("[data-points]");
-    if (pts) return openPointsSheet(pts.dataset.points);
     const view = e.target.closest("[data-view-data]");
     if (view) return openDataViewer(view.dataset.viewData);
-    const xl = e.target.closest("[data-excel]");
-    if (xl) return exportDocToExcel(state.docs.find(d => d.id === xl.dataset.excel));
     const del = e.target.closest("[data-delete]");
     if (del) {
       const doc = state.docs.find(d => d.id === del.dataset.delete);

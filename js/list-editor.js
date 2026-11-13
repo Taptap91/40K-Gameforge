@@ -29,7 +29,7 @@ function renderListsPage() {
     <button class="btn primary" type="button" data-lb="generate" ${factions.length ? "" : "disabled"}>Generate list</button>`;
   const lists = [...state.lists].sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
   host.innerHTML = `
-    ${factions.length ? "" : `<div class="card"><h2>Add your faction first</h2><p>Lists are built from a converted faction PDF. Add one in Library, then come back here.</p><button class="btn primary" type="button" data-go="library">Open Library</button></div>`}
+    ${factions.length ? "" : `<div class="card"><h2>Download a faction first</h2><p>Lists are built from a faction's Game Pack. Download one, then come back here.</p><button class="btn primary" type="button" data-lib-packs>Game Packs</button></div>`}
     ${lists.length ? `<div class="list">${lists.map(l => {
       if (l.version !== 2) return `<div class="list-row"><div class="main"><div class="title">${esc(l.title || "Saved list")}</div><div class="meta">Older list · ${l.points || ""} pts</div></div>
         <button class="btn plain" type="button" data-lb-copy-old="${esc(l.id)}">Copy</button><button class="btn plain danger" type="button" data-lb-delete="${esc(l.id)}">Delete</button></div>`;

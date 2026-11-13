@@ -132,7 +132,7 @@ async function ask(question) {
     renderChat();
   };
 
-  if (!state.docs.length) return finish("Your library is empty. Add your rules PDFs in **Library** first.", true);
+  if (!state.docs.length) return finish("Your library is empty. Download a **Game Pack** first.", true);
 
   // Follow-ups ("tell me more", "what about…") keep the previous question's topic and sources.
   const followUp = isFollowUp(question);
@@ -265,8 +265,8 @@ function welcomeHTML() {
     <ol class="steps">
       <li class="step ${hasDocs ? "done" : ""}">
         <span class="step-num">${hasDocs ? "✓" : "1"}</span>
-        <span class="step-text"><strong>Add your rules PDFs</strong><span>${hasDocs ? `${state.docs.length} document${state.docs.length === 1 ? "" : "s"} in your library` : "Core Rules, your faction, points and FAQs"}</span></span>
-        ${hasDocs ? "" : `<button class="btn" data-go="library" type="button">Open Library</button>`}
+        <span class="step-text"><strong>Download a Game Pack</strong><span>${hasDocs ? `${state.docs.length} document${state.docs.length === 1 ? "" : "s"} in your library` : "Core Rules, factions, points and FAQs"}</span></span>
+        ${hasDocs ? "" : `<button class="btn" data-lib-packs type="button">Game Packs</button>`}
       </li>
       <li class="step ${hasAI ? "done" : ""}">
         <span class="step-num">${hasAI ? "✓" : "2"}</span>

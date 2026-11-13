@@ -1,123 +1,17 @@
 /* RulesForge · library.js
- * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
+ * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.46";
+import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.46";
 import { factionStyle } from "./factions.js?v=8.46";
-import { looksLikeMissionPack, missionChunks, missionPackFromWorkbook, parseMissionPack } from "./mission-parser.js?v=8.46";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.46";
 import { structuredToLibrary } from "./datasheets.js?v=8.46";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.46";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.46";
-import { renderAll } from "./main.js?v=8.46";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=8.46";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.46";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.46";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.46";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.46";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.46";
+import { factionMatches } from "./search.js?v=8.46";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.46";
 
-/** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
-const PACK_MIN_DATASHEETS = 5;
-
-async function importFiles(files, pickedKind, faction) {
-  const box = $("#importProgress"), errBox = $("#importError");
-  box.classList.remove("hidden");
-  errBox.classList.add("hidden");
-  const errors = [];
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    let kind = pickedKind;
-    try {
-      if (isExcelFile(f)) { await importExcelFile(f, faction); continue; }
-      const { title, pageCount, pages, bookIcons } = await readPdf(f, (n, total) => {
-        $("#importText").textContent = `Reading ${f.name} (${i + 1} of ${files.length}) — page ${n} of ${total}`;
-        $("#importBar").style.width = `${Math.round(((i + n / total) / files.length) * 100)}%`;
-      });
-      if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
-      // A Chapter Approved mission pack (whatever type was picked) becomes its cards: missions, deployments, twists.
-      if (looksLikeMissionPack(pages)) {
-        $("#importText").textContent = `Reading the mission cards in ${f.name}…`;
-        await new Promise(r => setTimeout(r, 30));
-        const pack = await parseMissionPack(pages, title);
-        const doc = { id: uid(), title: pack.name, kind: "missions", faction: "", pageCount, importedAt: Date.now(), edition: detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name), format: "structured", structured: { missionPack: pack }, chunks: missionChunks(pack), points: [] };
-        await replaceMissionPack(doc);
-        continue;
-      }
-      // Untagged faction PDFs are tagged from their title or file name ("Dark_Angels_Codex…" → Dark Angels).
-      const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name);
-      // Datasheet-style faction PDFs become compact structured records instead of raw page text.
-      let structured = null;
-      {
-        $("#importText").textContent = `Converting ${f.name} into datasheets and detachments…`;
-        await new Promise(r => setTimeout(r, 30));
-        const all = dropPageFurniture(pages.flatMap(p => p.items));
-        // Two readers: one for normal letter/A4 pages, one for very tall single-page exports. Keep whichever read more.
-        const printed = parsePrintedFactionPdf(all), tall = parseFactionPdf(all);
-        // The letter/A4 reader keeps more detail (bold text, leaders, Unique tags), so it wins unless it clearly read less.
-        const data = factionRichness(printed) >= factionRichness(tall) * 0.9 ? printed : tall;
-        // The faction's "Army Rules" section is also read straight from the page layout, so no army rule is missed.
-        // "[Name] Ability" rules (Custodes ka’tahs) are kept as parts of the army rule they belong to.
-        data.armyRules = groupArmyRules(mergeArmyRules(data.armyRules, armyRulesFromLayout(all)));
-        sortDatasheetAbilities(data);   // faction pack ruleset, rule 11
-        if (data.datasheets.length >= 2 || data.detachments.length >= 1) structured = data;
-        // Faction pack ruleset, rule 1: a PDF full of datasheets is a faction pack, whatever type was picked when it was added.
-        if (data.datasheets.length >= PACK_MIN_DATASHEETS) kind = "faction";
-        else if (kind === "core") structured = null;
-      }
-      // Core Rules and updates become numbered rule sections, saved through an Excel workbook like faction packs.
-      if (kind === "core" || kind === "updates") {   // (a faction pack picked as one of these has already become "faction")
-        $("#importText").textContent = `Converting ${f.name} into rule sections…`;
-        await new Promise(r => setTimeout(r, 30));
-        const parsed = parseRulesPdf(pages.flatMap(p => p.items));
-        if (parsed.sections.length >= 3) {
-          const draft = { kind, title, edition, structured: parsed };
-          const back = rulesFromWorkbook(await readXlsx(await (await buildXlsx(rulesToSheets(draft))).arrayBuffer()));
-          await replaceRulesDoc({ id: uid(), title, kind, pageCount, importedAt: Date.now(), format: "structured", source: "excel", edition, structured: back.structured, chunks: sectionChunks(back.structured.sections) });
-          continue;
-        }
-      }
-      let docFaction = faction;
-      if (!docFaction && (kind === "faction" || structured)) docFaction = detectFactions(`${title} ${f.name.replace(/[_\-.]+/g, " ")}`)[0] || "";
-      docFaction = canonicalFaction(docFaction) || docFaction;   // "DA", "Dark Angels Faction Pack" → Dark Angels
-      let doc;
-      if (structured) {
-        // The PDF becomes an Excel workbook, and the faction is built from that workbook (the PDF isn't kept).
-        $("#importText").textContent = `Creating the Excel file for ${f.name}…`;
-        const xlsx = await buildXlsx(structuredToSheets(structured, docFaction));
-        const fromExcel = structuredFromWorkbook(await readXlsx(await xlsx.arrayBuffer()));
-        delete fromExcel.faction; delete fromExcel.theme;
-        const lib = structuredToLibrary(fromExcel, docFaction);
-        doc = { id: uid(), title, kind: kind === "points" ? "points" : "faction", faction: docFaction, pageCount, importedAt: Date.now(), edition, format: "structured", source: "excel", structured: fromExcel, chunks: lib.chunks, points: lib.points };
-        // Faction pack ruleset, rules 2–4: the faction's official name, symbol and colours, decided by the pack itself.
-        await applyPackRules(doc, { bookIcons, fileName: f.name, typed: faction });
-        if (doc.faction !== docFaction) { const again = structuredToLibrary(fromExcel, doc.faction); doc.chunks = again.chunks; doc.points = again.points; }
-      } else {
-        const points = kind === "core" ? [] : extractPoints(pages).map(p => docFaction ? { ...p, section: docFaction } : p);
-        doc = { id: uid(), title, kind, faction: docFaction, pageCount, importedAt: Date.now(), edition, chunks: chunkPages(pages), points };
-      }
-      for (const p of pages) delete p.items;   // positions aren't stored
-      if (structured) await replaceFaction(doc);
-      else { await DB.put("docs", doc); state.docs.push(doc); }
-    } catch (err) {
-      errors.push(`${f.name}: ${err.message || err}`);
-    }
-  }
-  box.classList.add("hidden");
-  if (errors.length) { errBox.textContent = "Couldn't import " + errors.join("; "); errBox.classList.remove("hidden"); }
-  buildIndex();
-  renderAll();
-  if (!errors.length && !$("#toast").classList.contains("show")) toast(files.length === 1 ? "PDF added" : `${files.length} PDFs added`);
-}
-
-const isExcelFile = f => /\.xlsx$/i.test(f.name) || f.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-/** Adds a faction from an Excel workbook (one RulesForge made, possibly edited by you). */
-async function importExcelFile(f, faction) {
-  $("#importText").textContent = `Reading ${f.name}…`;
-  $("#importBar").style.width = "40%";
-  const buffer = await f.arrayBuffer();
-  await importWorkbookBuffer(buffer, f.name, { faction });
-}
-
-/** The shared half of importing a RulesForge workbook, used both for a file the player picked (importExcelFile)
- *  and for a Game Pack downloaded over the network (packs.js) — same data, same place it ends up in the Library.
+/** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
+ *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
  *  `meta.pack`, if given, is stamped onto the resulting doc so the Library can show where it came from and
  *  check for updates later. Returns the doc that was saved (a rules doc or a faction doc). */
 async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = null, title: titleOverride = "" } = {}) {
@@ -194,14 +88,14 @@ function factionsInLibrary() {
   }
   return [...set].sort();
 }/* The library: each faction's PDF as a box in its colours with its symbol (tap to open the faction), then the Core Rules,
-   points and updates. ⋮ on a box: View data · Points · Download Excel · Remove. */
+   points and updates. ⋮ on a box: View data · Remove. */
 const KEBAB = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>`;
 const libKebab = d => `<button type="button" class="lib-kebab" data-lib-menu="${d.id}" data-menu-key="d:${d.id}" title="More" aria-label="More options for ${esc(d.title)}" aria-haspopup="menu">${KEBAB}</button>`;
 function renderLibrary() {
   const host = $("#docList");
   if (!host) return;
   if (!state.docs.length) {
-    host.innerHTML = `<div class="empty">Nothing here yet. Add the Core Rules first, then your faction's rules and the latest points.</div>`;
+    host.innerHTML = `<div class="empty">Nothing here yet — download a Game Pack to begin.</div>`;
     return;
   }
   const newest = (a, b) => b.importedAt - a.importedAt;
@@ -241,8 +135,6 @@ function openLibraryMenu(btn) {
   openPopMenu(btn, "d:" + d.id, [
     d.structured?.datasheets ? `<button type="button" role="menuitem" data-view-data="${d.id}">View data</button>` : "",
     kind === "missions" ? `<button type="button" role="menuitem" data-mission-view="${d.id}">View cards</button>` : "",
-    kind === "faction" || kind === "points" ? `<button type="button" role="menuitem" data-points="${d.id}">Points</button>` : "",
-    d.structured ? `<button type="button" role="menuitem" data-excel="${d.id}">Download Excel</button>` : "",
     `<button type="button" role="menuitem" class="danger" data-delete="${d.id}">Remove</button>`].join(""));
 }
 
@@ -268,113 +160,4 @@ function rulesStatus(d) {
   return bits.length ? `<div class="meta lib-status">${esc(bits.join(" · "))}</div>` : "";
 }
 
-/** Excel workbooks go straight in (RulesForge workbooks say what they are); PDFs ask what they are. */
-async function addLibraryFiles(files) {
-  const excel = files.filter(isExcelFile), pdfs = files.filter(f => !isExcelFile(f));
-  if (excel.length) await importFiles(excel, "faction", "");
-  if (pdfs.length) openImportSheet(pdfs);
-}
-
-function openImportSheet(files) {
-  openSheet(`
-    <div class="sheet-head">
-      <h2>What ${files.length === 1 ? "is this PDF" : `are these ${files.length} PDFs`}?</h2>
-      <p>${files.map(f => esc(f.name)).join(", ")}</p>
-    </div>
-    <div class="sheet-body">
-      ${Object.entries(KINDS).map(([k, v], i) => `<label class="choice"><input type="radio" name="kind" value="${k}" ${k === (state.preferKind || "core") ? "checked" : ""}><span><strong>${esc(v.label)}</strong><span>${esc(v.desc)}</span></span></label>`).join("")}
-      <div class="field" id="factionField" style="display:none">
-        <label for="importFaction">Faction</label>
-        <input class="input" id="importFaction" list="factionList" placeholder="Optional">
-        <span class="hint" id="factionHint"></span>
-      </div>
-    </div>
-    <div class="sheet-foot">
-      <button class="btn" type="button" data-close>Cancel</button>
-      <button class="btn primary" type="button" id="importGo">Add</button>
-    </div>`);
-  const update = () => {
-    const k = $('input[name="kind"]:checked').value;
-    $("#factionField").style.display = k === "core" ? "none" : "";
-    $("#factionHint").textContent = k === "points"
-      ? "If this covers every faction (like the full Munitorum Field Manual), leave it blank — faction headings are found automatically."
-      : "Tagging a faction lets you limit searches and army lists to it.";
-  };
-  state.preferKind = null;
-  $$('input[name="kind"]').forEach(r => r.addEventListener("change", update));
-  update();
-  $("#importGo").onclick = () => {
-    const kind = $('input[name="kind"]:checked').value;
-    const faction = kind === "core" ? "" : $("#importFaction").value.trim();
-    $("#sheet").close();
-    importFiles(files, kind, faction);
-  };
-}
-
-function openPointsSheet(docId) {
-  const doc = state.docs.find(d => d.id === docId);
-  if (!doc) return;
-  const rows = doc.points.map(p => ({ ...p }));
-  const rowHTML = p => `<tr data-id="${p.id}">
-      <td><input class="input" data-f="name" value="${esc(p.name)}"></td>
-      <td><input class="input" data-f="models" type="number" min="0" value="${p.models}" ${p.enh ? "disabled" : ""}></td>
-      <td><input class="input" data-f="points" type="number" min="0" step="5" value="${p.points}"></td>
-      <td style="text-align:center"><input type="checkbox" data-f="enh" ${p.enh ? "checked" : ""}></td>
-      <td><input class="input" data-f="section" value="${esc(p.section)}"></td>
-      <td><button class="btn plain danger" data-remove-row type="button" aria-label="Remove">✕</button></td>
-    </tr>`;
-  openSheet(`
-    <div class="sheet-head">
-      <h2>Points · ${esc(doc.title)}</h2>
-      <p>Read automatically from the PDF. Fix anything that looks wrong — the list builder uses these exact numbers.</p>
-    </div>
-    <div class="sheet-body">
-      <input class="input" id="pointsFilter" placeholder="Filter by unit or faction">
-      <div style="overflow:auto">
-        <table class="points">
-          <thead><tr><th>Name</th><th>Models</th><th>Points</th><th>Enh.</th><th>Faction / section</th><th></th></tr></thead>
-          <tbody id="pointsBody">${rows.map(rowHTML).join("")}</tbody>
-        </table>
-      </div>
-      ${rows.length ? "" : `<div class="empty">No points were found in this document.</div>`}
-    </div>
-    <div class="sheet-foot">
-      <button class="btn" type="button" id="addRow" style="margin-right:auto">Add row</button>
-      <button class="btn" type="button" data-close>Cancel</button>
-      <button class="btn primary" type="button" id="savePoints">Save</button>
-    </div>`, true);
-
-  const body = $("#pointsBody");
-  $("#pointsFilter").oninput = e => {
-    const q = e.target.value.toLowerCase();
-    $$("tr", body).forEach(tr => {
-      const name = $('[data-f="name"]', tr).value.toLowerCase(), sec = $('[data-f="section"]', tr).value.toLowerCase();
-      tr.style.display = !q || name.includes(q) || sec.includes(q) ? "" : "none";
-    });
-  };
-  body.addEventListener("click", e => { if (e.target.closest("[data-remove-row]")) e.target.closest("tr").remove(); });
-  body.addEventListener("change", e => {
-    if (e.target.dataset.f === "enh") $('[data-f="models"]', e.target.closest("tr")).disabled = e.target.checked;
-  });
-  $("#addRow").onclick = () => {
-    body.insertAdjacentHTML("afterbegin", rowHTML({ id: uid(), name: "", models: 1, points: 0, enh: false, section: doc.faction || "" }));
-    $('[data-f="name"]', body).focus();
-  };
-  $("#savePoints").onclick = async () => {
-    doc.points = $$("tr", body).map(tr => ({
-      id: tr.dataset.id,
-      name: $('[data-f="name"]', tr).value.trim(),
-      models: $('[data-f="enh"]', tr).checked ? 0 : parseInt($('[data-f="models"]', tr).value, 10) || 0,
-      points: parseInt($('[data-f="points"]', tr).value, 10) || 0,
-      enh: $('[data-f="enh"]', tr).checked,
-      section: $('[data-f="section"]', tr).value.trim(),
-      page: 0,
-    })).filter(p => p.name);
-    await DB.put("docs", doc);
-    $("#sheet").close();
-    renderAll();
-    toast("Points saved");
-  };
-}
-
-export { addLibraryFiles, factionsInLibrary, importWorkbookBuffer, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary };
+export { factionsInLibrary, importWorkbookBuffer, openLibraryMenu, renderLibrary };

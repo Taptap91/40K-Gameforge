@@ -1,8 +1,9 @@
 /* RulesForge · packs.js
  * Game Packs: a catalog of ready-made rules/faction data, built by volunteers and downloaded straight into
- * the Library — no PDF, no AI parsing wait. A pack is exactly the same .xlsx workbook "Download Excel" already
- * produces for anything in your Library, so making one is: add your own PDF here once, ⋮ → Download Excel,
- * then contribute that file. This module only adds the browsing/downloading side of that loop.
+ * the Library — no PDF, no AI parsing wait, no in-app upload. A volunteer contributes a pack by pushing a
+ * PDF plus a small metadata file to packs/incoming/ on GitHub (see packs/incoming/README.md); a GitHub
+ * Actions workflow converts it into the .xlsx this module downloads and installs. This module only handles
+ * the browsing/downloading side, once a pack is already published in packs/index.json.
  */
 import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.46";
 import { importWorkbookBuffer } from "./library.js?v=8.46";

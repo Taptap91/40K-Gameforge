@@ -17,7 +17,7 @@
  *     "version": "1.0.0",            // required — lets the app detect updates
  *     "title": "Space Marines",      // optional — defaults to the PDF's own title
  *     "faction": "Space Marines",    // optional — only used for faction packs; defaults to what's detected
- *     "kind": "core",                // optional hint: "core" | "updates" | "faction" | "points" (default "core")
+ *     "kind": "core",                // optional hint: "core" | "updates" | "faction" (default "core")
  *     "description": "…"             // optional — shown under the title in the app
  *   }
  * On success the PDF and its sidecar are deleted (the app only ever fetches the small .xlsx that

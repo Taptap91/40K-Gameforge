@@ -33,7 +33,7 @@ For `space-marines.pdf`, add `space-marines.json` next to it:
 | `editionTag` | yes | shown next to the group ("11th Edition", "10th Edition"…) |
 | `author` | yes | shown as "Created by …" |
 | `version` | yes | bump this on a re-upload so the app shows "Update" to people who already have it |
-| `kind` | no | hint for what the PDF is: `faction` (a codex/battletome), `core` (a core rulebook), `updates` (an FAQ/errata/balance dataslate), or `points` (a points-only PDF). Defaults to `core`. A faction PDF — or a mission pack — is detected automatically either way, and `kind` is ignored for a mission pack. |
+| `kind` | no | hint for what the PDF is: `faction` (a codex/battletome), `core` (a core rulebook), or `updates` (an FAQ/errata/balance dataslate). Defaults to `core`. A faction PDF — or a mission pack — is detected automatically either way, and `kind` is ignored for a mission pack. |
 | `faction` | no | only used for a faction pack; the app usually detects this from the PDF itself |
 | `title` | no | defaults to the PDF's own title |
 | `description` | no | one line, shown under the title |
