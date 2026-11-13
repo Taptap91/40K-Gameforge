@@ -3,10 +3,10 @@
  * A record keeps both players' names as they were when the battle was played: your player name (Settings → Player)
  * and, when two devices are synced, your opponent's. Without a name, "You" and "Opponent" are shown.
  */
-import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.34";
-import { factionStyle } from "../js/factions.js?v=8.34";
-import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.34";
-import { battleScore, pausedBattles } from "./tracker.js?v=8.34";
+import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.35";
+import { factionStyle } from "../js/factions.js?v=8.35";
+import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.35";
+import { pausedBattles } from "./tracker.js?v=8.35";
 
 /* A battle record:
    { id, date: ms, you: { name, faction, score }, opponent: { name, faction, score }, ...more to come with the battle itself } */
@@ -38,11 +38,15 @@ function recordHTML(b) {
   return `<div class="bt-match"><div class="bt-mtop"><span class="bt-date">${ddmmyyyy(b.date)}</span><span class="bt-res ${tag[0]}" title="${result === "opponent" ? esc((o.name || "Your opponent") + " conceded") : result === "you" ? "You conceded" : "Ended at the current scores"}">${tag[1]}</span></div>${boardHTML(y, o, crown)}</div>`;
 }
 
+/** A player's VP in a battle set aside, worked out from what was scored (Battle Ready 10 + Primary + Secondary), so it always shows. */
+const sumVP = rows => (rows || []).reduce((n, r) => n + (+r.vp || 0), 0);
+const pausedVP = p => (p.battleReady ? 10 : 0) + (p.priScores ? sumVP(p.priScores) : +p.primary || 0) + (p.secs ? sumVP(p.secs) : +p.secondary || 0);
+
 /** A battle set aside with Leave Battle: the same scoreboard, with Resume and Delete under it. */
 function pausedHTML(e) {
   const b = e.battle || {}, me = b.me || {}, them = b.them || {};
   return `<div class="bt-match"><div class="bt-mtop"><span class="bt-date">Paused ${ddmmyyyy(e.saved)}</span><span class="bt-res draw">Round ${+b.round || 1}</span></div>
-    ${boardHTML({ name: me.name, faction: me.faction, score: battleScore(me) }, { name: them.name, faction: them.faction, score: battleScore(them) }, "")}
+    ${boardHTML({ name: me.name, faction: me.faction, score: pausedVP(me) }, { name: them.name, faction: them.faction, score: pausedVP(them) }, "")}
     <div class="bt-pbtns"><button type="button" class="btn primary bt-presume" data-bt-resume="${esc(e.id)}">Resume Battle</button><button type="button" class="btn bt-pdel" data-bt-discard="${esc(e.id)}" aria-label="Delete this paused battle">Delete</button></div></div>`;
 }
 

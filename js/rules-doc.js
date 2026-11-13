@@ -2,10 +2,10 @@
  * Core Rules and rules updates (FAQs, errata, Balance Dataslates) as numbered rule sections,
  * their Excel workbook, which version is newest, and the rules currently in force.
  */
-import { state } from "./core.js?v=8.34";
-import { dropPageFurniture } from "./faction-parser.js?v=8.34";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.34";
-import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.34";
+import { state } from "./core.js?v=8.35";
+import { dropPageFurniture } from "./faction-parser.js?v=8.35";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.35";
+import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.35";
 
 const SECTION_NUM = /^\d{2}\.\d{2}(?:\.\d{2})?$/;
 /** Used until a Core Rules file says otherwise (Core Rules 25.03). */
