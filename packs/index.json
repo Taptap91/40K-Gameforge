@@ -12,6 +12,19 @@
       "author": "RulesForge",
       "description": "An entirely original, placeholder faction used only to prove the download works end to end. Not a real faction — download it to see how a pack lands in your Library.",
       "file": "demo/sample-faction.xlsx"
+    },
+    {
+      "id": "orks-11e",
+      "title": "orks_11e",
+      "faction": "Space Marines",
+      "kind": "faction",
+      "game": "40K",
+      "editionTag": "11th Edition",
+      "version": "1.0.0",
+      "author": "Your name",
+      "description": "One line about the pack.",
+      "file": "orks-11e.xlsx",
+      "sizeKB": 82
     }
   ]
 }
