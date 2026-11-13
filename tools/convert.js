@@ -6,30 +6,37 @@
  * byte-for-byte what a human would get doing it by hand in the app. This file only runs inside a
  * real browser (loaded by tools/convert-harness.html) because the PDF reader renders pages onto a
  * <canvas> to read glyph styling — there is no Node-only path for this.
+ *
+ * Mission packs (Chapter Approved–style mission decks) are supported too, through their own workbook
+ * format in js/mission-parser.js (missionPackToSheets/missionPackFromWorkbook) — the deck doesn't fit
+ * the row-per-record tables faction/rules data uses, so it's kept as JSON split across rows instead.
  */
 // Side-effect-only import, kept first: js/excel.js and js/datasheets.js sit in a circular import
 // (excel.js → datasheets.js → search.js → rules-chat.js → library.js → factions.js/excel.js). The app's
 // own entry point (js/main.js) happens to unwind that cycle safely; this harness isn't that entry point,
 // so without this it can hit a "Cannot access 'DATASHEET_GROUPS' before initialization" TDZ error. Importing
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
-import "../js/factions.js?v=8.45";
-import { readPdf } from "../js/pdf-reader.js?v=8.45";
-import { looksLikeMissionPack } from "../js/mission-parser.js?v=8.45";
-import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.45";
-import { detectEdition, parseRulesPdf, rulesToSheets } from "../js/rules-doc.js?v=8.45";
-import { buildXlsx, structuredToSheets } from "../js/excel.js?v=8.45";
-import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.45";
+import "../js/factions.js?v=8.46";
+import { readPdf } from "../js/pdf-reader.js?v=8.46";
+import { looksLikeMissionPack, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.46";
+import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.46";
+import { detectEdition, parseRulesPdf, rulesToSheets } from "../js/rules-doc.js?v=8.46";
+import { buildXlsx, structuredToSheets } from "../js/excel.js?v=8.46";
+import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.46";
 
 const PACK_MIN_DATASHEETS = 5;
 
 /** Converts one PDF (a File/Blob) into a pack .xlsx, mirroring js/library.js's importFiles for a single file.
- * `kind` is a hint ("core"/"updates"/"faction"/"points"), same as the picker shown by "Add PDF".
- * Mission packs aren't supported here yet — the app has no Excel round-trip for them (see js/library.js,
- * where mission packs are stored as raw structured JSON, never through buildXlsx/readXlsx). */
+ * `kind` is a hint ("core"/"updates"/"faction"/"points"), same as the picker shown by "Add PDF" —
+ * a mission pack is detected automatically and the hint is ignored for it. */
 async function convertPdf(file, { kind = "core", faction = "" } = {}) {
   const { title, pages } = await readPdf(file, () => {});
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
-  if (looksLikeMissionPack(pages)) throw new Error("this looks like a mission pack — Game Packs don't support mission packs yet (no Excel format for them)");
+  if (looksLikeMissionPack(pages)) {
+    const pack = await parseMissionPack(pages, title);
+    const blob = await buildXlsx(missionPackToSheets(pack));
+    return { kind: "missions", title: pack.name, edition: null, faction: "", blob };
+  }
 
   const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
   const all = dropPageFurniture(pages.flatMap(p => p.items));

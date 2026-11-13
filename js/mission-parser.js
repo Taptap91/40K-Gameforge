@@ -4,8 +4,8 @@
  *   Twists and the FAQ.
  * The pack's "Mission Generator" and "Player's Hand" (the web page's interactive tools) are skipped entirely.
  */
-import { readingLines } from "./pdf-reader.js?v=8.45";
-import { cleanGlyphs, normName } from "./text.js?v=8.45";
+import { readingLines } from "./pdf-reader.js?v=8.46";
+import { cleanGlyphs, normName } from "./text.js?v=8.46";
 
 const TYPES = { "PRIMARY MISSION": "primary", "SECONDARY MISSION": "secondary", "TWIST": "twist", "DEPLOYMENT CARD": "deployment", "FORCE DISPOSITION CARDS": "disposition" };
 /* Section headings of the deck itself (never card names). */
@@ -325,4 +325,29 @@ const looksLikeMissionPack = pages => {
   return n(/^P ?R ?I ?M ?A ?R ?Y ?M ?I ?S ?S ?I ?O ?N$/gm) >= 5 && n(/^S ?E ?C ?O ?N ?D ?A ?R ?Y ?M ?I ?S ?S ?I ?O ?N$/gm) >= 5;
 };
 
-export { DISPOSITION_ORDER, looksLikeMissionPack, missionChunks, parseMissionPack };
+/* ---------- Its Excel workbook (for Download Excel and Game Packs) ---------- */
+// A mission pack's shape (cards, scoring tables, FAQ pairs, and each deployment card's cropped picture) doesn't fit
+// the row-per-record tables the faction/rules workbooks use, so it's stored as its own JSON, split across rows to
+// stay under Excel's ~32,767-characters-per-cell limit (a few deployment card pictures easily exceed one cell).
+const MP_CHUNK = 24000;
+
+function missionPackToSheets(pack) {
+  const json = JSON.stringify(pack);
+  const rows = [];
+  for (let i = 0; i < json.length; i += MP_CHUNK) rows.push([i / MP_CHUNK, json.slice(i, i + MP_CHUNK)]);
+  return [{ name: "Mission Pack", noHeader: true, columns: [{ header: "i", width: 8 }, { header: "chunk", width: 120 }], rows }];
+}
+
+/** Rebuilds the mission pack from its workbook, or null if this workbook isn't one (so the caller can try reading it some other way). */
+function missionPackFromWorkbook(book) {
+  const key = Object.keys(book).find(k => k.trim().toLowerCase() === "mission pack");
+  const rows = (key ? book[key] : []).filter(r => r && r[1] !== undefined && r[1] !== "");
+  if (!rows.length) return null;
+  const json = rows.slice().sort((a, b) => (+a[0] || 0) - (+b[0] || 0)).map(r => r[1]).join("");
+  try {
+    const pack = JSON.parse(json);
+    return pack && pack.name ? pack : null;
+  } catch { return null; }
+}
+
+export { DISPOSITION_ORDER, looksLikeMissionPack, missionChunks, missionPackFromWorkbook, missionPackToSheets, parseMissionPack };

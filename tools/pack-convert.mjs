@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /* RulesForge · tools/pack-convert.mjs
- * Converts every PDF under packs/incoming/ into a pack .xlsx and a packs/index.json entry, using the
- * app's own PDF-parsing pipeline (tools/convert.js) run headlessly in Chromium via Playwright — see
- * tools/convert.js's header comment for why a real browser is required.
+ * Converts every PDF under packs/incoming/ (including its Factions/, Rules/ and Mission Packs/
+ * subfolders, or any other subfolder — it's scanned recursively, so the subfolders are just for a
+ * volunteer's own organization and aren't enforced) into a pack .xlsx and a packs/index.json entry,
+ * using the app's own PDF-parsing pipeline (tools/convert.js) run headlessly in Chromium via
+ * Playwright — see tools/convert.js's header comment for why a real browser is required.
  *
  * Run locally:   node tools/pack-convert.mjs
  * Run in CI:     .github/workflows/convert-packs.yml calls this on every push that touches packs/incoming/**
  *
- * For each packs/incoming/<name>.pdf, looks for a sidecar packs/incoming/<name>.json describing the pack:
+ * For each <name>.pdf, looks for a sidecar <name>.json right beside it (same folder) describing the pack:
  *   {
  *     "game": "40K",                 // required — groups packs in the app's Game Packs sheet
  *     "editionTag": "11th Edition",  // required — same
@@ -24,7 +26,7 @@
  */
 import { chromium } from "playwright";
 import { createServer } from "http";
-import { readFile, writeFile, rm, readdir, stat } from "fs/promises";
+import { readFile, writeFile, rm, readdir } from "fs/promises";
 import { createReadStream, existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -38,6 +40,18 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/jav
 
 function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "pack";
+}
+
+/** Every *.pdf under `dir`, at any depth, as absolute paths — so Factions/, Rules/, Mission Packs/
+ * (or any other subfolder a volunteer makes) are all picked up the same way. */
+async function findPdfs(dir) {
+  const out = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...await findPdfs(full));
+    else if (/\.pdf$/i.test(entry.name)) out.push(full);
+  }
+  return out;
 }
 
 function serveRoot(root, port) {
@@ -62,9 +76,8 @@ async function loadIndex() {
 
 async function main() {
   if (!existsSync(INCOMING)) { console.log("No packs/incoming/ folder — nothing to convert."); return; }
-  const entries = await readdir(INCOMING);
-  const pdfs = entries.filter(f => /\.pdf$/i.test(f));
-  if (!pdfs.length) { console.log("No PDFs in packs/incoming/ — nothing to convert."); return; }
+  const pdfPaths = await findPdfs(INCOMING);
+  if (!pdfPaths.length) { console.log("No PDFs in packs/incoming/ — nothing to convert."); return; }
 
   const port = 8923;
   const server = await serveRoot(ROOT, port);
@@ -75,12 +88,11 @@ async function main() {
   const index = await loadIndex();
   const results = { converted: [], skipped: [] };
 
-  for (const pdfName of pdfs) {
-    const base = pdfName.replace(/\.pdf$/i, "");
-    const pdfPath = path.join(INCOMING, pdfName);
-    const metaPath = path.join(INCOMING, `${base}.json`);
+  for (const pdfPath of pdfPaths) {
+    const pdfName = path.relative(INCOMING, pdfPath);   // e.g. "Factions/space-marines.pdf", for logging
+    const metaPath = pdfPath.replace(/\.pdf$/i, ".json");
     if (!existsSync(metaPath)) {
-      console.warn(`Skipping ${pdfName}: no sidecar ${base}.json describing it (game/editionTag/author/version).`);
+      console.warn(`Skipping ${pdfName}: no sidecar ${path.basename(metaPath)} describing it (game/editionTag/author/version), right beside it.`);
       results.skipped.push({ file: pdfName, reason: "missing sidecar .json" });
       continue;
     }
@@ -98,7 +110,7 @@ async function main() {
       const bytes = await readFile(pdfPath);
       const base64 = bytes.toString("base64");
       const opts = { kind: meta.kind || "core", faction: meta.faction || "" };
-      const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, pdfName, opts]);
+      const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, path.basename(pdfPath), opts]);
 
       const title = meta.title || result.title;
       const id = slugify(meta.id || title);

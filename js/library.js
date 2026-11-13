@@ -1,17 +1,17 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.45";
-import { factionStyle } from "./factions.js?v=8.45";
-import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.45";
-import { structuredToLibrary } from "./datasheets.js?v=8.45";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.45";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.45";
-import { renderAll } from "./main.js?v=8.45";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=8.45";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.45";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.45";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.45";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.46";
+import { factionStyle } from "./factions.js?v=8.46";
+import { looksLikeMissionPack, missionChunks, missionPackFromWorkbook, parseMissionPack } from "./mission-parser.js?v=8.46";
+import { structuredToLibrary } from "./datasheets.js?v=8.46";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.46";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.46";
+import { renderAll } from "./main.js?v=8.46";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=8.46";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.46";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.46";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.46";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;
@@ -37,9 +37,7 @@ async function importFiles(files, pickedKind, faction) {
         await new Promise(r => setTimeout(r, 30));
         const pack = await parseMissionPack(pages, title);
         const doc = { id: uid(), title: pack.name, kind: "missions", faction: "", pageCount, importedAt: Date.now(), edition: detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, f.name), format: "structured", structured: { missionPack: pack }, chunks: missionChunks(pack), points: [] };
-        // A newer copy of the same pack replaces the old one.
-        for (const old of state.docs.filter(d => d.kind === "missions" && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase())) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
-        await DB.put("docs", doc); state.docs.push(doc);
+        await replaceMissionPack(doc);
         continue;
       }
       // Untagged faction PDFs are tagged from their title or file name ("Dark_Angels_Codex…" → Dark Angels).
@@ -125,6 +123,14 @@ async function importExcelFile(f, faction) {
 async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = null, title: titleOverride = "" } = {}) {
   const book = await readXlsx(buffer);
   const niceName = titleOverride || fileName.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
+  // A mission pack workbook, rather than rules or faction data.
+  const missionPack = missionPackFromWorkbook(book);
+  if (missionPack) {
+    const doc = { id: uid(), title: titleOverride || missionPack.name, kind: "missions", faction: "", pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", structured: { missionPack }, chunks: missionChunks(missionPack), points: [] };
+    if (pack) doc.pack = pack;
+    await replaceMissionPack(doc, fileName);
+    return doc;
+  }
   // A rules workbook (Core Rules or an update) rather than faction data.
   const rules = rulesFromWorkbook(book);
   if (rules) {
@@ -169,6 +175,15 @@ async function replaceFaction(doc, label = doc.title) {
   state.docs.push(doc);
   for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
   if (same.length) toast(`Replaced the earlier ${doc.faction} data with ${label}`);
+}
+
+/** Stores a mission pack; the same pack added again (same title) replaces the earlier copy. */
+async function replaceMissionPack(doc, label = doc.title) {
+  const same = state.docs.filter(d => d.kind === "missions" && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase());
+  await DB.put("docs", doc);
+  state.docs.push(doc);
+  for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
+  if (same.length) toast(`Replaced the earlier copy of ${label}`);
 }
 
 function factionsInLibrary() {
