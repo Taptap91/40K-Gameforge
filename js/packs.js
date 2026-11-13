@@ -9,9 +9,9 @@ import { importWorkbookBuffer } from "./library.js?v=8.43";
 import { renderAll } from "./main.js?v=8.43";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
- *  this up and opens a pull request; nothing here needs a server. Point this at "main" once this branch
- *  (or wherever packs end up living) is merged, so everyone's app reads the same, stable catalog. */
-const PACKS_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/battle-new-battle-resume/packs/";
+ *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
+ *  branch is merged, so everyone's app reads the same, stable catalog. */
+const PACKS_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/game-packs/packs/";
 const PACKS_INDEX_URL = PACKS_BASE + "index.json";
 
 let catalog = null;   // cached for the session once fetched
