@@ -1,11 +1,11 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { tidyApostrophes } from "./faction-parser.js?v=8.36";
-import { formatGB, toast } from "./core.js?v=8.36";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.36";
-import { rulesToSheets } from "./rules-doc.js?v=8.36";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.36";
+import { tidyApostrophes } from "./faction-parser.js?v=8.38";
+import { formatGB, toast } from "./core.js?v=8.38";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.38";
+import { rulesToSheets } from "./rules-doc.js?v=8.38";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.38";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 
@@ -84,7 +84,7 @@ function structuredToSheets(data, faction, theme = null) {
   const YES = v => (v ? "Yes" : "");
   const lines = arr => (arr || []).join("\n");
   const rich = (r, t) => (r && stripRich(r) !== r ? r : "");   // keep formatting only where it adds bold text
-  const unitRows = [], abilityRows = [], sectionRows = [], profileRows = [], stratRows = [], enhOptRows = [], unsortedRows = [];
+  const unitRows = [], abilityRows = [], sectionRows = [], profileRows = [], enhOptRows = [], unsortedRows = [];
   for (const ds of data.datasheets) {
     tidyDatasheet(ds);
     const v = viewerDatasheet(ds);

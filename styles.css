@@ -155,6 +155,11 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .lb-issues { font-size: 12.5px; color: var(--orange); display: flex; flex-direction: column; gap: 3px; }
 .lb-grp { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .lb-grp-title { font-size: 12.5px; font-weight: 600; color: var(--text-2); letter-spacing: .01em; }
+/* C10: Strategic Reserves and Deep Strike — points subtotal against the 50% cap, red when over. */
+.lb-reservegrp .lb-grp-title { display: flex; align-items: center; gap: 8px; }
+.lb-reservepts { font-variant-numeric: tabular-nums; }
+.lb-reservepts.over { color: var(--red); }
+.lb-reserve { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .lb-cardwrap { display: flex; flex-direction: column; gap: 4px; }
 .lb-card { width: 100%; text-align: left; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-height: 66px; display: flex; flex-direction: column; gap: 3px; }
 .lb-card:hover { background: var(--panel-2); }
@@ -260,8 +265,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .lb-shell[data-pane="add"] .lb-colC { display: none; }
   .lb-shell:not([data-pane="add"]) .lb-colR { display: none; }
   .lb-colR { border-left: 0; }
-  
-  
+
 }
 @media (max-width: 760px) {
   .lb-shell { grid-template-columns: minmax(0, 1fr); }
@@ -269,7 +273,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .lb-shell[data-pane="list"] .lb-colL, .lb-shell[data-pane="unit"] .lb-colC, .lb-shell[data-pane="add"] .lb-colR { display: block !important; }
   .lb-shell[data-pane="unit"] .lb-colC { display: flex !important; }
   .lb-col { padding-left: 16px; padding-right: 16px; border: 0; }
-  
+
   .lb-left .lb-w { display: none; }
   #view-lists.lb-editing .toolbar { flex-wrap: wrap; gap: 8px; }
   .lb-insp-cost { font-size: 20px; }
@@ -337,7 +341,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-weapons .fv-wname, .fv-weapons .fv-wkw { grid-column: 1 / -1; }
-  
+
 }
 .fv-ab { display: grid; grid-template-columns: minmax(120px, 30%) minmax(0, 1fr); column-gap: 18px; row-gap: 4px; align-items: baseline; padding: 10px 0; }
 .fv-ab + .fv-ab { border-top: 1px solid var(--border); }
@@ -346,7 +350,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 .fv-ab-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
 .fv-ab > .fv-rich { min-width: 0; }
 @container (max-width: 440px) { .fv-ab { grid-template-columns: minmax(0, 1fr); } }
-.fv-core { display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 14px; font-weight: 600; color: var(--text); padding: 2px 0; }
+
 /* Army rules: sub-headings keep their colour but aren't bold. */
 .fv-army strong, .fv-army .fv-rich strong, .fv-rich.fv-army strong { font-weight: 400; }
 .fv-rich { font-size: 12.5px; color: var(--text-2); line-height: 1.45; }
@@ -367,7 +371,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
 @media (max-width: 720px) {
   .fv { padding: 18px 16px 0; }
   .fv-scroll { margin: 0 -16px; padding: 0 16px 20px; }
-  
+
   .fv-row > summary { grid-template-columns: 18px minmax(0, 60%) 1fr; }
   .fv-stats, .fv-stats.named { grid-template-columns: repeat(6, minmax(34px, 1fr)); }
   .fv-stats.named .model { grid-column: 1 / -1; padding-top: 6px; }
@@ -380,7 +384,7 @@ dialog.fv-sheet { width: min(920px, calc(100vw - 24px)); }
   .fv-weapons.melee { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .fv-weapons > span:empty:not(.fv-wsep) { display: none; }
   .fv-weapons > .fv-wh:first-child, .fv-wname, .fv-wkw { grid-column: 1 / -1; }
-  
+
   .fv-wkw { padding-bottom: 10px; }
   .fv-ab-name, .fv-intro, .fv-kh { padding-left: 0; }
 }
@@ -627,12 +631,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-subbox.on { border-color: var(--accent); background: var(--accent-soft); }
 .fp-disp { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
 .fp-disp-sym { color: var(--accent); font-size: 16px; line-height: 1; }
-.fp-subbox > summary::-webkit-details-marker, .fp-subent > summary::-webkit-details-marker { display: none; }
-.fp-subitems { display: flex; flex-direction: column; gap: 0; padding: 0 12px 6px; }
-.fp-subent { border-top: 1px solid var(--border); }
-.fp-subent > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding: 7px 0; font-size: 13px; font-weight: 600; }
-.fp-subname { flex: 1 1 8em; min-width: 0; overflow-wrap: break-word; }
-.fp-subtext { font-size: 12px; padding: 0 0 8px; }
+.fp-subbox > summary::-webkit-details-marker { display: none; }
 
 .fp-item { display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
 .fp-item:hover { border-color: var(--border-strong); background: var(--panel-2); }
@@ -897,10 +896,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-fab { display: none; }
 
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  
-  
+
   /* The red delete button sits behind the right 20% of the card, the same height and shape. */
-  
+
   .lb-card .lb-trash { display: none; }
   .lb-card { padding-right: 12px; }
   /* Floating + button to add units, above the bottom bar on the right. */
@@ -909,7 +907,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
     font: 300 34px/1 var(--font); box-shadow: 0 8px 24px rgba(0,0,0,.45); z-index: 30; cursor: pointer; }
   .lb-fab.hidden { display: none; }
   #view-lists:not(.lb-editing) .lb-fab { display: none; }
-  
+
   .lb-col { padding-bottom: 96px; }
 }
 
@@ -920,7 +918,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lb-wopt.stepper summary { padding-right: 150px; }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   .lb-step { width: 42px; height: 42px; font-size: 22px; }
-  
+
 }
 .fv-nolink { color: inherit; cursor: default; } .fv-nolink:hover { text-decoration: none; }
 
@@ -953,7 +951,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
 /* 3: text that was 11.5–12.5px is 14px on phones and tablets. */
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  
+
   .lb-ok { font-size: 14px; }
   .lb-notes { font-size: 14px; }
   .lb-subtle { font-size: 14px; }
@@ -963,16 +961,16 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .lb-cmeta { font-size: 14px; }
   .lb-cerr { font-size: 14px; }
   .lb-problems { font-size: 14px; }
-  
+
   .lb-wtype { font-size: 14px; }
   .lb-wkws { font-size: 14px; }
   .lb-attached { font-size: 14px; }
   .lb-insp-cost span { font-size: 14px; }
   .lb-label { font-size: 14px; }
-  
+
   .lb-buffnote { font-size: 14px; }
   .fv-meta { font-size: 14px; }
-  
+
   .fv-wkw { font-size: 14px; }
   .fv-kw { font-size: 14px; }
   .fv-rich { font-size: 14px; }
@@ -1027,7 +1025,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .lb-switch { min-height: 44px; }
   .lb-switch button { min-height: 44px; min-width: 64px; font-size: 17px; font-weight: 600; }
   /* Weapon rows: the whole bar opens the details (no divider); − / + centred on the name; keywords below, full width. */
-  
+
   .lb-wopt { grid-template-columns: 32px minmax(0, 1fr); align-items: start; }
   .lb-check { width: 32px; height: 32px; margin: 11px 0 0; }
   .lb-wopt summary, .lb-wopt.stepper summary { align-items: flex-start; padding: 0 0 10px; min-height: 0; }

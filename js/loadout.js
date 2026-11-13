@@ -1,7 +1,7 @@
 /* RulesForge · loadout.js
  * Wargear: model groups, default weapons, swap options and limits read from datasheets, and weapon changes in the list builder.
  */
-import { normName, stripRich, titleCase } from "./text.js?v=8.36";
+import { normName, stripRich, titleCase } from "./text.js?v=8.38";
 
 /** "Bolt Rifle - Focused Fire" → "Bolt Rifle". */
 const weaponBase = name => String(name || "").split(/\s+[-–—]\s+/)[0].replace(/\s+non-?\s*$/i, "").trim();/** Loose name key for matching wargear text to weapons ("Lightning Claws" → "lightning claw"). */
@@ -396,29 +396,6 @@ function optionUsage(gr, unitSize) {
   return { uses, replacedUse, removes, left, gap };
 }
 
-/** The most models that can carry each weapon right now, given the rest of the loadout. */
-function weaponLimits(gr, unitSize) {
-  const lim = new Map();
-  if (gr.free) { for (const w of gr.reach.keys()) lim.set(w, gr.N); return lim; }
-  const { uses, replacedUse } = optionUsage(gr, unitSize);
-  // A default weapon that was unticked leaves a free slot for its replacement.
-  const avail = r => (gr.counts[r] ?? 0) + Math.max(0, gr.N - (gr.counts[r] ?? 0) - (replacedUse[r] || 0));
-  for (const w of gr.reach.keys()) {
-    if (gr.defaults.includes(w)) { lim.set(w, Math.max(0, gr.N - (replacedUse[w] || 0))); continue; }
-    let room = gr.counts[w] || 0;
-    for (const u of uses) {
-      if (!u.o.choices.some(ch => ch.includes(w))) continue;
-      const ch = u.o.choices.find(c => c.includes(w));
-      const free = Math.min(u.cap - u.total, ...u.o.replaces.filter(r => !ch.includes(r)).map(avail));
-      if (free > 0) room += free;
-      // "One of the following" for a single pick: choosing this one swaps out the other.
-      else if (u.cap === 1 && u.total === 1 && !(gr.counts[w] > 0)) room += 1;
-    }
-    lim.set(w, Math.min(gr.N, room));
-  }
-  return lim;
-}
-
 /** Unconditional "This unit's (ranged/melee) attacks have X." lines from a character's abilities. */
 function attackBuffs(abilities, source) {
   const out = [];
@@ -471,4 +448,4 @@ function weaponSummary(x) {
   return Object.entries(total).map(([w, n]) => `${n}× ${w}`).join(", ");
 }
 
-export { attackBuffs, buffsFor, loadoutIssues, loadoutOf, loadoutProblem, reconcileModels, setWeapon, wargearOf, weaponBase, weaponLimits, weaponSummary };
+export { attackBuffs, buffsFor, loadoutIssues, loadoutOf, loadoutProblem, reconcileModels, setWeapon, wargearOf, weaponBase, weaponSummary };

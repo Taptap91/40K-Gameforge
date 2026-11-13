@@ -93,12 +93,9 @@
 /* Step titles: a wrapped second line lines up with the first letter after the step number. */
 .bs-title { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .3em; align-items: baseline; }
 .bs-disp.only { display: inline-flex; align-items: center; align-self: flex-start; cursor: default; }
-.bs-reconnect { background: var(--orange) !important; border-color: var(--orange) !important; color: #1c1c1e !important; font-weight: 700; margin-right: 8px; animation: bs-pulse 1.6s ease-in-out infinite; }
-@keyframes bs-pulse { 50% { box-shadow: 0 0 0 6px rgba(255,159,10,.25); } }
-.bs-linked { margin-right: 10px; font-size: 13.5px; font-weight: 600; color: var(--green); }
-#battleTools { display: flex; align-items: center; }
-@media (prefers-reduced-motion: reduce) { .bs-reconnect { animation: none; } }
 
+
+#battleTools { display: flex; align-items: center; }
 /* ---------- Battle tracker ---------- */
 .bt-tracker { display: flex; flex-direction: column; gap: 0; }
 /* The strip under the header: the turn (right), then the phase bar. Compact, only the active phase shows, on the turn's line, at the left. */
@@ -188,7 +185,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-dsback { align-self: flex-start; width: auto !important; margin-left: 0 !important; min-height: 44px; }
 .bt-ds { display: flex; flex-direction: column; gap: 12px; }
 .bt-ds-head h3 { margin: 0; font-size: 22px; }
-.bt-carried { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-bottom: 8px; font-size: 14px; font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) { .bt-shell { transition: none; } }
 
 /* ---------- Under the tracker: Stratagems, Opponent's Stratagems, Army Rules, Detachment Rules ---------- */
@@ -223,6 +220,18 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-spendbtn { min-height: 56px; font-size: 18px; }
 .bt-spendbtn:disabled { opacity: .4; }
 @media (prefers-reduced-motion: reduce) { .bt-chev, .bt-strat { transition: none; } }
+/* C2: battle-shock rows, and C15's "Damaged" tag on a wounded model's weapon group. */
+.bt-shockrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.bt-shockrow:first-child { border-top: 0; }
+.bt-shocktext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bt-shocktext b { font-size: 15px; overflow-wrap: anywhere; }
+.bt-shocktext span { font-size: 13px; color: var(--text-2); }
+.bt-shockbtns { flex: none; display: flex; gap: 8px; }
+.bt-shockbtns .btn { min-height: 40px; padding: 0 14px; }
+.bt-achoicebtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.bt-dmgtag { background: var(--orange); color: #1c1c1e; }
+.bt-dmghint { padding: 0 0 8px; }
+.bt-grp.damaged .bt-grp-name { color: var(--orange); }
 
 /* ---------- Battle setup: back button, the layout slider, Ready ---------- */
 .bs-topbar { display: flex; align-items: center; gap: 8px; }
@@ -348,7 +357,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   /* The phase tracker in the header, once scrolled past section one: all six phases, centred on the sections, with the turn text beside Round #. */
   #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
   #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
-  #view-battle > header.toolbar > .bt-stick.compact .bt-strow { display: contents; }
+
   #view-battle > header.toolbar > .bt-stick.compact .bt-turn { grid-column: 3; grid-row: 1; justify-self: end; font-size: 20px; text-align: right; color: var(--text-2); }
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases { grid-column: 2; grid-row: 1; justify-self: center; align-self: center; width: max-content; display: grid; grid-template-columns: minmax(0, 1fr); padding: 4px; border: 0; border-radius: 14px; }
   /* Only the phase the players are in, centred. */
@@ -427,7 +436,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-cpbtns { gap: 6px; }
   .bt-cpbtn { min-height: 42px; }
   .bt-nextphase { min-height: 44px; }
-  .bt-score b { font-size: 28px; }
+
 }
 @media (max-height: 640px) {
   .bt-card { padding: 6px; }
@@ -458,7 +467,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-vp span { font-size: 14px; }
   .bt-cpbtn { min-height: 38px; }
   .bt-cols { gap: 8px; }
-  .bt-score { padding-top: 12px; }
+
 }
 /* The turn text lives in the header on every screen, so the copy above the phase bar goes. */
 .bt-stick:not(.compact) .bt-turn { display: none; }
@@ -486,7 +495,6 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-hp { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; flex: none; max-width: 50%; }
 .bt-hp-box { width: 14px; height: 14px; border-radius: 3px; background: #30c46b; border: 1px solid rgba(255,255,255,.25); cursor: pointer; flex: none; }
 .bt-hp-box.dead { background: var(--border-strong, #4a4e58); border-color: var(--border-strong, #4a4e58); opacity: .6; }
-.bt-hp-more { font-size: 12px; color: var(--text-2); }
 
 /* Warlord tag: on the name's line, the same size as the name, with standard padding between them. */
 #view-battle .bt-namewrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -494,24 +502,6 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 #view-battle .bt-unit-top .bt-wl { font-size: 16px; font-weight: 700; line-height: 1.2; padding: 1px 8px; border-radius: 8px; background: rgba(255,159,10,.15); color: var(--orange); white-space: nowrap; flex: none; }
 
 /* Models in a unit's datasheet: each row opens to its weapons; the body eases open and shut. */
-.bt-models { display: flex; flex-direction: column; gap: 10px; }
-.bt-models-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
-.bt-models-head b { font-weight: 700; }
-.bt-model { border: 1px solid var(--border); border-radius: 14px; background: var(--panel); padding: 12px 14px; transition: opacity .25s ease; }
-.bt-model.dead { opacity: .55; }
-.bt-model-top { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.bt-model-x { flex: none; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: var(--panel-2, rgba(255,255,255,.06)); border: 1px solid var(--border); font-weight: 700; font-size: 15px; }
-.bt-model-mid { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
-.bt-model-mid b { font-size: 16px; }
-.bt-model.dead .bt-model-mid b { text-decoration: line-through; }
-.bt-model .bt-hp { margin-top: 0; justify-content: flex-start; max-width: none; }
-.bt-model .bt-hp-box { cursor: pointer; }
-.bt-model-kill { flex: none; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #e5484d; background: transparent; color: #e5484d; font: 700 14px var(--font); cursor: pointer; white-space: nowrap; }
-.bt-model-kill.revive { border-color: var(--border-strong); color: var(--text-2); }
-.bt-model-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
-.bt-model.open .bt-model-wrap { grid-template-rows: 1fr; }
-.bt-model-body { min-height: 0; overflow: hidden; opacity: 0; transition: opacity .25s ease; }
-.bt-model.open .bt-model-body { opacity: 1; padding-top: 10px; }
 
 /* Wide screens: the left army column's scroll bar sits a standard distance from the list, not next to the centre.
    The column keeps its list width; the spare space goes between the scroll bar and the centre section. */

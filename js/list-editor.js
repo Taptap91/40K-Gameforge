@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.36";
-import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, icon, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.36";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.36";
-import { buffsFor, reconcileModels, setWeapon, weaponBase, weaponLimits } from "./loadout.js?v=8.36";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.36";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.36";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.38";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.38";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.38";
+import { buffsFor, reconcileModels, setWeapon, weaponBase } from "./loadout.js?v=8.38";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.38";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.38";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -96,7 +96,6 @@ function lbLoadout(x, buffs) {
   return (x.loadout || []).map(gr => {
     const problems = (x.loadoutProblems || {})[gr.name] || [];
     const problem = problems.length > 0;
-    const limits = weaponLimits(gr, x.models);
     const icon = msgs => msgs.length ? `<span class="lb-warnicon" role="img" tabindex="0" title="${esc(msgs.join(" "))}" aria-label="${esc(msgs.join(" "))}" data-lb-warn="${esc(msgs.join(" "))}">⚠︎</span>` : "";
     const weaponWarn = w => icon(problems.filter(p => (p.ws || []).includes(w)).map(p => p.msg));
     const groupWarn = icon(problems.filter(p => !(p.ws || []).length).map(p => p.msg));
@@ -254,14 +253,13 @@ function lbInspector(list, r, data) {
   }
   else {
     // Bodyguard units: the characters that can be attached to this unit, from your list and from the faction.
-    for (const [slot, label, verb] of [["leader", "Leaders", "led"], ["support", "Support Characters", "supported"]]) {
+    for (const [slot, label] of [["leader", "Leaders"], ["support", "Support Characters"]]) {
       const able = (data?.units || []).filter(c => c.character && charSlot(c) === slot && canAttach(c, u, slot));
       if (!able.length) continue;
       const inList = r.entries.filter(c => c.unit?.character && charSlot(c.unit) === slot && canAttach(c.unit, u, slot));
       const hostOf = c => c.attachTo && r.entries.find(e => e.id === c.attachTo);
       // Attaching can't give one unit two enhancements (Core Rules 25.04); the leader it replaces doesn't count.
       const clash = c => c.attachTo !== x.id && (c.enh || c.upg) && [x, ...r.entries.filter(o => o.attachTo === x.id && o.id !== c.id && (o.slot || charSlot(o.unit)) !== slot)].find(o => o.enh || o.upg);
-      const missing = able.filter(c => !inList.some(e => e.key === c.key)).map(c => c.name).sort();
       attach += `<div class="lb-field"><div class="lb-label">${label}</div><div class="lb-hosts">
         ${inList.map(c => { const k = clash(c), h = hostOf(c), on = c.attachTo === x.id; return `<button type="button" class="lb-host${on ? " on" : ""}" data-lb-leadby="${c.id}" data-host="${x.id}" data-slot="${slot}" ${k ? "disabled" : ""}>
           <span class="lb-hostname">${esc(lbEntryLabel({ ...c, attachTo: null }, r).replace(/ \(with .*\)$/, ""))}</span><span class="lb-subtle">${k ? `${esc(k.unit.name)} has ${esc(k.enh || k.upg)}; one enhancement per attached unit` : on ? `Attached to this unit · tap to detach` : h ? `Attached to ${esc(lbEntryLabel({ ...h, attachTo: null }, r).replace(/ \(with .*\)$/, ""))} · tap to move here` : `${c.total} pts · not attached`}</span>${on ? `<span class="lb-tick">✓</span>` : ""}</button>`; }).join("")}
@@ -276,6 +274,7 @@ function lbInspector(list, r, data) {
       <div class="lb-insp-title"><h2>${esc(unitLabel(list, x) || u.name)}<button class="lb-pencil" type="button" data-lb-unitname="${x.id}" title="Rename unit" aria-label="Rename unit">${PENCIL_SVG}</button></h2><div class="lb-insp-cost">${x.total}<span> pts</span></div></div>${unitLabel(list, x) ? `<div class="lb-insp-orig">${esc(u.name)}</div>` : ""}
       <div class="lb-insp-bar">${size}
         ${u.character ? `<button class="btn${x.warlord ? " lb-on" : ""}" type="button" data-lb-warlord="${x.id}">${x.warlord ? "★ Warlord" : "☆ Make Warlord"}</button>` : ""}
+        ${reserveButtons(x)}
         <span class="lb-insp-acts"><button class="btn lb-iconbtn" type="button" data-lb-dup="${x.id}" ${data && lbAtMax(u, r) ? "disabled" : ""} title="Duplicate" aria-label="Duplicate">${DUP_SVG}<span class="lb-btntext">Duplicate</span></button>
         <button class="btn danger lb-iconbtn" type="button" data-lb-remove="${x.id}" title="Remove" aria-label="Remove">${TRASH_MID}<span class="lb-btntext">Remove</span></button></span></div>
     </div>
@@ -296,6 +295,17 @@ function lbAtMax(u, r) {
   const n = r.entries.filter(e => e.key === u.key).length;
   if (n >= unitMax(u, r.rules)) return true;
   return u.transport && r.entries.filter(e => e.unit?.transport).length >= 6;
+}
+
+/* C10: Strategic Reserves and Deep Strike. Core Rules 20.01 — the combined points value of all of a player's
+ *  strategic reserves units (which this covers, since both are ways of arriving after deployment) can't exceed
+ *  50% of the army's points limit. */
+const RESERVE_KINDS = [["strategic", "Strategic Reserves"], ["deepstrike", "Deep Strike"]];
+const reservePts = (r, kind) => r.entries.filter(x => x.reserve === kind).reduce((s, x) => s + x.total, 0);
+const reserveCap = list => Math.floor(list.points * 0.5);
+function reserveButtons(x) {
+  const opts = [["", "Not in Reserves"], ...RESERVE_KINDS];
+  return `<div class="lb-reserve" role="group" aria-label="Reserves">${opts.map(([v, label]) => `<button type="button" class="btn${(x.reserve || "") === v ? " lb-on" : ""}" data-lb-reserve="${x.id}" data-v="${v}">${esc(label)}</button>`).join("")}</div>`;
 }
 
 function lbGroupOf(u) { return DATASHEET_GROUPS.findIndex(([, test]) => test(u.kws)); }
@@ -332,9 +342,17 @@ function lbListColumn(list, r) {
     </div>`;
   };
   const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));
-  for (const x of r.entries) groups[x.unit ? lbGroupOf(x.unit) : groups.length - 1].items.push(x);
+  // A unit set aside for Strategic Reserves or Deep Strike (C10) is listed in its own section below instead.
+  for (const x of r.entries.filter(x => !x.reserve)) groups[x.unit ? lbGroupOf(x.unit) : groups.length - 1].items.push(x);
   // Alphabetical within each category, whenever a unit was added (copies keep their order).
   for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
+  const cap = reserveCap(list);
+  const reserveBoxes = RESERVE_KINDS.map(([kind, title]) => {
+    const items = r.entries.filter(x => x.reserve === kind).sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
+    if (!items.length) return "";
+    const pts = reservePts(r, kind);
+    return `<div class="lb-grp lb-reservegrp"><div class="lb-grp-title">${esc(title)} · ${items.length}<span class="lb-reservepts ${pts > cap ? "over" : ""}">${pts} / ${cap} pts</span></div>${items.map(card).join("")}</div>`;
+  }).join("");
   const pct = Math.min(100, Math.round(r.total / list.points * 100));
   const enhCount = r.enhCount;
   const st = factionStyle(list.faction);
@@ -357,7 +375,8 @@ function lbListColumn(list, r) {
       ${list.generated?.notes?.length ? `<details class="more"><summary>Why this list</summary><ul class="lb-notes">${list.generated.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></details>` : ""}
       ${dets}
     </div>
-    ${groups.filter(g => g.items.length).map(g => `<div class="lb-grp"><div class="lb-grp-title">${esc(g.title)} · ${g.items.length}</div>${g.items.map(card).join("")}</div>`).join("") || `<div class="lb-empty">No units yet.<br>Add them from the list on the right.</div>`}`;
+    ${reserveBoxes}
+    ${groups.filter(g => g.items.length).map(g => `<div class="lb-grp"><div class="lb-grp-title">${esc(g.title)} · ${g.items.length}</div>${g.items.map(card).join("")}</div>`).join("") || (reserveBoxes ? "" : `<div class="lb-empty">No units yet.<br>Add them from the list on the right.</div>`)}`;
 }
 
 function lbAddColumn(list, r, data) {
@@ -448,7 +467,6 @@ function openDetachmentPicker(list) {
   const rules = sizeRules(list.points);
   const draw = () => {
     const chosen = data.detachments.filter(d => list.detachments.includes(d.name));
-    const tags = new Set(chosen.map(d => d.unique).filter(Boolean));
     openSheet(`
       <div class="sheet-head"><h2>Detachments</h2><p>${chosen.reduce((s, d) => s + d.dp, 0)} of ${rules.dp} DP used (${rules.name}) · no two detachments may share a Unique tag${rules.name === "Incursion" ? " · one 3 DP detachment may be taken on its own" : ""}.</p></div>
       <div class="sheet-body"><div class="list">${data.detachments.slice().sort((a, b) => a.name.localeCompare(b.name)).map(d => {
@@ -691,6 +709,11 @@ function wireListBuilder() {
     }
     const wl = t.closest("[data-lb-warlord]");
     if (wl) { for (const u of list.units) u.warlord = u.id === wl.dataset.lbWarlord; saveList(list); return renderListEditor(list); }
+    const rv = t.closest("[data-lb-reserve]");
+    if (rv) {
+      const u = list.units.find(o => o.id === rv.dataset.lbReserve);
+      if (u) { u.reserve = rv.dataset.v || null; saveList(list); return renderListEditor(list); }
+    }
   });
   view.addEventListener("change", e => {
     const t = e.target;

@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.36";
-import { factionStyle } from "../js/factions.js?v=8.36";
-import { evaluateList } from "../js/army.js?v=8.36";
-import { missionCard } from "../js/mission-viewer.js?v=8.36";
-import { openSync } from "./sync.js?v=8.36";
-import { currentBattle, discardPaused, endTracker, finishBattle, receiveEnded, pauseTracker, resumeBattle, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.36";
-import { confirmSheet } from "../js/core.js?v=8.36";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.38";
+import { factionStyle } from "../js/factions.js?v=8.38";
+import { evaluateList } from "../js/army.js?v=8.38";
+import { missionCard } from "../js/mission-viewer.js?v=8.38";
+import { openSync } from "./sync.js?v=8.38";
+import { currentBattle, discardPaused, finishBattle, receiveEnded, pauseTracker, resumeBattle, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.38";
+import { confirmSheet } from "../js/core.js?v=8.38";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -305,7 +305,7 @@ function beginBattle() {
   const theirDisp = opponent?.disposition || S.oppDisposition || "";
   const myPrimary = S.disposition && theirDisp ? primaryFor(S.disposition, theirDisp).name : "";
   const theirPrimary = S.disposition && theirDisp ? primaryFor(theirDisp, S.disposition).name : "";
-  const b = startTracker({ me: { name: username(), faction: list.faction, battleReady: S.battleReady, army: list.name, mission: myPrimary }, them: { name: opponent?.name || "", faction: opponent?.faction || opponent?.list?.faction || "", battleReady: !!opponent?.battleReady, army: opponent?.list?.name || "", mission: theirPrimary }, firstTurn: S.firstTurn || "you" }, m => sync?.send(m), armies());
+  const b = startTracker({ me: { name: username(), faction: list.faction, battleReady: S.battleReady, army: list.name, mission: myPrimary, secondariesStyle: S.secondaries || "tactical" }, them: { name: opponent?.name || "", faction: opponent?.faction || opponent?.list?.faction || "", battleReady: !!opponent?.battleReady, army: opponent?.list?.name || "", mission: theirPrimary }, firstTurn: S.firstTurn || "you" }, m => sync?.send(m), armies());
   sync?.send({ battle: b });
   render();
 }

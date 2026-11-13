@@ -1,9 +1,9 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=8.36";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.36";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.36";
+import { KNOWN_FACTIONS, uid } from "./core.js?v=8.38";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.38";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.38";
 
 /** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
 function parsePoints(pages) {
@@ -481,7 +481,6 @@ function parseFactionPdfRaw(allItems) {
   for (const sec of sections.filter(s => s.kind !== "other")) {
     const end = regionEnd(sec.h.y);
     const region = items.filter(i => i.y > sec.h.y + 4 && i.y < end);
-    const sizes = [...new Set(region.map(i => Math.round(i.s)))].sort((a, b) => b - a);
     const body = mostCommonSize(region);
     const sectionSize = region.filter(i => /^(DETACHMENT RULES?|ENHANCEMENTS|STRATAGEMS)$/i.test(i.t)).map(i => i.s)[0] || bigSize * 0.85;
     // Entry names (rules, enhancements, stratagems): the most common large capitalised text that isn't a CP cost.
