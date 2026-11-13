@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.38";
-import { factionStyle } from "../js/factions.js?v=8.38";
-import { armyData, evaluateList } from "../js/army.js?v=8.38";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.38";
-import { effectiveRules } from "../js/rules-doc.js?v=8.38";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.38";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.38";
+import { $, esc, openSheet, state, store } from "../js/core.js?v=8.39";
+import { factionStyle } from "../js/factions.js?v=8.39";
+import { armyData, evaluateList } from "../js/army.js?v=8.39";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.39";
+import { effectiveRules } from "../js/rules-doc.js?v=8.39";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.39";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.39";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -94,10 +94,16 @@ const vpText = v => (v && typeof v === "object" ? Object.values(v).filter(Boolea
 const scoreStyle = () => (B?.secondariesStyle === "fixed" ? "fixed" : "tactical");
 const vpApplies = (v, style) => !(v && typeof v === "object") || v[style] !== undefined;
 const vpValue = (v, style = scoreStyle()) => { const s = v && typeof v === "object" ? (v[style] ?? v.tactical ?? v.fixed ?? Object.values(v)[0] ?? "") : v; const n = /\d+/.exec(String(s || "")); return n ? +n[0] : 0; };
-/** Every scoring line of a mission, in order (the index is its checkbox). */
-const scoringRows = card => { const style = scoreStyle(); return (card?.scoring || []).flatMap(b => b.rows.filter(r => vpApplies(r.vp, style)).map(r => ({ round: b.round, text: r.text, vp: vpText(r.vp), n: vpValue(r.vp, style) }))); };
-/** VP already scored this round for Primary ("pri") or for the Secondary Missions ("sec"). */
-const gainedThisRound = (p, kind) => (kind === "pri" ? (p.priScores.find(r => r.round === B.round)?.vp || 0) : p.secs.filter(s => s.round === B.round).reduce((a, s) => a + (+s.vp || 0), 0));
+/** Every scoring line of a mission, in order (the index is its checkbox). A line from a CUMULATIVE block (e.g.
+ *  "2VP per success, up to a max of 5VP") is scored by a repeat count rather than a single checkbox, capped at
+ *  the block's own printed cap when there is one. */
+const scoringRows = card => {
+  const style = scoreStyle();
+  return (card?.scoring || []).flatMap(b => {
+    const blockCap = b.cap ? +String(b.cap).match(/\d+/)?.[0] || null : null;
+    return b.rows.filter(r => vpApplies(r.vp, style)).map(r => ({ round: b.round, text: r.text, vp: vpText(r.vp), n: vpValue(r.vp, style), cumulative: !!b.cumulative, blockCap }));
+  });
+};
 function logEv(b, by, ev) {
   b.events ||= [];
   b.events.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), round: b.round, by, struck: false, ...ev });
@@ -226,57 +232,173 @@ function choiceSig(b, timing) {
   if (timing === "round") return String(b.round);
   return "pregame";
 }
-function armyChoiceHTML(side, army) {
-  if (side !== "me" || !army) return "";
-  const due = timedArmyRules(army.armyRules).filter(e => e.timing !== "command" || B.turn === "you");
-  if (!due.length) return "";
-  const p = B.me;
-  const rows = due.map(({ rule, timing, onceOnly, options }) => {
-    const sig = choiceSig(B, timing);
-    const made = p.armyChoices?.[rule.name];
-    const current = made?.sig === sig ? made.choice : null;
+/** X2 is a pop-up, shown automatically regardless of which pane/section is on screen, not a box tucked into
+ *  Section 2 — so a due choice is never missed just because the player hasn't scrolled to it. */
+function dueArmyChoices(army) {
+  if (!army) return [];
+  return timedArmyRules(army.armyRules)
+    .filter(e => e.timing !== "command" || B.turn === "you")
+    .map(entry => {
+      const sig = choiceSig(B, entry.timing);
+      const made = B.me.armyChoices?.[entry.rule.name];
+      if (made?.sig === sig) return null;   // already chosen for now
+      return { entry, sig };
+    }).filter(Boolean);
+}
+/** Remembers which rules were already shown-and-dismissed for their current signature, so closing the pop-up
+ *  (Cancel or Confirm) doesn't make it pop straight back up on the very next render. */
+let achoiceDismissed = {};
+function openArmyChoiceSheet(host, due) {
+  const body = due.map(({ entry }) => {
+    const { rule, onceOnly, options } = entry;
     const opts = options.length ? options : [{ name: rule.name }];
     const btns = opts.map(o => {
-      const used = onceOnly && (p.armyChoicesUsed || []).includes(`${rule.name}|${o.name}`);
-      const on = current === o.name;
-      return `<button type="button" class="btn${on ? " lb-on" : ""}" data-bt-achoice="${esc(rule.name)}|${esc(o.name)}" ${used && !on ? "disabled" : ""}>${esc(o.name)}${used && !on ? " (used)" : ""}</button>`;
+      const used = onceOnly && (B.me.armyChoicesUsed || []).includes(`${rule.name}|${o.name}`);
+      return `<button type="button" class="btn${used ? " lb-off" : ""}" data-achoice-pick="${esc(rule.name)}|${esc(o.name)}" ${used ? "disabled" : ""}>${esc(o.name)}${used ? " (used)" : ""}</button>`;
     }).join("");
-    return `<div class="bt-rule"><b>${esc(rule.name)}</b><div class="fv-rich">${richHTML(rule.rich || rule.text)}</div>
-      <div class="bt-achoicebtns">${btns}</div>${current ? `<p class="bt-hint">Active this ${timing === "round" ? "round" : timing === "command" ? "phase" : "battle"}: ${esc(current)}</p>` : ""}</div>`;
+    return `<div class="bt-rule"><b>${esc(rule.name)}</b><div class="fv-rich">${richHTML(rule.rich || rule.text)}</div><div class="bt-achoicebtns">${btns}</div></div>`;
   }).join("");
-  return boxHTML("achoice", "Army Choice", `${due.length}`, rows);
+  const d = openSheet(`<div class="sheet-head"><h2>Army Choice</h2><p>Pick an option for each rule below.</p></div>
+    <div class="sheet-body">${body}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+  d.addEventListener("close", () => { due.forEach(({ entry, sig }) => { achoiceDismissed[entry.rule.name] = sig; }); renderTracker(host); }, { once: true });
+  d.onclick = e => {
+    const pick = e.target.closest("[data-achoice-pick]");
+    if (!pick || pick.disabled) return;
+    const [ruleName, choice] = pick.dataset.achoicePick.split("|");
+    const entry = due.find(x => x.entry.rule.name === ruleName)?.entry;
+    if (!entry) return;
+    d.close();
+    change(b => {
+      const sig = choiceSig(b, entry.timing);
+      b.me.armyChoices ||= {}; b.me.armyChoices[ruleName] = { sig, choice };
+      if (entry.onceOnly) { b.me.armyChoicesUsed ||= []; const key = `${ruleName}|${choice}`; if (!b.me.armyChoicesUsed.includes(key)) b.me.armyChoicesUsed.push(key); }
+      logEv(b, "you", { text: `Chose ${choice} for ${ruleName}` });
+    }, host);
+  };
+}
+function maybeOpenArmyChoicePrompt(host) {
+  const due = dueArmyChoices(armyOf("me")).filter(d => achoiceDismissed[d.entry.rule.name] !== d.sig);
+  if (!due.length) return;
+  if ($("#sheet")?.open) return;
+  openArmyChoiceSheet(host, due);
 }
 
 /* ---------- C2: battle-shock ---------- */
 const unitAlive = (b, x) => Math.max(0, (x.models || 0) - ((b.destroyed || {})[x.id] || 0));
-/** Units that need a battle-shock roll this Command phase: at half (or fewer) of their starting models, or already battle-shocked. */
+/** Units that need a battle-shock roll: at half (or fewer) of their starting models, but not destroyed outright. */
 function battleShockList(side, army) {
   if (!army) return [];
   return army.r.entries.filter(x => x.unit).filter(x => {
     const alive = unitAlive(B, x);
-    if (!alive) return false;
-    const half = x.models > 0 && alive <= x.models / 2;
-    return half || !!(B[side].shocked || {})[x.id];
+    return alive > 0 && x.models > 0 && alive <= x.models / 2;
   });
 }
-function battleShockHTML(armies) {
-  if (B.phase !== 0) return "";
-  const side = B.turn === "you" ? "me" : "them";
-  const army = armies[side];
-  if (!army) return "";
-  const units = battleShockList(side, army);
-  const mine = side === "me";
-  if (!units.length) return "";
-  const rows = units.map(x => {
-    const shocked = !!(B[side].shocked || {})[x.id];
+/** The signature a battle-shock prompt was shown for: once per side's own Command phase. */
+const shockDueSig = b => `${b.round}.${b.turn === b.first ? 0 : 1}`;
+let shockPromptSig = null;
+function openBattleShockSheet(host, units) {
+  const rowHTML = x => {
+    const shocked = !!(B.me.shocked || {})[x.id];
     const ld = x.unit.ds.profiles?.[0]?.LD || "";
-    return `<div class="bt-shockrow">
+    return `<div class="bt-shockrow${shocked ? " done" : ""}" data-shock-row="${esc(x.id)}">
       <div class="bt-shocktext"><b>${esc(nameOf(x))}</b><span>Ld ${esc(ld)}${shocked ? " · Battle-shocked" : ""}</span></div>
-      ${mine ? `<div class="bt-shockbtns"><button type="button" class="btn" data-bt-shockpass="${esc(x.id)}">Pass</button><button type="button" class="btn danger" data-bt-shockfail="${esc(x.id)}">Fail</button></div>` : shocked ? `<span class="bt-tag">Battle-shocked</span>` : ""}
+      <div class="bt-shockbtns"><button type="button" class="btn${!shocked ? " on" : ""}" data-shock-pass="${esc(x.id)}">Pass</button><button type="button" class="btn danger${shocked ? " on" : ""}" data-shock-fail="${esc(x.id)}">Fail</button></div>
     </div>`;
-  }).join("");
-  const hint = mine ? "Roll for each unit below: already battle-shocked, or at half strength (or fewer models)." : "Your opponent's units that need a battle-shock roll this Command phase.";
-  return boxHTML("shock", "Battle-shock", `${units.length}`, `<p class="bt-hint">${hint}</p>${rows}`);
+  };
+  const d = openSheet(`<div class="sheet-head"><h2>Battle-shock</h2><p>These units are at half strength (or fewer models) this Command phase. Roll for each before continuing.</p></div>
+    <div class="sheet-body bt-shocklist" id="shockBody">${units.map(rowHTML).join("")}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`);
+  d.addEventListener("close", () => renderTracker(host), { once: true });
+  d.onclick = e => {
+    const pass = e.target.closest("[data-shock-pass]"), fail = e.target.closest("[data-shock-fail]");
+    if (!pass && !fail) return;
+    const id = pass ? pass.dataset.shockPass : fail.dataset.shockFail;
+    const x = units.find(u => u.id === id);
+    change(b => {
+      b.me.shocked ||= {};
+      if (fail) b.me.shocked[id] = true; else delete b.me.shocked[id];
+      logEv(b, "you", fail
+        ? { badge: "Shocked", tone: "cp-minus", text: `${x ? nameOf(x) : "A unit"} failed its battle-shock roll` }
+        : { text: `${x ? nameOf(x) : "A unit"} passed its battle-shock roll` });
+    }, host);
+    const row = d.querySelector(`[data-shock-row="${id.replace(/"/g, "")}"]`);
+    if (row) row.outerHTML = rowHTML(x);
+  };
+}
+/** Auto-fires once per own Command phase when any unit qualifies; narrower than the old box (no longer
+ *  re-shown just because a unit is already marked battle-shocked). */
+function maybeOpenShockPrompt(host) {
+  if (B.phase !== 0 || B.turn !== "you") return;
+  const sig = shockDueSig(B);
+  if (shockPromptSig === sig) return;
+  const units = battleShockList("me", armyOf("me"));
+  if (!units.length) return;
+  if ($("#sheet")?.open) return;
+  shockPromptSig = sig;
+  openBattleShockSheet(host, units);
+}
+
+/* ---------- X4 / X7: reminder pop-ups for timed rules that have nothing to choose ---------- */
+/* X4 is scoped to rules that affect the whole army (not a single unit); X7 is scoped to a rule tied to a
+ *  specific Phase/Round/Turn, whichever unit it belongs to. Both just remind — there's no choice to make, so
+ *  the player applies the rule themselves and the pop-up is dismissed with Cancel or Confirm alike. "command" =
+ *  your own Command phase, every round; "round" = the start of every battle round; "round1" = the start of the
+ *  first battle round only. */
+const REMINDER_RULES = [
+  { match: /assemblage of might/i, timing: "command", label: "Assemblage of Might" },       // X4 — Adeptus Custodes
+  { match: /plaguesurge/i, timing: "command", label: "Plaguesurge" },                        // X4 — Death Guard
+  { match: /priority quarry/i, timing: "round1", label: "Priority Quarry" },                 // X7 — Adeptus Custodes
+  { match: /miasmic bombardment/i, timing: "round", label: "Miasmic Bombardment" },          // X7 — Death Guard
+  { match: /forward assault warsuit/i, timing: "round1", label: "Forward Assault Warsuit" }, // X7 — Dark Angels
+];
+function reminderDue(timing) {
+  if (timing === "command") return B.phase === 0 && B.turn === "you";
+  if (timing === "round") return B.phase === 0 && B.turn === B.first;
+  if (timing === "round1") return B.round === 1 && B.phase === 0 && B.turn === B.first;
+  return false;
+}
+const reminderSig = timing => (timing === "command" ? `${B.round}.${B.turn === B.first ? 0 : 1}` : String(B.round));
+/** Every piece of rules text your own army could have a reminder match against: army rules, the chosen
+ *  detachment's rules, and every unit's datasheet abilities (a reminder isn't limited to army-wide rules — X7
+ *  has none of that restriction, only X4 does, and X4's own candidates already happen to be army/detachment
+ *  rules rather than datasheet abilities). */
+function reminderSources(army) {
+  if (!army) return [];
+  const out = (army.armyRules || []).map(r => ({ name: r.name, text: r.text || r.rich || "" }));
+  for (const d of army.data.detachments.filter(d => (army.list.detachments || []).includes(d.name))) {
+    for (const r of d.det.rules || []) out.push({ name: r.name, text: r.text || r.rich || "" });
+  }
+  for (const x of army.r.entries) {
+    for (const a of x.unit?.ds?.abilities || []) out.push({ name: a.name, text: a.text || a.rich || "" });
+  }
+  return out;
+}
+let reminderDismissed = {};   // label -> signature already shown-and-closed, so it won't pop straight back up
+function dueReminders(army) {
+  const sources = reminderSources(army), due = [];
+  for (const rule of REMINDER_RULES) {
+    if (!reminderDue(rule.timing)) continue;
+    const src = sources.find(s => rule.match.test(s.name) || rule.match.test(s.text));
+    if (!src) continue;   // this army doesn't have the rule at all
+    const sig = reminderSig(rule.timing);
+    if (reminderDismissed[rule.label] === sig) continue;
+    due.push({ rule, src, sig });
+  }
+  return due;
+}
+function openReminderSheet(host, due) {
+  const body = due.map(({ rule, src }) => `<div class="bt-rule"><b>${esc(rule.label)}</b><div class="fv-rich">${richHTML(src.text)}</div></div>`).join("");
+  const d = openSheet(`<div class="sheet-head"><h2>${due.length > 1 ? "Reminders" : "Reminder"}</h2><p>${due.length > 1 ? "These rules apply now." : "This rule applies now."}</p></div>
+    <div class="sheet-body">${body}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+  d.addEventListener("close", () => { due.forEach(({ rule, sig }) => { reminderDismissed[rule.label] = sig; }); renderTracker(host); }, { once: true });
+}
+function maybeOpenReminderPrompt(host) {
+  const due = dueReminders(armyOf("me"));
+  if (!due.length) return;
+  if ($("#sheet")?.open) return;
+  openReminderSheet(host, due);
 }
 
 function boxesHTML(armies) {
@@ -296,8 +418,6 @@ function boxesHTML(armies) {
     ? dets.map(d => `<div class="bt-det"><h4>${esc(d.name)}</h4>${d.det.description ? `<div class="fv-rich">${richHTML(d.det.description)}</div>` : ""}${(d.det.rules || []).map(r => ruleBlock(r.name, r.rich || r.text)).join("")}</div>`).join("")
     : `<p class="bt-hint">${army ? "No detachment is chosen in this list." : "Your army list isn't on this device."}</p>`;
   return `<div class="bt-boxes">
-    ${armyChoiceHTML("me", armies.me)}
-    ${battleShockHTML(armies)}
     ${boxHTML("strat", "Stratagems", `${usable} usable`, stratBody)}
     ${boxHTML("theirs", "Opponent’s Stratagems", theirs.length ? `${theirs.length}` : "", theirBody)}
     ${boxHTML("army", "Army Rules", "", armyBody)}
@@ -658,6 +778,11 @@ function renderTracker(host) {
   mountStick(compact);
   if (tp) watchView(tp);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
+  // C2 and X2 are pop-ups that appear on their own, whichever pane/section is on screen, rather than a box
+  // that has to be scrolled to. Checked last, after the pane is drawn, and only one at a time.
+  maybeOpenArmyChoicePrompt(host);
+  maybeOpenShockPrompt(host);
+  maybeOpenReminderPrompt(host);
 }
 /** Round choice: five boxes the same width, a double gap, then Cancel. Sits over a blurred screen, not the whole of it. */
 function openRoundPicker(host) {
@@ -756,76 +881,113 @@ function spend(key, cost, host) {
     if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}`, undo: { t: "cp", d: -cost, key, sig: sg, forever } });
   }, host);
 }
-/** Points for a mission, from the boxes ticked. Up to the round's limit; what was counted is what's recorded. */
-/* C6: a nudge to score before moving on, at the two points where missions are checked — the end of the Command
- *  phase and the end of your turn. Only for your own side; your opponent is nudged from their own phone. */
-function openScorePrompt(host, timing) {
-  const p = B.me, hasPri = !!p.priMission, hasSec = p.secs.length > 0;
-  if (!hasPri && !hasSec) { change(nextPhase, host); return; }
-  const when = timing === "command" ? "the end of this Command phase" : "the end of your turn";
-  const row = (label, attr) => `<button type="button" class="bt-addrow" ${attr}><b>${esc(label)}</b><span>Score</span></button>`;
-  const d = openSheet(`<div class="sheet-head"><h2>Score missions?</h2><p>Check whether you scored any Primary or Secondary Missions at ${when} before moving on.</p></div>
-    <div class="sheet-body bt-addlist">
-      ${hasPri ? row(p.priMission, `data-prompt-pri`) : ""}
-      ${p.secs.map((s, i) => row(s.name, `data-prompt-sec="${i}"`)).join("")}
-    </div>
-    <div class="sheet-foot"><button class="btn primary" type="button" data-close>Continue</button></div>`, true);
-  d.addEventListener("close", () => change(nextPhase, host), { once: true });
+/** Points for a mission, from the boxes ticked (or counted, for a CUMULATIVE line). Up to the round's limit;
+ *  what was counted is what's recorded. */
+/* C6: every scorable mission in one pop-up, with checkboxes the player can tick directly — no separate menu
+ *  step. Shown automatically at the two points scoring is checked (end of the Command phase, end of your turn),
+ *  and reused by the manual Score buttons on the Primary/Secondary boxes for just the one mission tapped. */
+function missionBlocks() {
+  const p = B.me, blocks = [];
+  if (p.priMission) blocks.push({ kind: "pri", idx: null, name: p.priMission, rows: scoringRows(primaryCard(p.priMission)), rec: p.priScores.find(r => r.round === B.round) });
+  p.secs.forEach((s, i) => blocks.push({ kind: "sec", idx: i, name: s.name, rows: scoringRows(missionPack()?.secondaries?.find(m => m.name === s.name)), rec: s }));
+  return blocks;
+}
+/** Local tick/count state for one mission's rows while its pop-up is open. */
+function scoreState(rows, rec) {
+  if (!rec || rec.round !== B.round) return { checked: new Set(), counts: {} };
+  return { checked: new Set((rec.checks || []).filter(i => !rows[i]?.cumulative)), counts: { ...(rec.counts || {}) } };
+}
+const scoreSum = (rows, state) => rows.reduce((a, r, i) => a + (r.cumulative ? (state.counts[i] || 0) * r.n : (state.checked.has(i) ? r.n : 0)), 0);
+function scoreRowHTML(r, i, state) {
+  if (r.cumulative) {
+    const n = state.counts[i] || 0, atCap = r.blockCap != null && (n + 1) * r.n > r.blockCap;
+    return `<div class="bt-scorerow bt-scorerow-cum"><span><i>${esc(r.round)}</i>${esc(r.text)}</span>
+      <span class="bt-scorestep"><button type="button" class="btn" data-k-dec="${i}" ${n <= 0 ? "disabled" : ""}>−</button><b>${n}</b><button type="button" class="btn" data-k-inc="${i}" ${atCap ? "disabled" : ""}>+</button></span>
+      <b>${n * r.n} VP</b></div>`;
+  }
+  return `<label class="bt-scorerow"><input type="checkbox" data-k="${i}" ${state.checked.has(i) ? "checked" : ""}><span><i>${esc(r.round)}</i>${esc(r.text)}</span><b>${r.n} VP</b></label>`;
+}
+/** `only` scopes the pop-up to one mission (the manual Score buttons); `timing` marks it as the automatic
+ *  end-of-phase nudge, which advances to the next phase once the pop-up closes, however it was closed. */
+function openScorePopup(host, { timing, only } = {}) {
+  let blocks = missionBlocks();
+  if (only) blocks = blocks.filter(b => b.kind === only.kind && b.idx === only.idx);
+  if (!blocks.length) { if (timing) change(nextPhase, host); return; }
+  const cap = capPerRound();
+  const states = blocks.map(b => scoreState(b.rows, b.rec));
+  const when = timing === "command" ? "the end of this Command phase" : timing === "turn" ? "the end of your turn" : null;
+  const render = () => {
+    let secOther = 0;
+    return blocks.map((b, bi) => {
+      const rows = b.rows, state = states[bi], raw = scoreSum(rows, state);
+      let counted;
+      if (b.kind === "pri") counted = Math.min(raw, cap);
+      else { counted = Math.max(0, Math.min(raw, cap - secOther)); secOther += counted; }
+      return `<div class="bt-scoreblock" data-block="${bi}">
+        <h3>${esc(b.name)} <span class="bt-hint">(${b.kind === "pri" ? "Primary" : "Secondary"})</span></h3>
+        ${rows.length ? rows.map((r, i) => scoreRowHTML(r, i, state)).join("") : `<p class="bt-hint">No scoring is printed for this mission in the mission pack.</p>`}
+        <p class="bt-scoretot" aria-live="polite">${counted} VP this round${counted < raw ? ` (counts ${counted} of ${raw}: the round's limit is ${cap})` : ""}</p>
+      </div>`;
+    }).join("");
+  };
+  const d = openSheet(`<div class="sheet-head"><h2>Score missions?</h2>${when ? `<p>Check whether you scored at ${when} before moving on.</p>` : ""}</div>
+    <div class="sheet-body bt-scorelist" id="scoreBody">${render()}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-cancel>Cancel</button><button class="btn primary" type="button" data-accept>Confirm</button></div>`, true);
+  const refresh = () => { d.querySelector("#scoreBody").innerHTML = render(); };
+  d.addEventListener("close", () => { if (timing) change(nextPhase, host); }, { once: true });
+  d.onchange = e => {
+    const k = +e.target.dataset.k; if (Number.isNaN(k)) return;
+    const bi = +e.target.closest("[data-block]").dataset.block;
+    e.target.checked ? states[bi].checked.add(k) : states[bi].checked.delete(k);
+    refresh();
+  };
   d.onclick = e => {
-    const pri = e.target.closest("[data-prompt-pri]");
-    if (pri) { openScoreSheet("pri", host); return; }
-    const sec = e.target.closest("[data-prompt-sec]");
-    if (sec) { openScoreSheet("sec", host, +sec.dataset.promptSec); return; }
+    const dec = e.target.closest("[data-k-dec]"), inc = e.target.closest("[data-k-inc]");
+    if ((dec || inc) && !(dec || inc).disabled) {
+      const bi = +(dec || inc).closest("[data-block]").dataset.block;
+      const i = +(dec ? dec.dataset.kDec : inc.dataset.kInc);
+      const state = states[bi], r = blocks[bi].rows[i];
+      let n = state.counts[i] || 0;
+      if (dec) n = Math.max(0, n - 1);
+      else if (r.blockCap == null || (n + 1) * r.n <= r.blockCap) n += 1;
+      state.counts[i] = n;
+      refresh();
+      return;
+    }
+    if (e.target.closest("[data-cancel]")) { d.close(); return; }
+    if (!e.target.closest("[data-accept]")) return;
+    change(b => {
+      const pl = b.me;
+      let secOther = 0;
+      blocks.forEach((blk, bi) => {
+        const rows = blk.rows, state = states[bi], raw = scoreSum(rows, state);
+        let vp;
+        if (blk.kind === "pri") vp = Math.min(raw, cap);
+        else { vp = Math.max(0, Math.min(raw, cap - secOther)); secOther += vp; }
+        const checks = [...state.checked].sort((x, y) => x - y), counts = { ...state.counts };
+        if (blk.kind === "pri") {
+          let r = pl.priScores.find(x => x.round === b.round);
+          const prev = r?.vp || 0;
+          if (!r) pl.priScores.push(r = { round: b.round, checks: [], counts: {}, vp: 0 });
+          r.checks = checks; r.counts = counts; r.vp = vp;
+          if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${blk.name} (Primary)`, undo: { t: "score", kind: "pri", name: blk.name, round: b.round, had: true, checks: r.checks, counts: r.counts, vp: prev } });
+        } else {
+          const s = pl.secs[blk.idx]; if (!s) return;
+          const prev = s.round === b.round ? (s.vp || 0) : 0;
+          const undo = { t: "score", kind: "sec", name: s.name, round: s.round, checks: s.checks || [], counts: s.counts || {}, vp: s.vp || 0, prevRound: s.round };
+          s.checks = checks; s.counts = counts; s.vp = vp; s.round = b.round;
+          if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${s.name} (Secondary)`, undo });
+        }
+      });
+    }, host);
+    d.close();
   };
 }
 /** Next Phase: on your own turn, a scoring nudge appears first at the end of the Command phase and the end of your turn. */
 function advancePhase(host) {
-  if (B.turn === "you" && B.phase === 0) { openScorePrompt(host, "command"); return; }
-  if (B.turn === "you" && B.phase === PHASES.length - 1) { openScorePrompt(host, "turn"); return; }
+  if (B.turn === "you" && B.phase === 0) { openScorePopup(host, { timing: "command" }); return; }
+  if (B.turn === "you" && B.phase === PHASES.length - 1) { openScorePopup(host, { timing: "turn" }); return; }
   change(nextPhase, host);
-}
-function openScoreSheet(kind, host, idx) {
-  const p = B.me, sec = kind === "sec" ? p.secs[idx] : null;
-  if (kind === "sec" && !sec) return;
-  const name = kind === "pri" ? p.priMission : sec.name;
-  const rows = scoringRows(kind === "pri" ? primaryCard(p.priMission) : missionPack()?.secondaries?.find(m => m.name === sec.name));
-  const rec = kind === "pri" ? p.priScores.find(r => r.round === B.round) : sec;
-  const checked = new Set(rec?.checks || []);
-  const cap = capPerRound();
-  const own = rec?.round === B.round ? rec.vp || 0 : 0;
-  const other = gainedThisRound(p, kind) - own;   // VP this round from the rest of the same kind
-  const sumOf = set => [...set].reduce((a, i) => a + (rows[i]?.n || 0), 0);
-  const counted = () => Math.min(sumOf(checked), Math.max(0, cap - other));
-  const d = openSheet(`<div class="sheet-head"><h2>${esc(name || "Score")}</h2>
-      <p>Tick each way ${kind === "pri" ? "the Primary Mission" : "this Secondary Mission"} was scored this round. ${cap} VP is the most that counts for each of Primary and Secondary in one round.</p></div>
-    <div class="sheet-body bt-scorelist">${rows.length ? rows.map((r, i) => `<label class="bt-scorerow"><input type="checkbox" data-k="${i}" ${checked.has(i) ? "checked" : ""}><span><i>${esc(r.round)}</i>${esc(r.text)}</span><b>${r.n} VP</b></label>`).join("") : `<p class="bt-hint">No scoring is printed for this mission in the mission pack.</p>`}</div>
-    <p class="bt-scoretot" aria-live="polite"></p>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept ${rows.length ? "" : "disabled"}>Accept</button></div>`);
-  const tot = d.querySelector(".bt-scoretot");
-  const show = () => { const raw = sumOf(checked), c = counted(); tot.textContent = `${c} VP this round${c < raw ? ` (counts ${c} of ${raw}: the round's limit is ${cap})` : ""}`; };
-  show();
-  d.onchange = e => { const k = +e.target.dataset.k; if (Number.isNaN(k)) return; e.target.checked ? checked.add(k) : checked.delete(k); show(); };
-  d.onclick = e => {
-    if (!e.target.closest("[data-accept]") || e.target.closest("[disabled]")) return;
-    const vp = counted(), keys = [...checked].sort((a, b) => a - b);
-    d.close();
-    change(b => {
-      const pl = b.me;
-      let undo;
-      if (kind === "pri") {
-        let r = pl.priScores.find(x => x.round === b.round);
-        undo = { t: "score", kind, name, round: b.round, had: !!r, checks: r?.checks || [], vp: r?.vp || 0 };
-        if (!r) pl.priScores.push(r = { round: b.round, checks: [], vp: 0 });
-        r.checks = keys; r.vp = vp;
-      } else {
-        const s = pl.secs[idx]; if (!s) return;
-        undo = { t: "score", kind, name: s.name, round: s.round, checks: s.checks || [], vp: s.vp || 0, prevRound: s.round };
-        s.checks = keys; s.vp = vp; s.round = b.round;
-      }
-      const prev = undo.vp;
-      if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${name} (${kind === "pri" ? "Primary" : "Secondary"})`, undo });
-    }, host);
-  };
 }
 /** Taking a Secondary Mission off the list asks first. Cancel does nothing. */
 function openRemoveSheet(idx, host) {
@@ -901,33 +1063,8 @@ function handleTrackerClick(e, host) {
   // The boxes under the columns: open and close, expand a stratagem's text, or use it.
   const use = t.closest("[data-bt-use]");
   if (use) { useStratagem(use.dataset.btUse, host); return true; }
-  // X2: an army rule's timed choice (a combat doctrine, a Ka'tah, a Plague, and so on).
-  const ac = t.closest("[data-bt-achoice]");
-  if (ac && !ac.disabled) {
-    const [ruleName, choice] = ac.dataset.btAchoice.split("|");
-    const army = armyOf("me");
-    const entry = army && timedArmyRules(army.armyRules).find(e => e.rule.name === ruleName);
-    if (entry) change(b => {
-      const sig = choiceSig(b, entry.timing);
-      b.me.armyChoices ||= {}; b.me.armyChoices[ruleName] = { sig, choice };
-      if (entry.onceOnly) { b.me.armyChoicesUsed ||= []; const key = `${ruleName}|${choice}`; if (!b.me.armyChoicesUsed.includes(key)) b.me.armyChoicesUsed.push(key); }
-      logEv(b, "you", { text: `Chose ${choice} for ${ruleName}` });
-    }, host);
-    return true;
-  }
-  // C2: battle-shock rolls, for your own units only.
-  const shf = t.closest("[data-bt-shockfail]");
-  if (shf) {
-    const id = shf.dataset.btShockfail, x = armyOf("me")?.r.entries.find(e => e.id === id);
-    change(b => { b.me.shocked ||= {}; b.me.shocked[id] = true; logEv(b, "you", { badge: "Shocked", tone: "cp-minus", text: `${x ? nameOf(x) : "A unit"} failed its battle-shock roll` }); }, host);
-    return true;
-  }
-  const shp = t.closest("[data-bt-shockpass]");
-  if (shp) {
-    const id = shp.dataset.btShockpass, x = armyOf("me")?.r.entries.find(e => e.id === id);
-    change(b => { b.me.shocked ||= {}; const was = !!b.me.shocked[id]; delete b.me.shocked[id]; logEv(b, "you", { text: `${x ? nameOf(x) : "A unit"} ${was ? "is no longer battle-shocked" : "passed its battle-shock roll"}` }); }, host);
-    return true;
-  }
+  // X2 (army-rule choices) and C2 (battle-shock) are now pop-ups, opened automatically from renderTracker
+  // and handled by their own dialog, not by clicks in the tracker pane.
   // The Primary and Secondary boxes, their Score buttons, and the Secondary Missions' rows.
   const mh = t.closest("[data-bt-mhead]");
   if (mh) {   // one of the two is open at a time: their stems would cross
@@ -936,9 +1073,9 @@ function handleTrackerClick(e, host) {
     if (!was) openBoxes.add(id);
     renderTracker(host); return true;
   }
-  if (t.closest("[data-bt-score]")) { openScoreSheet("pri", host); return true; }
+  if (t.closest("[data-bt-score]")) { openScorePopup(host, { only: { kind: "pri", idx: null } }); return true; }
   const ss = t.closest("[data-bt-secscore]");
-  if (ss) { openScoreSheet("sec", host, +ss.dataset.btSecscore); return true; }
+  if (ss) { openScorePopup(host, { only: { kind: "sec", idx: +ss.dataset.btSecscore } }); return true; }
   const sd = t.closest("[data-bt-secdel]");
   if (sd) { openRemoveSheet(+sd.dataset.btSecdel, host); return true; }
   if (t.closest("[data-bt-secadd]")) { openAddSheet(host); return true; }

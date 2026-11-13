@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.38";
-import { factionStyle } from "../js/factions.js?v=8.38";
-import { evaluateList } from "../js/army.js?v=8.38";
-import { missionCard } from "../js/mission-viewer.js?v=8.38";
-import { openSync } from "./sync.js?v=8.38";
-import { currentBattle, discardPaused, finishBattle, receiveEnded, pauseTracker, resumeBattle, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.38";
-import { confirmSheet } from "../js/core.js?v=8.38";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.39";
+import { factionStyle } from "../js/factions.js?v=8.39";
+import { evaluateList } from "../js/army.js?v=8.39";
+import { missionCard } from "../js/mission-viewer.js?v=8.39";
+import { openSync } from "./sync.js?v=8.39";
+import { currentBattle, discardPaused, finishBattle, receiveEnded, pauseTracker, resumeBattle, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.39";
+import { confirmSheet } from "../js/core.js?v=8.39";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */

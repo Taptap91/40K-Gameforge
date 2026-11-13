@@ -1,17 +1,17 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.38";
-import { factionStyle } from "./factions.js?v=8.38";
-import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.38";
-import { structuredToLibrary } from "./datasheets.js?v=8.38";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.38";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.38";
-import { renderAll } from "./main.js?v=8.38";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=8.38";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.38";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.38";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.38";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.39";
+import { factionStyle } from "./factions.js?v=8.39";
+import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.39";
+import { structuredToLibrary } from "./datasheets.js?v=8.39";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.39";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.39";
+import { renderAll } from "./main.js?v=8.39";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=8.39";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.39";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.39";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.39";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;

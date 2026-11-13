@@ -1,12 +1,12 @@
 /* RulesForge · list-editor.js
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
-import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.38";
-import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.38";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.38";
-import { buffsFor, reconcileModels, setWeapon, weaponBase } from "./loadout.js?v=8.38";
-import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.38";
-import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.38";
+import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.39";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.39";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.39";
+import { buffsFor, reconcileModels, setWeapon, weaponBase } from "./loadout.js?v=8.39";
+import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.39";
+import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.39";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -297,12 +297,14 @@ function lbAtMax(u, r) {
   return u.transport && r.entries.filter(e => e.unit?.transport).length >= 6;
 }
 
-/* C10: Strategic Reserves and Deep Strike. Core Rules 20.01 — the combined points value of all of a player's
- *  strategic reserves units (which this covers, since both are ways of arriving after deployment) can't exceed
- *  50% of the army's points limit. */
+/* C10: Strategic Reserves and Deep Strike. Core Rules 20.01 — units held back for Strategic Reserves can
+ *  together be worth no more than 50% of the game's points level (not what the player actually brought — the
+ *  battle size itself, e.g. 1000 or 2000 pts, which is what `list.points` already is here). Deep Strike is
+ *  itself a way of arriving after deployment, so its points count towards that same 50%; on top of that, no
+ *  more than 25% of the game's points level may be from units going to Deep Strike specifically. */
 const RESERVE_KINDS = [["strategic", "Strategic Reserves"], ["deepstrike", "Deep Strike"]];
 const reservePts = (r, kind) => r.entries.filter(x => x.reserve === kind).reduce((s, x) => s + x.total, 0);
-const reserveCap = list => Math.floor(list.points * 0.5);
+const reserveCap = (list, kind) => Math.floor(list.points * (kind === "deepstrike" ? 0.25 : 0.5));
 function reserveButtons(x) {
   const opts = [["", "Not in Reserves"], ...RESERVE_KINDS];
   return `<div class="lb-reserve" role="group" aria-label="Reserves">${opts.map(([v, label]) => `<button type="button" class="btn${(x.reserve || "") === v ? " lb-on" : ""}" data-lb-reserve="${x.id}" data-v="${v}">${esc(label)}</button>`).join("")}</div>`;
@@ -346,12 +348,16 @@ function lbListColumn(list, r) {
   for (const x of r.entries.filter(x => !x.reserve)) groups[x.unit ? lbGroupOf(x.unit) : groups.length - 1].items.push(x);
   // Alphabetical within each category, whenever a unit was added (copies keep their order).
   for (const g of groups) g.items.sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
-  const cap = reserveCap(list);
+  const stratCap = reserveCap(list, "strategic"), dsCap = reserveCap(list, "deepstrike");
+  const dsPts = reservePts(r, "deepstrike"), stratCombined = reservePts(r, "strategic") + dsPts;
   const reserveBoxes = RESERVE_KINDS.map(([kind, title]) => {
     const items = r.entries.filter(x => x.reserve === kind).sort((a, b) => (a.unit?.name || a.key).localeCompare(b.unit?.name || b.key));
     if (!items.length) return "";
-    const pts = reservePts(r, kind);
-    return `<div class="lb-grp lb-reservegrp"><div class="lb-grp-title">${esc(title)} · ${items.length}<span class="lb-reservepts ${pts > cap ? "over" : ""}">${pts} / ${cap} pts</span></div>${items.map(card).join("")}</div>`;
+    const pts = kind === "deepstrike" ? dsPts : stratCombined;
+    const cap = kind === "deepstrike" ? dsCap : stratCap;
+    const over = kind === "deepstrike" ? (dsPts > dsCap || stratCombined > stratCap) : stratCombined > stratCap;
+    const note = kind === "strategic" && dsPts ? ` (includes ${dsPts} pts going to Deep Strike)` : "";
+    return `<div class="lb-grp lb-reservegrp"><div class="lb-grp-title">${esc(title)} · ${items.length}<span class="lb-reservepts ${over ? "over" : ""}">${pts} / ${cap} pts${note}</span></div>${items.map(card).join("")}</div>`;
   }).join("");
   const pct = Math.min(100, Math.round(r.total / list.points * 100));
   const enhCount = r.enhCount;
