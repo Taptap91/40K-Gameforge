@@ -37,8 +37,8 @@
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=8.46";
-import { normName } from "./text.js?v=8.46";
+import { KNOWN_FACTIONS } from "./core.js?v=8.47";
+import { normName } from "./text.js?v=8.47";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";

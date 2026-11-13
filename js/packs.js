@@ -5,9 +5,9 @@
  * Actions workflow converts it into the .xlsx this module downloads and installs. This module only handles
  * the browsing/downloading side, once a pack is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.46";
-import { importWorkbookBuffer } from "./library.js?v=8.46";
-import { renderAll } from "./main.js?v=8.46";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.47";
+import { importWorkbookBuffer } from "./library.js?v=8.47";
+import { renderAll } from "./main.js?v=8.47";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -73,7 +73,7 @@ async function openPacksSheet() {
   const d = openSheet(`
     <div class="sheet-head"><h2>Game Packs</h2><p>Ready-made rules and faction data, made by volunteers. Download one to add it straight to your Library.</p></div>
     <div class="sheet-body" id="packsBody"><p class="bt-hint">Loading the catalog…</p></div>
-    <div class="sheet-foot"><button class="btn" type="button" data-close>Close</button></div>`, true, "pk-pop");
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button></div>`, true, "pk-pop");
   const body = $("#packsBody");
   const packs = await loadCatalog();
   if (!packs) {
