@@ -90,9 +90,11 @@ function confirmSheet(title, message, actionLabel) {
   });
 }
 
-function openSheet(html, wide = false) {
+/** extraClass lets a caller mark its own pop-ups (e.g. the battle tracker's "bt-pop") for CSS that should
+ *  apply only there, without touching every other pop-up that shares this same dialog. */
+function openSheet(html, wide = false, extraClass = "") {
   const d = $("#sheet");
-  d.className = wide ? "wide" : "";
+  d.className = [wide ? "wide" : "", extraClass].filter(Boolean).join(" ");
   d.innerHTML = `<div class="sheet">${html}</div>`;
   if (!d.open) d.showModal();
   return d;

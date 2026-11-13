@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { $, esc, openSheet, state, store } from "../js/core.js?v=8.41";
-import { factionStyle } from "../js/factions.js?v=8.41";
-import { armyData, evaluateList } from "../js/army.js?v=8.41";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.41";
-import { effectiveRules } from "../js/rules-doc.js?v=8.41";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.41";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.41";
+import { $, esc, openSheet, state, store } from "../js/core.js?v=8.42";
+import { factionStyle } from "../js/factions.js?v=8.42";
+import { armyData, evaluateList } from "../js/army.js?v=8.42";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.42";
+import { effectiveRules } from "../js/rules-doc.js?v=8.42";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.42";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.42";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -248,34 +248,63 @@ function dueArmyChoices(army) {
 /** Remembers which rules were already shown-and-dismissed for their current signature, so closing the pop-up
  *  (Cancel or Confirm) doesn't make it pop straight back up on the very next render. */
 let achoiceDismissed = {};
+/** Tapping an option only selects it (toggled on, nothing saved yet); Confirm is what actually applies
+ *  whichever option is selected for each rule, and Cancel applies nothing. Re-opening (including manually,
+ *  from the Army Rules box) starts with whatever is already chosen for now pre-selected. */
 function openArmyChoiceSheet(host, due) {
-  const body = due.map(({ entry }) => {
+  const picked = {};
+  for (const { entry, sig } of due) {
+    const current = B.me.armyChoices?.[entry.rule.name];
+    if (current?.sig === sig) picked[entry.rule.name] = current.choice;
+  }
+  const render = () => due.map(({ entry }) => {
     const { rule, onceOnly, options } = entry;
     const opts = options.length ? options : [{ name: rule.name }];
+    const sel = picked[rule.name];
     const btns = opts.map(o => {
-      const used = onceOnly && (B.me.armyChoicesUsed || []).includes(`${rule.name}|${o.name}`);
-      return `<button type="button" class="btn${used ? " lb-off" : ""}" data-achoice-pick="${esc(rule.name)}|${esc(o.name)}" ${used ? "disabled" : ""}>${esc(o.name)}${used ? " (used)" : ""}</button>`;
+      const on = sel === o.name;
+      const used = onceOnly && !on && (B.me.armyChoicesUsed || []).includes(`${rule.name}|${o.name}`);
+      return `<button type="button" class="btn${on ? " lb-on" : ""}" data-achoice-pick="${esc(rule.name)}|${esc(o.name)}" ${used ? "disabled" : ""}>${esc(o.name)}${used ? " (used)" : ""}</button>`;
     }).join("");
     return `<div class="bt-rule"><b>${esc(rule.name)}</b><div class="fv-rich">${richHTML(rule.rich || rule.text)}</div><div class="bt-achoicebtns">${btns}</div></div>`;
   }).join("");
-  const d = openSheet(`<div class="sheet-head"><h2>Army Choice</h2><p>Pick an option for each rule below.</p></div>
-    <div class="sheet-body">${body}</div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+  const d = openSheet(`<div class="sheet-head"><h2>Army Choice</h2><p>Select an option for each rule below, then Confirm.</p></div>
+    <div class="sheet-body" id="achoiceBody">${render()}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-cancel>Cancel</button><button class="btn primary" type="button" data-accept>Confirm</button></div>`, true, "bt-pop");
+  const refresh = () => { d.querySelector("#achoiceBody").innerHTML = render(); };
   d.addEventListener("close", () => { due.forEach(({ entry, sig }) => { achoiceDismissed[entry.rule.name] = sig; }); renderTracker(host); }, { once: true });
   d.onclick = e => {
     const pick = e.target.closest("[data-achoice-pick]");
-    if (!pick || pick.disabled) return;
-    const [ruleName, choice] = pick.dataset.achoicePick.split("|");
-    const entry = due.find(x => x.entry.rule.name === ruleName)?.entry;
-    if (!entry) return;
+    if (pick && !pick.disabled) {
+      const [ruleName, choice] = pick.dataset.achoicePick.split("|");
+      picked[ruleName] = picked[ruleName] === choice ? null : choice;
+      refresh();
+      return;
+    }
+    if (e.target.closest("[data-cancel]")) { d.close(); return; }
+    if (!e.target.closest("[data-accept]")) return;
+    const picks = Object.entries(picked).filter(([, choice]) => choice);
     d.close();
+    if (!picks.length) return;   // nothing selected: Confirm with no pick applies nothing, same as Cancel
     change(b => {
-      const sig = choiceSig(b, entry.timing);
-      b.me.armyChoices ||= {}; b.me.armyChoices[ruleName] = { sig, choice };
-      if (entry.onceOnly) { b.me.armyChoicesUsed ||= []; const key = `${ruleName}|${choice}`; if (!b.me.armyChoicesUsed.includes(key)) b.me.armyChoicesUsed.push(key); }
-      logEv(b, "you", { text: `Chose ${choice} for ${ruleName}` });
+      for (const [ruleName, choice] of picks) {
+        const entry = due.find(x => x.entry.rule.name === ruleName)?.entry;
+        if (!entry) continue;
+        const sig = choiceSig(b, entry.timing);
+        b.me.armyChoices ||= {}; b.me.armyChoices[ruleName] = { sig, choice };
+        if (entry.onceOnly) { b.me.armyChoicesUsed ||= []; const key = `${ruleName}|${choice}`; if (!b.me.armyChoicesUsed.includes(key)) b.me.armyChoicesUsed.push(key); }
+        logEv(b, "you", { text: `Chose ${choice} for ${ruleName}` });
+      }
     }, host);
   };
+}
+/** The Army Rules box's own "Choose…" button on a rule — lets the player make (or change) that rule's choice
+ *  any time, including after cancelling the automatic pop-up without picking anything. */
+function openArmyChoiceFor(host, ruleName) {
+  const army = armyOf("me");
+  const entry = army && timedArmyRules(army.armyRules).find(e => e.rule.name === ruleName);
+  if (!entry) return;
+  openArmyChoiceSheet(host, [{ entry, sig: choiceSig(B, entry.timing) }]);
 }
 function maybeOpenArmyChoicePrompt(host) {
   const due = dueArmyChoices(armyOf("me")).filter(d => achoiceDismissed[d.entry.rule.name] !== d.sig);
@@ -308,7 +337,7 @@ function openBattleShockSheet(host, units) {
   };
   const d = openSheet(`<div class="sheet-head"><h2>Battle-shock</h2><p>These units are at half strength (or fewer models) this Command phase. Roll for each before continuing.</p></div>
     <div class="sheet-body bt-shocklist" id="shockBody">${units.map(rowHTML).join("")}</div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`);
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, false, "bt-pop");
   d.addEventListener("close", () => renderTracker(host), { once: true });
   d.onclick = e => {
     const pass = e.target.closest("[data-shock-pass]"), fail = e.target.closest("[data-shock-fail]");
@@ -391,7 +420,7 @@ function openReminderSheet(host, due) {
   const body = due.map(({ rule, src }) => `<div class="bt-rule"><b>${esc(rule.label)}</b><div class="fv-rich">${richHTML(src.text)}</div></div>`).join("");
   const d = openSheet(`<div class="sheet-head"><h2>${due.length > 1 ? "Reminders" : "Reminder"}</h2><p>${due.length > 1 ? "These rules apply now." : "This rule applies now."}</p></div>
     <div class="sheet-body">${body}</div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true, "bt-pop");
   d.addEventListener("close", () => { due.forEach(({ rule, sig }) => { reminderDismissed[rule.label] = sig; }); renderTracker(host); }, { once: true });
 }
 function maybeOpenReminderPrompt(host) {
@@ -410,8 +439,19 @@ function boxesHTML(armies) {
   const army = armies.me;
   const armyRules = army?.armyRules || [];
   const tops = armyRules.filter(r => !r.partOf);
+  const choosable = armyRules.length ? timedArmyRules(armyRules) : [];
   const armyBody = tops.length
-    ? tops.map(r => ruleBlock(r.name, r.rich || r.text) + armyRuleParts(r, armyRules).map(p => `<div class="bt-rule bt-sub"><b>${esc(p.name)}</b><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("")).join("")
+    ? tops.map(r => {
+      const entry = choosable.find(e => e.rule.name === r.name);
+      let chooseBtn = "";
+      if (entry) {
+        const sig = choiceSig(B, entry.timing);
+        const current = B.me.armyChoices?.[r.name];
+        const active = current?.sig === sig ? current.choice : null;
+        chooseBtn = `<button type="button" class="btn bt-achoicebtn" data-bt-achoice-open="${esc(r.name)}">${active ? `Change choice (${esc(active)})` : "Choose…"}</button>`;
+      }
+      return ruleBlock(r.name, r.rich || r.text) + chooseBtn + armyRuleParts(r, armyRules).map(p => `<div class="bt-rule bt-sub"><b>${esc(p.name)}</b><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("");
+    }).join("")
     : `<p class="bt-hint">${army ? "This army's rules aren't in the Library." : "Your army list isn't on this device."}</p>`;
   const dets = army ? army.data.detachments.filter(d => (army.list.detachments || []).includes(d.name)) : [];
   const detBody = dets.length
@@ -919,7 +959,7 @@ function openScorePopup(host, { timing, only } = {}) {
   };
   const d = openSheet(`<div class="sheet-head"><h2>Score missions?</h2>${when ? `<p>Check whether you scored at ${when} before moving on.</p>` : ""}</div>
     <div class="sheet-body bt-scorelist" id="scoreBody">${render()}</div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-cancel>Cancel</button><button class="btn primary" type="button" data-accept>Confirm</button></div>`, true);
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-cancel>Cancel</button><button class="btn primary" type="button" data-accept>Confirm</button></div>`, true, "bt-pop");
   const refresh = () => { d.querySelector("#scoreBody").innerHTML = render(); };
   d.addEventListener("close", () => { if (timing) change(nextPhase, host); }, { once: true });
   d.onchange = e => {
@@ -980,7 +1020,7 @@ function advancePhase(host) {
 function openRemoveSheet(idx, host) {
   const s = B.me.secs[idx]; if (!s) return;
   const d = openSheet(`<div class="sheet-head"><h2>Remove Secondary Mission?</h2><p>${esc(s.name)} comes off your list of Secondary Missions.</p></div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept>Accept</button></div>`);
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept>Accept</button></div>`, false, "bt-pop");
   d.onclick = e => {
     if (!e.target.closest("[data-accept]")) return;
     d.close();
@@ -994,7 +1034,7 @@ function openAddSheet(host) {
   const left = all.filter(m => !have.has(m.name));
   const d = openSheet(`<div class="sheet-head"><h2>Add a Secondary Mission</h2><p>From the mission pack in your Library.</p></div>
     <div class="sheet-body bt-addlist">${left.length ? left.map(m => `<button type="button" class="bt-addrow" data-add="${esc(m.name)}"><b>${esc(m.name)}</b><span>Add</span></button>`).join("") : `<p class="bt-hint">${all.length ? "Every Secondary Mission in the pack is already on your list." : "Add a mission pack PDF in Library to choose Secondary Missions here."}</p>`}</div>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button></div>`, true);
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button></div>`, true, "bt-pop");
   d.onclick = e => {
     const row = e.target.closest("[data-add]"); if (!row) return;
     const name = row.dataset.add;
@@ -1006,7 +1046,7 @@ function openAddSheet(host) {
 function openSpendSheet(s, host) {
   const d = openSheet(`<div class="sheet-head"><h2>${esc(s.name)}</h2><p>How many Command Points do you want to spend on this stratagem?</p></div>
     <div class="sheet-body bt-spend">${s.costs.map(c => `<button type="button" class="btn bt-spendbtn" data-spend="${c}" ${c > B.me.cp ? "disabled" : ""}>${c} CP</button>`).join("")}</div>
-    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button></div>`);
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button></div>`, false, "bt-pop");
   d.onclick = e => {
     const b = e.target.closest("[data-spend]");
     if (!b || b.disabled) return;
@@ -1109,6 +1149,8 @@ function handleTrackerClick(e, host) {
   const u = t.closest("[data-bt-unit]");
   if (u) { sheet = { side: u.dataset.side, id: u.dataset.btUnit }; renderTracker(host); host.querySelector(`.bt-pane[data-pane="${u.dataset.side}"]`)?.scrollTo(0, 0); return true; }
   if (t.closest("[data-bt-dsback]")) { sheet = null; renderTracker(host); return true; }
+  const ach = t.closest("[data-bt-achoice-open]");
+  if (ach) { openArmyChoiceFor(host, ach.dataset.btAchoiceOpen); return true; }
   return false;
 }
 /* Scrolling in the tracker is steered here, and answers at once. The first movement of a gesture decides what it does:

@@ -253,6 +253,35 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-scorestep .btn { min-height: 34px; min-width: 34px; padding: 0; }
 .bt-scorestep b { min-width: 18px; text-align: center; }
 .bt-scoretot { margin: 0; font-size: 13px; color: var(--text-2); }
+/* The Army Rules box's own "Choose…" button, for a rule that takes a choice (open any time, not just when due). */
+.bt-achoicebtn { align-self: flex-start; margin-top: 2px; }
+
+/* Larger text and larger controls inside the battle tracker's own pop-ups (army choice, battle-shock, scoring,
+   reminders, stratagem spend, secondary mission add/remove) for easier readability — marked with "bt-pop"
+   (see js/core.js openSheet) so this doesn't change any other pop-up in the app. */
+dialog.bt-pop { width: min(620px, calc(100vw - 32px)); }
+dialog.bt-pop.wide { width: min(900px, calc(100vw - 32px)); }
+.bt-pop .sheet-head h2 { font-size: 20px; }
+.bt-pop .sheet-head p { font-size: 15.5px; line-height: 1.5; }
+.bt-pop .sheet-body { font-size: 16px; gap: 16px; }
+.bt-pop .sheet-foot .btn { font-size: 16px; min-height: 46px; padding: 0 20px; }
+.bt-pop .bt-rule b { font-size: 17px; }
+.bt-pop .bt-rule.bt-sub b { font-size: 16px; }
+.bt-pop .fv-rich { font-size: 15.5px; line-height: 1.6; }
+.bt-pop .bt-achoicebtns .btn, .bt-pop .bt-shockbtns .btn, .bt-pop .bt-spendbtn, .bt-pop .bt-scorestep .btn, .bt-pop .bt-achoicebtn {
+  font-size: 16px; min-height: 46px; padding: 0 18px;
+}
+.bt-pop .bt-scorestep .btn { min-width: 46px; padding: 0; }
+.bt-pop .bt-shocktext b, .bt-pop .bt-stext b { font-size: 16.5px; }
+.bt-pop .bt-shocktext span, .bt-pop .bt-stext span { font-size: 14.5px; }
+.bt-pop .bt-scorerow { font-size: 16px; padding: 9px 0; gap: 12px; }
+.bt-pop .bt-scorerow input[type="checkbox"] { width: 22px; height: 22px; flex: none; }
+.bt-pop .bt-scorerow b { font-size: 15px; }
+.bt-pop .bt-scoreblock h3 { font-size: 17px; }
+.bt-pop .bt-scoreblock h3 .bt-hint { font-size: 13.5px; }
+.bt-pop .bt-addrow { font-size: 16px; min-height: 46px; }
+.bt-pop .bt-hint { font-size: 14.5px; }
+.bt-pop .bt-det h4 { font-size: 16px; }
 
 /* ---------- Battle setup: back button, the layout slider, Ready ---------- */
 .bs-topbar { display: flex; align-items: center; gap: 8px; }
@@ -373,8 +402,9 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar > h1 { grid-column: 1; grid-row: 1; justify-self: start; }
   #view-battle > header.toolbar > .spacer { display: none; }
   #view-battle > header.toolbar { position: relative; }
-  /* Sync status and Cancel: the far right of the screen, standard padding from the edge. */
-  #view-battle > header.toolbar > #battleTools { position: absolute; right: 16px; top: 39px; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
+  /* Sync status and Cancel: the far right of the screen, standard padding from the edge, centred on the
+   *  header's own height (not a fixed px guess, so it stays centred whatever the header's actual height is). */
+  #view-battle > header.toolbar > #battleTools { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
   /* The phase tracker in the header, once scrolled past section one: all six phases, centred on the sections, with the turn text beside Round #. */
   #view-battle > header.toolbar:has(.bt-stick.compact) { padding-top: 10px; padding-bottom: 10px; }
   #view-battle > header.toolbar > .bt-stick.compact { display: contents; }
@@ -443,6 +473,12 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   #view-battle > header.toolbar > .bt-stick.compact .bt-phases button { min-height: 50px; font-size: 20px; }
   #view-battle > header.toolbar .bt-round { min-height: 50px; padding: 0 30px; font-size: 20px; }
   #view-battle > header.toolbar > h1 { font-size: 20px; }
+}
+/* Desktop's sync box is positioned absolutely (above), centred on the header's own full height — so its grid
+ *  placement from the 793px rule above (which would otherwise shrink its containing block to just that grid
+ *  area) is cleared here, after that rule, for this width only. */
+@media (min-width: 1280px) {
+  #view-battle > header.toolbar > #battleTools { grid-column: auto; grid-row: auto; justify-self: auto; }
 }
 
 /* Smaller screens: section one shrinks from the cards inwards, so the whole section fits; buttons keep a comfortable size. */
