@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { $, esc, openSheet, state, store } from "../js/core.js?v=8.39";
-import { factionStyle } from "../js/factions.js?v=8.39";
-import { armyData, evaluateList } from "../js/army.js?v=8.39";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.39";
-import { effectiveRules } from "../js/rules-doc.js?v=8.39";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.39";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.39";
+import { $, esc, openSheet, state, store } from "../js/core.js?v=8.40";
+import { factionStyle } from "../js/factions.js?v=8.40";
+import { armyData, evaluateList } from "../js/army.js?v=8.40";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.40";
+import { effectiveRules } from "../js/rules-doc.js?v=8.40";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.40";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.40";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -571,30 +571,15 @@ function armyOf(side) {
 }
 const nameOf = x => x.label || x.unit?.name || x.key;
 
-/** Health boxes: one per model (up to ten), tap one to mark that model and the ones before it destroyed. */
-/** Wound pips for a model: W of them, the wounds greying out from the right. */
+/** Wound pips for a model: W of them, the wounds greying out from the right. Still used inside the full
+ *  datasheet (battleDatasheet), where a weapon-loadout group has its own per-model wound tracking. */
 function pipsHTML(W, lost) {
   return Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k >= W - lost ? " dead" : ""}"></span>`).join("");
 }
-/** The unit's model whose wounds the list shows: a wounded model by priority (basic, basic with another loadout,
- *  leader), else the basic model. Returns its row, front model index and wounds, or null when nothing is left. */
-function focusOf(x) {
-  const rows = rowsOf(x), dg = splitDestroyed(B, x, rows);
-  let s = 0;
-  const spans = rows.map((r, i) => {
-    const sp = { i, front: s + dg[i], alive: r.n - dg[i], pri: r.pri, lost: 0 };
-    s += r.n;
-    sp.lost = sp.alive > 0 ? (B.wounds || {})[`${x.id}|${sp.front}`] || 0 : 0;
-    return sp;
-  }).filter(sp => sp.alive > 0);
-  const byPri = (a, b) => a.pri - b.pri || a.i - b.i;
-  const pick = spans.filter(sp => sp.lost > 0).sort(byPri)[0] || [...spans].sort(byPri)[0];
-  return pick ? { ...pick, W: Math.min(Math.max(1, +(x.unit.ds.profiles?.[0]?.W) || 1), 12) } : null;
-}
-function hpHTML(x, side) {
-  const f = focusOf(x);
-  if (!f) return "";
-  return `<span class="bt-hp" data-bt-wound="${esc(x.id)}|${f.i}|${side}" title="Tap to wound this model">${pipsHTML(f.W, f.lost)}</span>`;
+/** The unit card's model count, in place of the old health boxes: how many models of this entry are left,
+ *  out of how many it started with — this entry's own count only, not combined with any attached unit. */
+function modelCountHTML(x) {
+  return `<span class="bt-mcount">${unitAlive(B, x)}/${x.models || 0}</span>`;
 }
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
@@ -621,10 +606,10 @@ function armyHTML(side, army = armyOf(side)) {
     const isWl = x.warlord || x.id === wlId;
     const tags = [x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
-        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span>${hpHTML(x, side)}</span>
+        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span>${modelCountHTML(x)}</span>
         <span class="bt-unit-row"><span class="bt-unit-left">${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
         <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span></span></button>
-      ${related(x).map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span>${hpHTML(c, side)}</button>`).join("")}</div>`;
+      ${related(x).map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span>${modelCountHTML(c)}</button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
 }
