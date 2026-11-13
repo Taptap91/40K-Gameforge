@@ -1,21 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.47";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.47";
-import { factionsInLibrary, openLibraryMenu, renderLibrary } from "./library.js?v=8.47";
-import { openPacksSheet } from "./packs.js?v=8.47";
-import * as core from "./core.js?v=8.47";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.47";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.47";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.47";
-import { buildIndex } from "./search.js?v=8.47";
-import { openDataViewer } from "./viewer.js?v=8.47";
-import { openMissionViewer } from "./mission-viewer.js?v=8.47";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.47";
-import { fixApostrophes } from "./text.js?v=8.47";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.47";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.47";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.48";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.48";
+import { factionsInLibrary, openLibraryMenu, renderLibrary } from "./library.js?v=8.48";
+import { openPacksSheet } from "./packs.js?v=8.48";
+import * as core from "./core.js?v=8.48";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.48";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.48";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.48";
+import { buildIndex } from "./search.js?v=8.48";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.48";
+import { fixApostrophes } from "./text.js?v=8.48";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.48";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.48";
 
 function renderAll() {
   renderScope();
@@ -98,10 +96,19 @@ function showView(name) {
     if (!e.target.closest(".lib-panel, .lb-menu")) return;
     const menu = e.target.closest("[data-lib-menu]");
     if (menu) return openLibraryMenu(menu);
-    const mv = e.target.closest("[data-mission-view]");
-    if (mv) return openMissionViewer(mv.dataset.missionView);
-    const view = e.target.closest("[data-view-data]");
-    if (view) return openDataViewer(view.dataset.viewData);
+    const delBundle = e.target.closest("[data-delete-bundle]");
+    if (delBundle) {
+      const bundleId = delBundle.dataset.deleteBundle;
+      const docs = state.docs.filter(d => d.pack?.bundleId === bundleId);
+      if (!docs.length) return;
+      const title = docs[0].pack.bundleTitle || "This Game Pack";
+      if (!(await confirmSheet("Delete this Game Pack?", `“${title}” and everything that came with it — rules, factions and mission packs — will be removed from this device.`, "Delete"))) return;
+      for (const doc of docs) await DB.del("docs", doc.id);
+      state.docs = state.docs.filter(d => d.pack?.bundleId !== bundleId);
+      buildIndex();
+      renderAll();
+      return;
+    }
     const del = e.target.closest("[data-delete]");
     if (del) {
       const doc = state.docs.find(d => d.id === del.dataset.delete);

@@ -1,15 +1,16 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.47";
-import { armyData } from "./army.js?v=8.47";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.47";
-import { factionMatches } from "./search.js?v=8.47";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.47";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.47";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.48";
+import { armyData } from "./army.js?v=8.48";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.48";
+import { factionMatches } from "./search.js?v=8.48";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.48";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.48";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.48";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
-const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
+const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle" };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -84,25 +85,39 @@ function openLibrary() {
 }
 const closeLibrary = () => $("#view-factions").classList.remove("lib-open");
 function openFactionFromLibrary(f) {
-  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.filter = ""; fUI.home = false;
+  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.filter = ""; fUI.home = false; fUI.mission = null;
   closeLibrary(); renderFactionsPage();
+}
+const missionDocs = () => state.docs.filter(d => d.kind === "missions" && d.structured?.missionPack).sort((a, b) => a.title.localeCompare(b.title));
+function openMissionFromLibrary(docId) {
+  fUI.mission = docId; fUI.missionTab = "battle"; fUI.open = false; fUI.home = false;
+  closeLibrary(); renderFactionsPage();
+}
+function missionButton(d, on) {
+  return `<button type="button" class="fp-fac fp-mission${on ? " on" : ""}" data-mission-open="${esc(d.id)}" aria-pressed="${on}">
+    <span class="fp-fac-name">${esc(d.title)}</span><span class="fp-fac-sym" aria-hidden="true">${icon("flag")}</span></button>`;
 }
 function renderFactionBar(names) {
   const tools = $("#factionsToolbar");
   // Desktop shows every faction's button; phones and tablets show three group buttons that open a picker.
   const groups = FACTION_GROUPS.map(([g]) => [g, names.filter(n => groupOf(n) === g)]).filter(([, l]) => l.length);
+  const missions = missionDocs();
   // Phones and tablets: "‹ Factions" (back to the Factions home, which is the library) and the Game Packs icon.
   // Desktop: "Library" (slides in from the right) and "Game Packs" beside the gear.
   const html = `<button type="button" class="btn fp-homeback" data-fp-home>‹ Factions</button>
     ${names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
     <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>` : `<div class="fp-facs"></div>`}
+    ${missions.length ? `<div class="fp-missions" role="group" aria-label="Mission Pack">${missions.map(d => missionButton(d, d.id === fUI.mission)).join("")}</div>` : ""}
     <button type="button" class="btn fp-libbtn" data-lib-show>${BOOK_SVG}Library</button>
     <button type="button" class="btn primary fp-packs" data-lib-packs title="Game Packs" aria-label="Game Packs">${icon("download")}<span>Game Packs</span></button>
     ${names.length ? `<button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : ""}`;
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
   const key = html.replace(/ on(?=[" ])/g, "").replace(/aria-pressed="(true|false)"/g, "");
   if (tools.dataset.key !== key) { tools.dataset.key = key; tools.innerHTML = html; }
-  else for (const b of tools.querySelectorAll(".fp-fac")) { const on = b.dataset.fac === fUI.faction; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+  else {
+    for (const b of tools.querySelectorAll(".fp-facs .fp-fac")) { const on = b.dataset.fac === fUI.faction; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+    for (const b of tools.querySelectorAll(".fp-missions .fp-mission")) { const on = b.dataset.missionOpen === fUI.mission; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }
+  }
   const row = tools.querySelector(".fp-facs"), on = row?.querySelector(".fp-fac.on");
   // Scrolls the row so the selected button is fully in view (measured against the row itself, so it never ends up under the
   // title or the gear). The button grows as it's selected, so it's checked again once that finishes.
@@ -221,11 +236,45 @@ function shrinkImage(file, maxW = 96, maxH = 96, type = "image/png") {
   });
 }
 
+/** A mission pack's own banner: same shell as a faction's, no symbol/colours of its own. */
+function missionBannerHTML(pack) {
+  const counts = [[sectionCount(pack, "primaries"), "Primary Mission"], [sectionCount(pack, "secondaries"), "Secondary Mission"], [sectionCount(pack, "deployments"), "Deployment"]]
+    .filter(([n]) => n).map(([n, w]) => `<span><b>${n}</b> ${w}${n === 1 ? "" : "s"}</span>`).join("");
+  return `<div class="fp-banner"><div class="fp-banner-text"><div class="fp-banner-kicker">Mission Pack</div><div class="fp-banner-name">${esc(pack.name)}</div><div class="fp-banner-counts">${counts}</div></div></div>`;
+}
+/** Left list: one item per section that has anything in it (Battle, Force Dispositions, Primary/Secondary
+ *  Missions, Deployments, Twists, FAQ) — the same left-list/right-detail shell a faction uses. */
+function missionLeftHTML(pack) {
+  const items = MISSION_TABS.filter(([k]) => sectionCount(pack, k));
+  return `<div class="fp-items">${items.map(([k, label]) => `<button type="button" class="fp-item${fUI.missionTab === k ? " on" : ""}" data-fp-mission="${esc(k)}">
+      <span class="fp-iname">${esc(label)}</span><span class="fp-imeta">${sectionCount(pack, k)}</span></button>`).join("")}</div>`;
+}
+function missionRightHTML(pack) {
+  const back = `<button type="button" class="btn plain fp-back" data-fp-back>‹ Back</button>`;
+  const label = (MISSION_TABS.find(([k]) => k === fUI.missionTab) || [])[1] || "";
+  return `${back}<div class="fp-head"><h2>${esc(label)}</h2></div>${missionTabHTML(pack, fUI.missionTab)}`;
+}
+
 function renderFactionsPage() {
   const host = $("#factionsHost");
   const names = factionNames();
-  // Phones and tablets open on the Factions home (the library); picking a faction opens it.
-  $("#view-factions").classList.toggle("fp-home", isTouchLayout() && (fUI.home || !names.length));
+  const missions = missionDocs();
+  if (fUI.mission && !missions.some(d => d.id === fUI.mission)) fUI.mission = null;
+  // Phones and tablets open on the Factions home (the library); picking a faction or mission pack opens it.
+  $("#view-factions").classList.toggle("fp-home", isTouchLayout() && (fUI.home || (!names.length && !fUI.mission)));
+  if (fUI.mission) {
+    renderFactionBar(names);
+    $("#view-factions").classList.remove("fp-unitmode");
+    const pack = missions.find(d => d.id === fUI.mission).structured.missionPack;
+    if (!MISSION_TABS.some(([k]) => k === fUI.missionTab && sectionCount(pack, k))) fUI.missionTab = MISSION_TABS.find(([k]) => sectionCount(pack, k))?.[0] || "battle";
+    host.innerHTML = `${missionBannerHTML(pack)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+        <div class="fp-left">${missionLeftHTML(pack)}</div>
+        <div class="fp-right" id="fpRight">${missionRightHTML(pack)}</div>
+      </div>`;
+    host.classList.add("fp-has-wide");
+    applyAccent(host, "");
+    return;
+  }
   if (!names.length) {
     renderFactionBar([]);
     $("#view-factions").classList.remove("fp-unitmode");
@@ -400,16 +449,28 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
-    if (e.target.closest("[data-fp-home]")) { fUI.home = true; fUI.open = false; return renderFactionsPage(); }
+    if (e.target.closest("[data-fp-home]")) { fUI.home = true; fUI.open = false; fUI.mission = null; return renderFactionsPage(); }
     if (e.target.closest("[data-lib-show]")) return openLibrary();
     if (e.target.closest("[data-lib-close]")) return closeLibrary();
     const libFac = !e.target.closest(".lib-kebab") && e.target.closest("[data-lib-open]");
     if (libFac) return openFactionFromLibrary(libFac.dataset.libOpen);
+    const missionOpen = !e.target.closest(".lib-kebab") && e.target.closest("[data-mission-open]");
+    if (missionOpen) return openMissionFromLibrary(missionOpen.dataset.missionOpen);
+    const ms = e.target.closest("[data-fp-mission]");
+    if (ms) {
+      fUI.missionTab = ms.dataset.fpMission;
+      fUI.open = isPhone();
+      const left = view.querySelector(".fp-left"), keep = left?.scrollTop;
+      renderFactionsPage();
+      if (left) view.querySelector(".fp-left").scrollTop = keep;
+      view.querySelector(".fp-right").scrollTop = 0;
+      return;
+    }
     if (e.target.closest("[data-fp-back]")) { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); return; }
     const fac = e.target.closest("[data-fac]");
     if (fac && fac.closest("#factionsToolbar")) {
-      if (fac.dataset.fac === fUI.faction) return;
-      fUI.faction = fac.dataset.fac; store.set("rf.faction", fUI.faction); fUI.sel = null; fUI.open = false; fUI.filter = "";
+      if (fac.dataset.fac === fUI.faction && !fUI.mission) return;
+      fUI.mission = null; fUI.faction = fac.dataset.fac; store.set("rf.faction", fUI.faction); fUI.sel = null; fUI.open = false; fUI.filter = "";
       renderFactionsPage();
       fac.scrollIntoView?.({ block: "nearest", inline: "nearest" });
       return;
@@ -421,8 +482,12 @@ function wireFactionsPage() {
   // Phones and tablets: swipe right on the datasheet to go back to the list.
   onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) { fUI.open = false; renderFactionsPage(); } });
   onSwipeRight(view, e => isTouchLayout() && !fUI.home && !fUI.open && !!e.target.closest(".fp-left"), () => { fUI.home = true; renderFactionsPage(); });
-  // Keyboard: Enter or Space on a faction's box in the library opens it.
-  view.addEventListener("keydown", e => { const c = e.target.matches?.("[data-lib-open]") && (e.key === "Enter" || e.key === " "); if (c) { e.preventDefault(); openFactionFromLibrary(e.target.dataset.libOpen); } });
+  // Keyboard: Enter or Space on a faction's or mission pack's box in the library opens it.
+  view.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.matches?.("[data-lib-open]")) { e.preventDefault(); openFactionFromLibrary(e.target.dataset.libOpen); }
+    else if (e.target.matches?.("[data-mission-open]")) { e.preventDefault(); openMissionFromLibrary(e.target.dataset.missionOpen); }
+  });
   view.addEventListener("input", e => { if (e.target.id === "fpFilter") { fUI.filter = e.target.value; applyFilter(); } });
   view.addEventListener("toggle", e => {
     const g = e.target.dataset?.grp;

@@ -1,10 +1,12 @@
 /* RulesForge · mission-viewer.js
- * Shows what was read from a mission pack: the battle sequence, Force Disposition pairings, every Primary and
- * Secondary Mission card, the Deployment maps, the Twists and the FAQ.
+ * Builds the content for what was read from a mission pack: the battle sequence, Force Disposition
+ * pairings, every Primary and Secondary Mission card, the Deployment maps, the Twists and the FAQ. The
+ * page shell that shows this (sectioned on the left, content on the right, the same way a faction does) is
+ * in factions.js, which calls into tabHTML/TABS here for each section's content.
  */
-import { esc, openSheet, state } from "./core.js?v=8.47";
+import { esc } from "./core.js?v=8.48";
 
-const TABS = [["battle", "Battle"], ["dispositions", "Force Dispositions"], ["primaries", "Primary"], ["secondaries", "Secondary"], ["deployments", "Deployment"], ["twists", "Twists"], ["faq", "FAQ"]];
+const TABS = [["battle", "Battle"], ["dispositions", "Force Dispositions"], ["primaries", "Primary Missions"], ["secondaries", "Secondary Missions"], ["deployments", "Deployments"], ["twists", "Twists"], ["faq", "FAQ"]];
 const vpHTML = v => {
   if (!v) return "";
   if (typeof v === "object") return Object.entries(v).map(([k, x]) => `<span class="mc-vp"><b>${esc(x)}</b><small>${esc(k)}</small></span>`).join("");
@@ -50,20 +52,7 @@ function tabHTML(pack, tab) {
   return "";
 }
 
-function openMissionViewer(docId, tab = "battle") {
-  const doc = state.docs.find(d => d.id === docId), pack = doc?.structured?.missionPack;
-  if (!pack) return;
-  const count = k => k === "battle" ? pack.sequence.length : (pack[k] || []).length;
-  const d = openSheet(`<div class="sheet-head"><h2>${esc(pack.name)}</h2><p>What RulesForge read from this mission pack. The Mission Generator and Player's Hand pages are left out.</p></div>
-    <div class="mc-tabs" role="tablist">${TABS.filter(([k]) => count(k)).map(([k, l]) => `<button type="button" role="tab" class="mc-tab${k === tab ? " on" : ""}" aria-selected="${k === tab}" data-mc-tab="${k}">${l}<span>${count(k)}</span></button>`).join("")}</div>
-    <div class="sheet-body mc-body">${tabHTML(pack, tab)}</div>
-    <div class="sheet-foot"><button class="btn" type="button" data-close>Close</button></div>`, true);
-  d.querySelector(".mc-tabs").onclick = e => {
-    const b = e.target.closest("[data-mc-tab]");
-    if (!b) return;
-    d.querySelectorAll(".mc-tab").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
-    const body = d.querySelector(".mc-body"); body.innerHTML = tabHTML(pack, b.dataset.mcTab); body.scrollTop = 0;
-  };
-}
+/** How many entries a section has, for the count badge next to it in the left list. */
+const sectionCount = (pack, k) => k === "battle" ? pack.sequence.length : (pack[k] || []).length;
 
-export { missionCard, openMissionViewer };
+export { missionCard, sectionCount, TABS, tabHTML };

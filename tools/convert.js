@@ -16,13 +16,13 @@
 // own entry point (js/main.js) happens to unwind that cycle safely; this harness isn't that entry point,
 // so without this it can hit a "Cannot access 'DATASHEET_GROUPS' before initialization" TDZ error. Importing
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
-import "../js/factions.js?v=8.47";
-import { readPdf } from "../js/pdf-reader.js?v=8.47";
-import { looksLikeMissionPack, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.47";
-import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.47";
-import { detectEdition, parseRulesPdf, rulesToSheets } from "../js/rules-doc.js?v=8.47";
-import { buildXlsx, structuredToSheets } from "../js/excel.js?v=8.47";
-import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.47";
+import "../js/factions.js?v=8.48";
+import { readPdf } from "../js/pdf-reader.js?v=8.48";
+import { looksLikeMissionPack, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.48";
+import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.48";
+import { detectEdition, parseRulesPdf, rulesToSheets } from "../js/rules-doc.js?v=8.48";
+import { buildXlsx, structuredToSheets } from "../js/excel.js?v=8.48";
+import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.48";
 
 const PACK_MIN_DATASHEETS = 5;
 

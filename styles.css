@@ -696,6 +696,13 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   box-shadow: -4px 0 12px -3px color-mix(in srgb, var(--c1) 70%, transparent), 4px 0 12px -3px color-mix(in srgb, var(--c2) 70%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .fp-fac, .fp-fac-sym { transition: none; } }
+/* Mission Pack buttons: the same look as a faction button, with a fixed accent instead of a faction's own
+   colours, and a flag icon in place of a symbol. */
+.fp-missions { flex: none; display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 10px; margin: 0 -2px; }
+.fp-mission { --c1: var(--accent); --c2: var(--accent); padding-right: 54px; }
+.fp-mission .fp-fac-sym { opacity: 1; transform: none; color: var(--text-2); }
+.fp-mission.on .fp-fac-sym { color: var(--text); }
+.fp-mission .fp-fac-sym svg { width: 18px; height: 18px; }
 /* The gear for "Symbol, banner & colours", in the same near-white as the RulesForge name. */
 .fp-style { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--text); cursor: pointer; opacity: .92; transition: background .15s, opacity .15s, transform .25s; }
 .fp-style:hover { background: rgba(255,255,255,.08); opacity: 1; }
@@ -1235,6 +1242,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-pack { cursor: pointer; }
 .lib-pack:hover { border-color: var(--border-strong); }
 .lib-pack .lib-icon { color: var(--orange); }
+.lib-bundle { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.lib-bundle .lib-icon { color: var(--accent); }
 .mc-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 22px 10px; scrollbar-width: none; }
 .mc-tabs::-webkit-scrollbar { display: none; }
 .mc-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text-2); font: 600 14px var(--font); cursor: pointer; }
@@ -1280,7 +1289,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .mc-maps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 .mc-map { margin: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .mc-map figcaption { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.mc-map img { width: 100%; border-radius: 8px; background: #fff; }
+.mc-map img { width: 100%; max-width: 520px; border-radius: 8px; background: #fff; }
 .mc-faq { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
 .mc-faq p { margin: 0; font-size: 14px; line-height: 1.5; }
 .fv-flavour { margin: 0 0 8px; font-style: italic; color: var(--text-2); }

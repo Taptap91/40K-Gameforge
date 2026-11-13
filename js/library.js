@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.47";
-import { factionStyle } from "./factions.js?v=8.47";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.47";
-import { structuredToLibrary } from "./datasheets.js?v=8.47";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.47";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.47";
-import { factionMatches } from "./search.js?v=8.47";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.47";
+import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.48";
+import { factionStyle } from "./factions.js?v=8.48";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.48";
+import { structuredToLibrary } from "./datasheets.js?v=8.48";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.48";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.48";
+import { factionMatches } from "./search.js?v=8.48";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.48";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
@@ -87,10 +87,27 @@ function factionsInLibrary() {
     for (const p of d.points || []) if (KNOWN_FACTIONS.includes(p.section)) set.add(p.section);
   }
   return [...set].sort();
-}/* The library: each faction's PDF as a box in its colours with its symbol (tap to open the faction), then the Core Rules,
-   points and updates. ⋮ on a box: View data · Remove. */
+}/* The library: a downloaded Game Pack collapses into a single box (⋮ → Delete removes everything it
+   installed). Anything not part of a Game Pack — pre-existing local data — still shows as its own box per
+   document, the way the library has always worked: each faction's PDF in its colours with its symbol
+   (tap to open the faction), then mission packs, then the Core Rules, points and updates. ⋮ on one of
+   those: Remove. */
 const KEBAB = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>`;
-const libKebab = d => `<button type="button" class="lib-kebab" data-lib-menu="${d.id}" data-menu-key="d:${d.id}" title="More" aria-label="More options for ${esc(d.title)}" aria-haspopup="menu">${KEBAB}</button>`;
+const libKebab = (key, title) => `<button type="button" class="lib-kebab" data-lib-menu="${esc(key)}" data-menu-key="d:${esc(key)}" title="More" aria-label="More options for ${esc(title)}" aria-haspopup="menu">${KEBAB}</button>`;
+/** A quick count summary ("Core Rules · 2 Updates · 1 Mission Pack · 12 Factions") for a Game Pack's box. */
+function docsSummary(docs) {
+  const counts = {};
+  for (const d of docs) counts[d.kind] = (counts[d.kind] || 0) + 1;
+  const parts = [];
+  if (counts.core) parts.push("Core Rules");
+  if (counts.updates) parts.push(`${counts.updates} Update${counts.updates === 1 ? "" : "s"}`);
+  if (counts.missions) parts.push(`${counts.missions} Mission Pack${counts.missions === 1 ? "" : "s"}`);
+  if (counts.faction) parts.push(`${counts.faction} Faction${counts.faction === 1 ? "" : "s"}`);
+  return parts.join(" · ");
+}
+const bundleCard = (bundleId, title, docs) => `<div class="lib-card lib-bundle">
+    <div class="lib-icon">${icon("book")}</div>
+    <div class="lib-text"><div class="lib-name">${esc(title)}</div><div class="lib-meta">${esc(docsSummary(docs))}</div></div>${libKebab("bundle:" + bundleId, title)}</div>`;
 function renderLibrary() {
   const host = $("#docList");
   if (!host) return;
@@ -98,17 +115,27 @@ function renderLibrary() {
     host.innerHTML = `<div class="empty">Nothing here yet — download a Game Pack to begin.</div>`;
     return;
   }
+  const bundled = state.docs.filter(d => d.pack?.bundleId);
+  const unbundled = state.docs.filter(d => !d.pack?.bundleId);
+  const bundleGroups = new Map();
+  for (const d of bundled) {
+    const id = d.pack.bundleId;
+    if (!bundleGroups.has(id)) bundleGroups.set(id, { title: d.pack.bundleTitle || id, docs: [] });
+    bundleGroups.get(id).docs.push(d);
+  }
+  const bundlesHTML = bundleGroups.size ? `<div class="group-title">Game Packs</div><div class="lib-cards">${[...bundleGroups.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title)).map(([id, g]) => bundleCard(id, g.title, g.docs)).join("")}</div>` : "";
+
   const newest = (a, b) => b.importedAt - a.importedAt;
-  const facs = state.docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));
-  const rest = ["core", "updates", "points"].flatMap(k => state.docs.filter(d => d.kind === k).sort(newest));
-  const packs = state.docs.filter(d => d.kind === "missions").sort(newest);
+  const facs = unbundled.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));
+  const rest = ["core", "updates", "points"].flatMap(k => unbundled.filter(d => d.kind === k).sort(newest));
+  const packs = unbundled.filter(d => d.kind === "missions").sort(newest);
   const packCard = d => {
     const m = d.structured?.missionPack || {}, n = k => (m[k] || []).length;
     const counts = [[n("primaries"), "primary"], [n("secondaries"), "secondary"], [n("deployments"), "deployment"], [n("twists"), "twist"]].filter(([c]) => c).map(([c, w]) => `${c} ${c === 1 ? w : { primary: "primaries", secondary: "secondaries" }[w] || w + "s"}`);
-    return `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-view="${d.id}">
+    return `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-open="${d.id}">
       <div class="lib-icon">${icon("flag")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.title)}</div><div class="lib-meta">${esc(counts.join(" · "))}</div>
-        <div class="lib-meta2">${esc([n("dispositions") ? `${n("dispositions")} Force Dispositions` : "", n("faq") ? `${n("faq")} FAQs` : "", editionLabel(d.edition)].filter(Boolean).join(" · "))}</div></div>${libKebab(d)}</div>`;
+        <div class="lib-meta2">${esc([n("dispositions") ? `${n("dispositions")} Force Dispositions` : "", n("faq") ? `${n("faq")} FAQs` : "", editionLabel(d.edition)].filter(Boolean).join(" · "))}</div></div>${libKebab(d.id, d.title)}</div>`;
   };
   const facCard = d => {
     const st = factionStyle(d.faction || ""), meta = docMeta(d).filter(x => x !== d.faction);
@@ -116,30 +143,34 @@ function renderLibrary() {
     return `<div class="lib-card lib-fac${st.img ? " has-mark" : ""}"${open} style="--c1:${st.c1};--c2:${st.c2}">
       ${st.img ? `<img class="lib-mark" src="${esc(st.img)}" alt="">` : ""}
       <div class="lib-text"><div class="lib-name">${esc(d.faction || d.title)}</div><div class="lib-meta">${esc(meta.slice(0, 1).join(" · "))}</div>
-        <div class="lib-meta2">${esc([d.title, ...meta.slice(1)].join(" · "))}</div></div>${libKebab(d)}</div>`;
+        <div class="lib-meta2">${esc([d.title, ...meta.slice(1)].join(" · "))}</div></div>${libKebab(d.id, d.faction || d.title)}</div>`;
   };
   const docCard = d => `<div class="lib-card">
       <div class="lib-icon">${icon(KINDS[d.kind]?.icon || "book")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.kind === "core" ? "Core Rules" : d.title)}</div>
         <div class="lib-meta">${esc(d.kind === "core" ? d.title.replace(/^core rules\s*/i, "").replace(/^\[|\]$/g, "") || KINDS.core.desc : KINDS[d.kind]?.label || "")}</div>
-        <div class="lib-meta2">${esc(docMeta(d).join(" · "))}</div>${isRulesDoc(d) ? rulesStatus(d) : ""}</div>${libKebab(d)}</div>`;
-  host.innerHTML = (facs.length ? `<div class="group-title">Your factions · ${facs.length}</div><div class="lib-cards">${facs.map(facCard).join("")}</div>` : "")
+        <div class="lib-meta2">${esc(docMeta(d).join(" · "))}</div>${isRulesDoc(d) ? rulesStatus(d) : ""}</div>${libKebab(d.id, d.title)}</div>`;
+  host.innerHTML = bundlesHTML
+    + (facs.length ? `<div class="group-title">Your factions · ${facs.length}</div><div class="lib-cards">${facs.map(facCard).join("")}</div>` : "")
     + (packs.length ? `<div class="group-title">Mission Packs</div><div class="lib-cards">${packs.map(packCard).join("")}</div>` : "")
     + (rest.length ? `<div class="group-title">Rules</div><div class="lib-cards">${rest.map(docCard).join("")}</div>` : "");
 }
-/** The ⋮ menu for a document in the library. */
+/** The ⋮ menu for a box in the library: a Game Pack bundle gets just Delete (removes everything it
+ *  installed); any other document gets Remove. */
 function openLibraryMenu(btn) {
-  const d = state.docs.find(x => x.id === btn.dataset.libMenu);
+  const key = btn.dataset.libMenu;
+  if (key.startsWith("bundle:")) {
+    const bundleId = key.slice("bundle:".length);
+    if (!state.docs.some(d => d.pack?.bundleId === bundleId)) return;
+    return openPopMenu(btn, "d:" + key, `<button type="button" role="menuitem" class="danger" data-delete-bundle="${esc(bundleId)}">Delete</button>`);
+  }
+  const d = state.docs.find(x => x.id === key);
   if (!d) return;
-  const kind = d.kind;
-  openPopMenu(btn, "d:" + d.id, [
-    d.structured?.datasheets ? `<button type="button" role="menuitem" data-view-data="${d.id}">View data</button>` : "",
-    kind === "missions" ? `<button type="button" role="menuitem" data-mission-view="${d.id}">View cards</button>` : "",
-    `<button type="button" role="menuitem" class="danger" data-delete="${d.id}">Remove</button>`].join(""));
+  return openPopMenu(btn, "d:" + key, `<button type="button" role="menuitem" class="danger" data-delete="${esc(d.id)}">Remove</button>`);
 }
 
 /** Where a Game Pack download came from, shown in the Library the same way a PDF's page count or edition is. */
-const packMeta = d => d.pack ? `Pack by ${d.pack.author}${d.pack.version ? ` · v${d.pack.version}` : ""}` : "";
+const packMeta = d => d.pack?.version ? `Pack · v${d.pack.version}` : "";
 
 function docMeta(d) {
   const ed = editionLabel(d.edition);
