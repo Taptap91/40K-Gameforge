@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { $, esc, openSheet, state, store } from "../js/core.js?v=8.40";
-import { factionStyle } from "../js/factions.js?v=8.40";
-import { armyData, evaluateList } from "../js/army.js?v=8.40";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.40";
-import { effectiveRules } from "../js/rules-doc.js?v=8.40";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.40";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.40";
+import { $, esc, openSheet, state, store } from "../js/core.js?v=8.41";
+import { factionStyle } from "../js/factions.js?v=8.41";
+import { armyData, evaluateList } from "../js/army.js?v=8.41";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.41";
+import { effectiveRules } from "../js/rules-doc.js?v=8.41";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.41";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.41";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -583,12 +583,14 @@ function modelCountHTML(x) {
 }
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
-  const head = `<div class="bt-armyhead" style="--c1:${st.c1};--c2:${st.c2}">${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc(army?.list.name || p.army || "")}${army ? ` · ${army.r.total} pts` : ""}</span></div></div>`;
+  // Viewing one unit's datasheet: the back control is a small icon button inside the faction-coloured head
+  // itself, rather than a separate line of text under it, with the head's own content re-centred to fit it.
+  const x = sheet?.side === side ? army?.r.entries.find(e => e.id === sheet.id) : null;
+  const showingDs = !!x?.unit;
+  const back = showingDs ? `<button type="button" class="bt-dsback" data-bt-dsback aria-label="Back to ${esc(army?.list.name || "the army list")}">‹</button>` : "";
+  const head = `<div class="bt-armyhead${showingDs ? " bt-armyhead-ds" : ""}" style="--c1:${st.c1};--c2:${st.c2}">${back}${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc(army?.list.name || p.army || "")}${army ? ` · ${army.r.total} pts` : ""}</span></div></div>`;
   if (!army) return head + `<div class="bt-hint">${side === "me" ? "Your army list isn't on this device." : "Sync with your opponent before the battle to see their army here."}</div>`;
-  if (sheet?.side === side) {
-    const x = army.r.entries.find(e => e.id === sheet.id);
-    if (x?.unit) return head + `<button type="button" class="btn bt-dsback" data-bt-dsback>‹ ${esc(army.list.name)}</button>` + battleDatasheet(x, army, side);
-  }
+  if (showingDs) return head + battleDatasheet(x, army, side);
   // A→Z, no categories. Every unit has its own full box; the units it is attached to or that are attached to it sit
   // beneath it at reduced size (a leader under its unit, a unit under its leader), each with its own pips.
   const entries = army.r.entries.filter(e => e.unit);

@@ -171,6 +171,10 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-armyhead div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .bt-armyhead b { font-size: 19px; }
 .bt-armyhead span { font-size: 14px; opacity: .85; }
+/* Viewing a unit's datasheet: a back icon sits inside the head itself (align-items: center on .bt-armyhead
+ *  already keeps it, the faction image and the name/list text vertically centred together as a row). */
+.bt-dsback { flex: none; width: 36px; height: 36px; padding: 0; border: none; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff; font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.bt-dsback:hover, .bt-dsback:active { background: rgba(255,255,255,.3); }
 .bt-hint { font-size: 14px; color: var(--text-2); }
 .bt-units { display: flex; flex-direction: column; gap: 10px; }
 .bt-unitwrap { display: flex; flex-direction: column; gap: 4px; }
@@ -179,10 +183,11 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-unit-top { display: flex; justify-content: space-between; gap: 10px; }
 .bt-unit-top b { font-size: 16px; }
 .bt-unit-top span, .bt-unit-meta, .bt-unit-orig { font-size: 14px; color: var(--text-2); }
-.bt-attached { flex-direction: row; align-items: center; gap: 8px; margin-left: 28px; width: calc(100% - 28px); padding: 8px 12px; background: var(--panel-2); }
+/* Same right padding as .bt-unit, so a card's model count and its attached unit's model count — both pushed
+ *  flush against their own button's right edge — land at the same horizontal point. */
+.bt-attached { flex-direction: row; align-items: center; gap: 8px; margin-left: 28px; width: calc(100% - 28px); padding: 8px 14px 8px 12px; background: var(--panel-2); }
 .bt-attached b { font-size: 14px; flex: 1; }
 .bt-attached span:last-child { font-size: 13px; color: var(--text-2); }
-.bt-dsback { align-self: flex-start; width: auto !important; margin-left: 0 !important; min-height: 44px; }
 .bt-ds { display: flex; flex-direction: column; gap: 12px; }
 .bt-ds-head h3 { margin: 0; font-size: 22px; }
 
