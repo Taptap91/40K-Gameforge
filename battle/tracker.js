@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.35";
-import { factionStyle } from "../js/factions.js?v=8.35";
-import { armyData, evaluateList } from "../js/army.js?v=8.35";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.35";
-import { effectiveRules } from "../js/rules-doc.js?v=8.35";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.35";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.35";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.36";
+import { factionStyle } from "../js/factions.js?v=8.36";
+import { armyData, evaluateList } from "../js/army.js?v=8.36";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.36";
+import { effectiveRules } from "../js/rules-doc.js?v=8.36";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.36";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.36";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;

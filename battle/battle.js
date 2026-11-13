@@ -3,10 +3,10 @@
  * A record keeps both players' names as they were when the battle was played: your player name (Settings → Player)
  * and, when two devices are synced, your opponent's. Without a name, "You" and "Opponent" are shown.
  */
-import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.35";
-import { factionStyle } from "../js/factions.js?v=8.35";
-import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.35";
-import { pausedBattles } from "./tracker.js?v=8.35";
+import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.36";
+import { factionStyle } from "../js/factions.js?v=8.36";
+import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.36";
+import { pausedBattles } from "./tracker.js?v=8.36";
 
 /* A battle record:
    { id, date: ms, you: { name, faction, score }, opponent: { name, faction, score }, ...more to come with the battle itself } */
@@ -71,8 +71,7 @@ function renderBattlePage() {
   const paused = pausedBattles();
   host.innerHTML = `<button type="button" class="bt-start" data-bt-start>${SWORDS}New Battle</button>
     ${paused.length ? `<div class="bt-label">In progress · ${paused.length}</div>${paused.map(pausedHTML).join("")}` : ""}
-    ${list.length ? `<div class="bt-label">Previous battles · ${list.length}</div>${list.map(recordHTML).join("")}`
-      : `<div class="empty">No battles yet. Start one to keep score, and it'll be recorded here.</div>`}
+    ${list.length ? `<div class="bt-label">Previous battles · ${list.length}</div>${list.map(recordHTML).join("")}` : ""}
     ${statsHTML(list)}`;
 }
 
