@@ -4,9 +4,9 @@
  * produces for anything in your Library, so making one is: add your own PDF here once, ⋮ → Download Excel,
  * then contribute that file. This module only adds the browsing/downloading side of that loop.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.43";
-import { importWorkbookBuffer } from "./library.js?v=8.43";
-import { renderAll } from "./main.js?v=8.43";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.44";
+import { importWorkbookBuffer } from "./library.js?v=8.44";
+import { renderAll } from "./main.js?v=8.44";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs

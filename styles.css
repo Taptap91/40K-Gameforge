@@ -30,6 +30,12 @@ body {
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
+/* iOS Safari auto-zooms the page when a text field's font is under 16px, and on a Home Screen app that zoom
+ * gets stuck instead of resetting when the keyboard closes. Every text input/select/textarea in the app
+ * otherwise inherits the 14px base font, which is just under that threshold. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+}
 .hidden { display: none !important; }
 
 /* ---------- Window ---------- */

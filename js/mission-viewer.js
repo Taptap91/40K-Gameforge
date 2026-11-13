@@ -2,7 +2,7 @@
  * Shows what was read from a mission pack: the battle sequence, Force Disposition pairings, every Primary and
  * Secondary Mission card, the Deployment maps, the Twists and the FAQ.
  */
-import { esc, openSheet, state } from "./core.js?v=8.43";
+import { esc, openSheet, state } from "./core.js?v=8.44";
 
 const TABS = [["battle", "Battle"], ["dispositions", "Force Dispositions"], ["primaries", "Primary"], ["secondaries", "Secondary"], ["deployments", "Deployment"], ["twists", "Twists"], ["faq", "FAQ"]];
 const vpHTML = v => {
