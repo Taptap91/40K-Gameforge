@@ -2,13 +2,13 @@
  * Battle setup, following the mission pack's sequence in five screens:
  *   1 Game Size · 2 Muster Armies · 3 Mission & Battlefield · 4 Attacker & Defender | Secondaries · 5 Deploy and Begin
  */
-import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.33";
-import { factionStyle } from "../js/factions.js?v=8.33";
-import { evaluateList } from "../js/army.js?v=8.33";
-import { missionCard } from "../js/mission-viewer.js?v=8.33";
-import { openSync } from "./sync.js?v=8.33";
-import { currentBattle, discardPaused, endTracker, pauseTracker, resumeBattle, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.33";
-import { confirmSheet } from "../js/core.js?v=8.33";
+import { $, esc, openSheet, state, store, toast } from "../js/core.js?v=8.34";
+import { factionStyle } from "../js/factions.js?v=8.34";
+import { evaluateList } from "../js/army.js?v=8.34";
+import { missionCard } from "../js/mission-viewer.js?v=8.34";
+import { openSync } from "./sync.js?v=8.34";
+import { currentBattle, discardPaused, endTracker, finishBattle, receiveEnded, pauseTracker, resumeBattle, handleTrackerClick, mirror, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes } from "./tracker.js?v=8.34";
+import { confirmSheet } from "../js/core.js?v=8.34";
 
 const DISPOSITIONS = ["Take and Hold", "Purge the Foe", "Disruption", "Reconnaissance", "Priority Assets"];
 /* "and" joins words from the same step of the mission pack's sequence; "&" joins two different steps. */
@@ -67,6 +67,8 @@ function myPayload(full = true) {
 }
 function receive(p, fullHello) {
   if (!p) return;
+  // The other player ended the battle: it is ended here too, with the same record.
+  if (p.ended) { if (receiveEnded(p.ended)) { toast(`${p.ended.you?.name || "Your opponent"} ended the battle.`); exitSetup(homeCb); } return; }
   // The battle tracker: the other phone began the battle, or changed something on it.
   if (p.battle) { receiveBattle(p.battle, $("#battleHost"), armies()); if (!fullHello) return render(); delete p.battle; }
   if (fullHello) {
@@ -322,8 +324,28 @@ function exitSetup(renderHome) {
 const armies = () => ({ me: S.listId ? { listId: S.listId } : null, them: opponent?.list ? { list: opponent.list, rules: opponentRules } : null });
 
 let setupWired = false;
+/** The pop-up for End Battle: who conceded, or end at the current scores. Choosing anything but Cancel ends the battle and saves its record. */
+function openEndSheet(renderHome) {
+  const them = currentBattle()?.them?.name || "Opponent";
+  const d = openSheet(`<div class="sheet-head"><h2>End this battle?</h2><p>The result is saved to your battle records.</p></div>
+    <div class="sheet-body bt-endopts">
+      <button type="button" class="btn bt-eopt" data-end="you">I Conceded</button>
+      <button type="button" class="btn bt-eopt" data-end="opponent">${esc(them)} Conceded</button>
+      <button type="button" class="btn bt-eopt" data-end="none">End at Current Scores</button>
+    </div>
+    <div class="sheet-foot"><button type="button" class="bs-cancelbtn bt-ecancel" data-end="cancel">Cancel</button></div>`);
+  d.onclick = e => {
+    const b = e.target.closest("[data-end]"); if (!b) return;
+    d.close();
+    if (b.dataset.end === "cancel") return;
+    finishBattle(b.dataset.end); toast("Battle saved to your records."); exitSetup(renderHome);
+  };
+}
+
+let homeCb = () => {};
 function wireSetup(renderHome) {
-  if (setupWired) return; setupWired = true;   // one set of listeners, however often this is called
+  if (setupWired) return; setupWired = true;
+  homeCb = renderHome;   // one set of listeners, however often this is called
   const view = $("#view-battle");
   wireTrackerSwipes($("#battleHost"));
   view.addEventListener("click", e => {
@@ -342,10 +364,7 @@ function wireSetup(renderHome) {
       confirmSheet("Delete this paused battle?", "It can't be resumed afterwards.", "Delete").then(ok => { if (ok) { discardPaused(id); renderHome(); } });
       return;
     }
-    if (t.closest("[data-bt-end]")) {
-      confirmSheet("End this battle?", "The battle tracker closes on this device. (Saving the result to your battle records comes next.)", "End Battle").then(ok => { if (!ok) return; endTracker(); exitSetup(renderHome); });
-      return;
-    }
+    if (t.closest("[data-bt-end]")) return openEndSheet(renderHome);
     if (t.closest("[data-bs-exit]")) return exitSetup(renderHome);
     // Reconnect: both phones listen on the codes they first connected with and look for each other again.
     if (t.closest("[data-bs-reconnect]")) { startSync(true); toast("Looking for your opponent…"); return; }

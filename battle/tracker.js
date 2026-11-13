@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.33";
-import { factionStyle } from "../js/factions.js?v=8.33";
-import { armyData, evaluateList } from "../js/army.js?v=8.33";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.33";
-import { effectiveRules } from "../js/rules-doc.js?v=8.33";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.33";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.33";
+import { esc, openSheet, state, store } from "../js/core.js?v=8.34";
+import { factionStyle } from "../js/factions.js?v=8.34";
+import { armyData, evaluateList } from "../js/army.js?v=8.34";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.34";
+import { effectiveRules } from "../js/rules-doc.js?v=8.34";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.34";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.34";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -506,7 +506,7 @@ function renderTracker(host) {
   const i = PANES.indexOf(pane);
   const armies = { me: armyOf("me"), them: armyOf("them") };
   lastStrats = { me: strategyList("me", armies.me), them: strategyList("them", armies.them) };
-  const navBtn = (side, p) => { const st = factionStyle(p.faction || ""); return `<button type="button" class="bt-navbtn${pane === side ? " on" : ""}" data-bt-pane="${side}" style="--c1:${st.c1};--c2:${st.c2}"><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc((side === "me" ? armies.me?.list.name : armies.them?.list?.name) || p.army || "Army")}</span></button>`; };
+  const navBtn = (side, p) => { const st = factionStyle(p.faction || ""); return `<button type="button" class="bt-navbtn${pane === side ? " on" : ""}" data-bt-pane="${side}" style="--c1:${st.c1};--c2:${st.c2}">${st.img ? `<img class="bt-navmark" src="${esc(st.img)}" alt="">` : ""}<span class="bt-navtxt"><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc((side === "me" ? armies.me?.list.name : armies.them?.list?.name) || p.army || "Army")}</span></span></button>`; };
   const keep = [...host.querySelectorAll(".bt-pane")].map(el => el.scrollTop);
   host.innerHTML = `<div class="bt-shell" style="--i:${i}">
       <div class="bt-pane" data-pane="me">${armyHTML("me", armies.me)}</div>
@@ -923,6 +923,29 @@ function endTracker() {
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   const title = document.querySelector("#view-battle h1"); if (title) title.textContent = "Battle";
 }
+/* ---------- finished battles: the record kept on the Battle screen ----------
+   result: "you" = you conceded (a loss for you) · "opponent" = your opponent conceded (a loss for them) · "none" = ended at the current scores. */
+const RECORDS_KEY = "rf.battles";
+const FLIP_RESULT = { you: "opponent", opponent: "you", none: "none" };
+/** Ends the battle in progress, saves its record, and tells the other phone. Returns the record. */
+function finishBattle(result) {
+  if (!B?.active) return null;
+  const side = p => ({ name: p.name || "", faction: p.faction || "", score: score(p) });
+  const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: Date.now(), started: B.started || Date.now(), round: B.round, result, you: side(B.me), opponent: side(B.them) };
+  store.set(RECORDS_KEY, [rec, ...store.get(RECORDS_KEY, [])]);
+  sendToPeer({ ended: rec });
+  endTracker();
+  return rec;
+}
+/** The other phone ended the battle: keep the same record, seen from this side, and close the tracker. */
+function receiveEnded(rec) {
+  if (!rec?.id) return false;
+  const have = store.get(RECORDS_KEY, []);
+  if (!have.some(r => r.id === rec.id)) store.set(RECORDS_KEY, [{ ...rec, result: FLIP_RESULT[rec.result] || "none", you: rec.opponent, opponent: rec.you }, ...have]);
+  if (B?.active) endTracker();
+  return true;
+}
+
 /* ---------- paused battles: set aside on this device, and picked up again where they were left ---------- */
 const PAUSED_KEY = "rf.pausedBattles";
 const pausedBattles = () => store.get(PAUSED_KEY, []);
@@ -948,4 +971,4 @@ const discardPaused = id => store.set(PAUSED_KEY, pausedBattles().filter(e => e.
 
 const currentBattle = () => B;
 
-export { currentBattle, discardPaused, endTracker, pauseTracker, pausedBattles, resumeBattle, score as battleScore, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };
+export { currentBattle, discardPaused, endTracker, finishBattle, receiveEnded, pauseTracker, pausedBattles, resumeBattle, score as battleScore, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };

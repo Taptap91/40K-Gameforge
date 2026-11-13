@@ -3,10 +3,10 @@
  * A record keeps both players' names as they were when the battle was played: your player name (Settings → Player)
  * and, when two devices are synced, your opponent's. Without a name, "You" and "Opponent" are shown.
  */
-import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.33";
-import { factionStyle } from "../js/factions.js?v=8.33";
-import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.33";
-import { battleScore, pausedBattles } from "./tracker.js?v=8.33";
+import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.34";
+import { factionStyle } from "../js/factions.js?v=8.34";
+import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.34";
+import { battleScore, pausedBattles } from "./tracker.js?v=8.34";
 
 /* A battle record:
    { id, date: ms, you: { name, faction, score }, opponent: { name, faction, score }, ...more to come with the battle itself } */
@@ -14,33 +14,48 @@ const battles = () => store.get("rf.battles", []).slice().sort((a, b) => b.date 
 const playerName = () => String(store.get("rf.playerName", "") || "").trim();
 
 const SWORDS = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 17.5 21 6V3h-3L6.5 14.5"/><path d="m11 19-6-6M8 16l-4 4M5 21l-2-2"/></svg>`;
-const CROWN = `<svg class="bt-crown" viewBox="0 0 24 24" width="26" height="20" aria-label="Winner"><path d="M3 18 2 7l5.5 4L12 4l4.5 7L22 7l-1 11z" fill="#ffcc4d" stroke="#b8860b" stroke-width="1.2" stroke-linejoin="round"/><rect x="3" y="19" width="18" height="2.4" rx="1" fill="#ffcc4d"/></svg>`;
+const CROWN = `<svg class="bt-rcrown" viewBox="0 0 24 24" width="22" height="18" aria-label="Higher score"><path d="M3 18 2 7l5.5 4L12 4l4.5 7L22 7l-1 11z" fill="#ffcc4d" stroke="#b8860b" stroke-width="1.2" stroke-linejoin="round"/><rect x="3" y="19" width="18" height="2.4" rx="1" fill="#ffcc4d"/></svg>`;
 const ddmmyyyy = ms => { const d = new Date(ms); return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`; };
 
-function recordHTML(b) {
-  const y = b.you || {}, o = b.opponent || {}, ys = +y.score || 0, os = +o.score || 0;
-  const win = ys > os ? "you" : os > ys ? "opp" : "draw";
+/** The scoreboard shared by finished battles and battles in progress: you on the left, your opponent on the right,
+ *  names on the outside, scores inside, the faction under each name. Each outer third is in that player's faction colours,
+ *  fading into the app's colours through the middle. `crown` is "you", "opp" or "" (the higher score). */
+function boardHTML(y, o, crown) {
   const sy = factionStyle(y.faction || ""), so = factionStyle(o.faction || "");
-  const side = (p, st, cls) => `<div class="bt-side ${cls}">${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div class="bt-fname">${esc(p.faction || "Unknown faction")}</div></div>`;
-  const score = (n, label, won) => `<div class="bt-score${won ? " won" : ""}">${won ? CROWN : ""}<b>${n}</b><small>${esc(label)}</small></div>`;
-  return `<div class="bt-match">
-    <div class="bt-mtop"><span class="bt-date">${ddmmyyyy(b.date)}</span><span class="bt-res ${win}">${win === "you" ? "Victory" : win === "opp" ? "Defeat" : "Draw"}</span></div>
-    <div class="bt-mrow" style="--y1:${sy.c1};--y2:${sy.c2};--o1:${so.c1};--o2:${so.c2}">
-      ${side(y, sy, "you")}
-      <div class="bt-mid">${score(ys, y.name || playerName() || "You", win === "you")}<div class="bt-dash">–</div>${score(os, o.name || "Opponent", win === "opp")}</div>
-      ${side(o, so, "opp")}
-    </div>
+  const mark = st => (st.img ? `<img class="bt-rmark" src="${esc(st.img)}" alt="">` : `<span class="bt-rmark"></span>`);
+  const side = (p, cls, who) => `<div class="bt-rname ${cls}"><span class="bt-rcslot">${crown === who ? CROWN : ""}</span><b>${esc(p.name || (who === "you" ? "You" : "Opponent"))}</b><small>${esc(p.faction || "Unknown faction")}</small></div>`;
+  return `<div class="bt-rrow" style="--y1:${sy.c1};--y2:${sy.c2};--o1:${so.c1};--o2:${so.c2}">
+    ${mark(sy)}${side(y, "l", "you")}<div class="bt-rscore">${+y.score || 0}</div><div class="bt-rdash">–</div><div class="bt-rscore">${+o.score || 0}</div>${side(o, "r", "opp")}${mark(so)}
   </div>`;
 }
 
-/** A battle set aside (Pause Battle): who is playing, the round and the score, with Resume and Delete. */
+function recordHTML(b) {
+  const y = { ...(b.you || {}), name: (b.you || {}).name || playerName() }, o = b.opponent || {}, ys = +y.score || 0, os = +o.score || 0;
+  // "none" = ended at the current scores: nobody is marked as the loser, and no crown is given.
+  const result = b.result || "none";
+  const tag = result === "opponent" ? ["you", "Victory"] : result === "you" ? ["opp", "Defeat"] : ["draw", "Ended at current scores"];
+  const crown = result === "none" ? "" : ys > os ? "you" : os > ys ? "opp" : "";
+  return `<div class="bt-match"><div class="bt-mtop"><span class="bt-date">${ddmmyyyy(b.date)}</span><span class="bt-res ${tag[0]}" title="${result === "opponent" ? esc((o.name || "Your opponent") + " conceded") : result === "you" ? "You conceded" : "Ended at the current scores"}">${tag[1]}</span></div>${boardHTML(y, o, crown)}</div>`;
+}
+
+/** A battle set aside with Leave Battle: the same scoreboard, with Resume and Delete under it. */
 function pausedHTML(e) {
   const b = e.battle || {}, me = b.me || {}, them = b.them || {};
-  const sm = factionStyle(me.faction || ""), st = factionStyle(them.faction || "");
-  return `<div class="bt-paused" style="--m1:${sm.c1};--m2:${sm.c2};--t1:${st.c1};--t2:${st.c2}">
-    <div class="bt-ptop"><span class="bt-date">Paused ${ddmmyyyy(e.saved)}</span><span class="bt-pround">Round ${+b.round || 1}</span></div>
-    <div class="bt-pscore"><span>${esc(me.name || "You")} <b>${battleScore(me)}</b></span><i>vs</i><span>${esc(them.name || "Opponent")} <b>${battleScore(them)}</b></span></div>
-    <div class="bt-pbtns"><button type="button" class="btn primary bt-presume" data-bt-resume="${esc(e.id)}">Resume Battle</button><button type="button" class="btn bt-pdel" data-bt-discard="${esc(e.id)}" aria-label="Delete this paused battle">Delete</button></div>
+  return `<div class="bt-match"><div class="bt-mtop"><span class="bt-date">Paused ${ddmmyyyy(e.saved)}</span><span class="bt-res draw">Round ${+b.round || 1}</span></div>
+    ${boardHTML({ name: me.name, faction: me.faction, score: battleScore(me) }, { name: them.name, faction: them.faction, score: battleScore(them) }, "")}
+    <div class="bt-pbtns"><button type="button" class="btn primary bt-presume" data-bt-resume="${esc(e.id)}">Resume Battle</button><button type="button" class="btn bt-pdel" data-bt-discard="${esc(e.id)}" aria-label="Delete this paused battle">Delete</button></div></div>`;
+}
+
+/** Win and defeat rates over every battle on record (a win is your opponent conceding, a defeat is you conceding),
+ *  the faction you won with most often, and the faction you lost to most often. */
+function statsHTML(list) {
+  const total = list.length, won = list.filter(b => b.result === "opponent"), lost = list.filter(b => b.result === "you");
+  const top = arr => { const n = {}; arr.forEach(f => { if (f) n[f] = (n[f] || 0) + 1; }); return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"; };
+  const pct = n => (total ? Math.round((n / total) * 100) : 0) + "%";
+  const tile = (label, value, cls = "") => `<div class="bt-stat ${cls}"><small>${label}</small><b>${esc(value)}</b></div>`;
+  return `<div class="bt-label">Stats</div><div class="bt-stats">
+    ${tile("Win Rate", pct(won.length), "good")}${tile("Defeat Rate", pct(lost.length), "bad")}
+    ${tile("Top Winning Faction", top(won.map(b => b.you?.faction)))}${tile("Nemesis Faction", top(lost.map(b => b.opponent?.faction)))}
   </div>`;
 }
 
@@ -53,7 +68,8 @@ function renderBattlePage() {
   host.innerHTML = `<button type="button" class="bt-start" data-bt-start>${SWORDS}New Battle</button>
     ${paused.length ? `<div class="bt-label">In progress · ${paused.length}</div>${paused.map(pausedHTML).join("")}` : ""}
     ${list.length ? `<div class="bt-label">Previous battles · ${list.length}</div>${list.map(recordHTML).join("")}`
-      : `<div class="empty">No battles yet. Start one to keep score, and it'll be recorded here.</div>`}`;
+      : `<div class="empty">No battles yet. Start one to keep score, and it'll be recorded here.</div>`}
+    ${statsHTML(list)}`;
 }
 
 /** Settings → Account: your username, shown on battle records instead of “You” and shared with your opponent when you sync.
