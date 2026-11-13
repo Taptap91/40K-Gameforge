@@ -1,0 +1,44 @@
+name: Convert volunteer pack PDFs
+
+# Auto-converts any PDF pushed to packs/incoming/ into a pack .xlsx + packs/index.json entry, using the
+# app's own PDF-parsing pipeline run headlessly (see tools/pack-convert.mjs). No PR review gate — this
+# repo's volunteers are trusted, so a push straight to the branch is enough; this workflow's own commit
+# is tagged "[skip pack-convert]" so it doesn't re-trigger itself.
+on:
+  push:
+    branches: [game-packs]
+    paths: ["packs/incoming/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    if: ${{ !contains(github.event.head_commit.message, '[skip pack-convert]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Convert PDFs to packs
+        run: node tools/pack-convert.mjs
+
+      - name: Commit the converted packs
+        run: |
+          git config user.name "rulesforge-packs[bot]"
+          git config user.email "rulesforge-packs@users.noreply.github.com"
+          git add packs/
+          if git diff --cached --quiet; then
+            echo "Nothing changed — no PDFs were convertible."
+            exit 0
+          fi
+          git commit -m "Convert volunteer pack PDF(s) to Excel [skip pack-convert]"
+          git push

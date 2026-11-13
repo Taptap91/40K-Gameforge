@@ -1,0 +1,43 @@
+# Uploading a pack PDF
+
+Drop your PDF here, add a sidecar `.json` file with the same name, and push to the `game-packs` branch.
+A GitHub Actions workflow (`.github/workflows/convert-packs.yml`) picks it up automatically, converts it
+to the pack's `.xlsx` format, adds it to `packs/index.json`, and removes the PDF and sidecar — nobody
+downloading the pack in the app ever fetches your original PDF, only the small converted file.
+
+There's no review step: whatever you push here goes live for everyone as soon as it converts, so only
+upload PDFs you have the legal right to share, and double check the sidecar before you push.
+
+## Example
+
+For `space-marines.pdf`, add `space-marines.json` next to it:
+
+```json
+{
+  "game": "40K",
+  "editionTag": "11th Edition",
+  "author": "Your name",
+  "version": "1.0.0",
+  "kind": "faction",
+  "faction": "Space Marines",
+  "description": "One line shown under the title in the app."
+}
+```
+
+| field | required | notes |
+|---|---|---|
+| `game` | yes | groups packs in the app ("40K", "AoS", "Star Wars"…) |
+| `editionTag` | yes | shown next to the group ("11th Edition", "10th Edition"…) |
+| `author` | yes | shown as "Created by …" |
+| `version` | yes | bump this on a re-upload so the app shows "Update" to people who already have it |
+| `kind` | no | hint for what the PDF is: `faction` (a codex/battletome), `core` (a core rulebook), `updates` (an FAQ/errata/balance dataslate), or `points` (a points-only PDF). Defaults to `core`. A faction PDF is detected automatically either way. |
+| `faction` | no | only used for a faction pack; the app usually detects this from the PDF itself |
+| `title` | no | defaults to the PDF's own title |
+| `description` | no | one line, shown under the title |
+
+Mission packs (Chapter Approved–style mission decks) aren't supported by this pipeline yet — the app has
+no Excel format for them. Everything else (a core rulebook, a faction/codex PDF, an FAQ or balance
+dataslate) works the same way a human doing Add PDF → ⋮ → Download Excel in the app would produce.
+
+If your PDF doesn't have a sidecar `.json`, or the sidecar is missing a required field, the workflow
+skips it (and leaves a note in the run's log) rather than publishing something broken.

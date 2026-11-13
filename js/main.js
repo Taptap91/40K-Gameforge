@@ -137,7 +137,11 @@ function showView(name) {
   wireListBuilder();
   wireFactionsPage();
   wireBattlePage();
-}(async function init() {
+}
+// Guarded so importing this module doesn't bootstrap the whole app when it's only pulled in transitively
+// by something else (e.g. tools/convert.js, loaded in the headless pack-conversion harness) rather than
+// loaded from the real index.html page.
+if (document.getElementById("view-rules")) (async function init() {
   window.rfStarted = true;
   wireEvents();
   try {
