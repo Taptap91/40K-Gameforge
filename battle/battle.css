@@ -592,7 +592,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-rname small { max-width: 100%; font-size: 11.5px; line-height: 1.15; color: rgba(255,255,255,.8); overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
 .bt-rcslot { display: block; height: 20px; line-height: 0; }
 .bt-rcrown { filter: drop-shadow(0 1px 3px rgba(0,0,0,.45)); }
-.bt-rscore { align-self: end; font: 800 27px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--text); }
+.bt-rscore { align-self: center; font: 800 27px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--text); }
 .bt-pbtns { display: flex; gap: 8px; padding: 12px 14px 14px; border-top: 1px solid var(--border); }
 .bt-presume { flex: 1; min-height: 48px; font-weight: 800; }
 .bt-presume, .bt-pdel { display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 48px; }
@@ -605,7 +605,7 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
 .bt-endopts { display: flex; flex-direction: column; gap: 10px; }
 .bt-eopt { min-height: 52px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
 .bt-ecancel { width: 100%; }
-.bt-rdash { align-self: end; padding-bottom: 4px; font-size: 22px; color: var(--text-3); }
+.bt-rdash { align-self: center; font-size: 22px; color: var(--text-3); }
 /* The faction's image on each outside edge, glowing in its colour like the list builder's. */
 .bt-rmark { align-self: center; width: 38px; height: 38px; object-fit: contain; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--y1) 55%, transparent)); }
 .bt-rrow > .bt-rmark:last-child { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--o1) 55%, transparent)); }
@@ -631,5 +631,5 @@ body.bt-fullscreen .app { grid-template-columns: minmax(0, 1fr) !important; grid
   .bt-rname b { font-size: 13.5px; }
   .bt-rname small { font-size: 11px; }
   .bt-rscore { font-size: 25px; }
-  .bt-rdash { font-size: 16px; margin: 0 -2px; padding-bottom: 3px; }
+  .bt-rdash { font-size: 16px; margin: 0 -2px; }
 }
