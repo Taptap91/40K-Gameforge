@@ -4,9 +4,9 @@
  * produces for anything in your Library, so making one is: add your own PDF here once, ⋮ → Download Excel,
  * then contribute that file. This module only adds the browsing/downloading side of that loop.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.44";
-import { importWorkbookBuffer } from "./library.js?v=8.44";
-import { renderAll } from "./main.js?v=8.44";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.45";
+import { importWorkbookBuffer } from "./library.js?v=8.45";
+import { renderAll } from "./main.js?v=8.45";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -42,13 +42,13 @@ function packRow(entry) {
   const status = !have ? "" : newer ? `<span class="pk-tag pk-tag-new">Update to v${esc(entry.version)}</span>` : `<span class="pk-tag">Installed</span>`;
   const label = !have ? "Download" : newer ? "Update" : "Re-download";
   return `<div class="pk-row" data-pk-id="${esc(entry.id)}">
-    <div class="pk-icon">${icon(entry.kind === "missions" ? "flag" : entry.kind === "faction" ? "shield" : "book")}</div>
-    <div class="pk-text">
+    <div class="pk-head">
+      <div class="pk-icon">${icon(entry.kind === "missions" ? "flag" : entry.kind === "faction" ? "shield" : "book")}</div>
       <div class="pk-name">${esc(entry.title)}${status}</div>
-      <div class="pk-meta">${esc([entry.editionTag, entry.version ? `v${entry.version}` : "", entry.sizeKB ? `${entry.sizeKB} KB` : ""].filter(Boolean).join(" · "))}</div>
-      <div class="pk-meta2">${esc(entry.description || "")}</div>
-      <div class="pk-by">Created by ${esc(entry.author || "a volunteer")}</div>
     </div>
+    <div class="pk-meta">${esc([entry.editionTag, entry.version ? `v${entry.version}` : "", entry.sizeKB ? `${entry.sizeKB} KB` : ""].filter(Boolean).join(" · "))}</div>
+    <div class="pk-meta2">${esc(entry.description || "")}</div>
+    <div class="pk-by">Created by ${esc(entry.author || "a volunteer")}</div>
     <button type="button" class="btn pk-get" data-pk-get="${esc(entry.id)}">${label}</button>
   </div>`;
 }

@@ -547,16 +547,16 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 /* ---------- Game Packs: the catalog pop-up (js/packs.js) ---------- */
 .pk-group + .pk-group { margin-top: 18px; }
 .pk-group h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
-.pk-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.pk-row { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border); }
 .pk-group .pk-row:first-of-type { border-top: 0; padding-top: 0; }
+.pk-head { display: flex; align-items: center; gap: 10px; }
 .pk-icon { flex: none; width: 36px; height: 36px; border-radius: 9px; background: var(--control); display: grid; place-items: center; color: var(--accent); }
 .pk-icon svg { width: 18px; height: 18px; }
-.pk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pk-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pk-name { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pk-meta { font-size: 12.5px; color: var(--text-2); }
 .pk-meta2 { font-size: 13px; color: var(--text-2); }
 .pk-by { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.pk-get { flex: none; align-self: center; min-height: 38px; }
+.pk-get { width: 100%; min-height: 40px; margin-top: 8px; }
 .pk-get:disabled { opacity: .6; }
 .pk-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 6px; background: var(--control); color: var(--text-2); }
 .pk-tag-new { background: var(--accent-soft); color: var(--accent); }
