@@ -885,19 +885,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* A light line above and below the profiles of one weapon, when other weapons share the table. */
 .fv-weapons .fv-wsep { grid-column: 1 / -1; height: 0; border-top: 1px solid rgba(255,255,255,.10); margin: 6px 0; }
 
-/* ---------- Phones and tablets: faction groups, boxed categories, bordered Back ---------- */
-.fp-groups { display: none; }
-.fp-picker { display: flex; flex-wrap: wrap; gap: 10px; }
-.fp-picker .fp-fac { font-size: 14px; }
-.fp-picker .fp-fac .fp-fac-sym { opacity: 1; transform: none; }
-.fp-picker .fp-fac.has-sym { padding-right: 62px; }
+/* ---------- Phones and tablets: boxed categories, bordered Back ---------- */
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  .fp-facs { display: none; }
-  .fp-groups { display: flex; flex: 1; min-width: 0; gap: 8px; padding: 8px 0; }
-  .fp-groupbtn { flex: 1 1 0; min-width: 0; height: 40px; padding: 0 10px; display: flex; align-items: center; justify-content: center; gap: 8px;
-    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text-2); font: 600 14px var(--font); white-space: nowrap; }
-  .fp-groupbtn.on { color: var(--text); border-color: var(--text-2); background: var(--panel-2); }
-  .fp-groupn { font-weight: 400; font-size: 12px; color: var(--text-3); }
   /* Categories look and feel like buttons. */
   .fp-grp > summary { padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); min-height: 46px; }
   .fp-grp[open] > summary { margin-bottom: 8px; }
@@ -905,7 +894,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   /* Back: a bordered button in white. */
   .btn.plain.fp-back { align-items: center; gap: 4px; padding: 8px 14px; border: 1px solid var(--border-strong) !important; border-radius: 10px; color: var(--text) !important; background: var(--panel) !important; margin-bottom: 12px; }
 }
-@media (max-width: 380px) { .fp-groupbtn { font-size: 13px; padding: 0 6px; } .fp-groupn { display: none; } }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   /* Leader / Led By / Support lists: bordered buttons instead of bullet-point links. */
   .fv-units { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -1220,7 +1208,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-packs { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; margin-left: auto; }
   .fp-packs span { display: none; }
   .fp-packs svg { width: 22px; height: 22px; }
-  #view-factions:not(.fp-home) .fp-groups, #view-factions:not(.fp-home) .fp-toolbar h1 { display: none; }
+  #view-factions:not(.fp-home) .fp-toolbar h1 { display: none; }
   #view-factions:not(.fp-home) .fp-homeback { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; font-weight: 600; }
   #view-factions:not(.fp-home) .fp-toolbar { flex-wrap: nowrap; }
   #view-factions:not(.fp-home) .fp-bar { flex-basis: auto; flex: 1; display: flex; align-items: center; }
@@ -1228,13 +1216,13 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-toolbar { position: relative; }
   #view-factions.fp-home .fp-toolbar h1 { padding-right: 56px; }
   #view-factions.fp-home .fp-packs { position: absolute; right: 16px; top: 8px; }
-  #view-factions.fp-home .fp-groups { margin-top: 8px; }
+  #view-factions.fp-home .fp-facs { margin-top: 8px; }
 }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  /* Factions home: title and Add PDF on the first row, the faction groups on their own full-width row below. */
+  /* Factions home: title and Add PDF on the first row, the faction buttons on their own full-width row below. */
   #view-factions.fp-home .fp-toolbar { flex-wrap: wrap; }
   #view-factions.fp-home .fp-bar { flex-basis: 100%; flex-wrap: wrap; }
-  #view-factions.fp-home .fp-groups { flex-basis: 100%; }
+  #view-factions.fp-home .fp-facs { flex-basis: 100%; }
   #view-factions.fp-home .fp-toolbar h1 { min-height: 44px; display: flex; align-items: center; }
 }
 
@@ -1242,8 +1230,12 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-pack { cursor: pointer; }
 .lib-pack:hover { border-color: var(--border-strong); }
 .lib-pack .lib-icon { color: var(--orange); }
-.lib-bundle { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.lib-bundle { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); cursor: pointer; }
+.lib-bundle:hover { border-color: var(--accent); }
 .lib-bundle .lib-icon { color: var(--accent); }
+/* A Game Pack's own sections screen (Rules, Mission Packs, Factions A–Z), opened from its box in the Library. */
+.fp-bundle-sections { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 18px; }
+.fp-bundle-sections .group-title:first-child { margin-top: 0; }
 .mc-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 22px 10px; scrollbar-width: none; }
 .mc-tabs::-webkit-scrollbar { display: none; }
 .mc-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text-2); font: 600 14px var(--font); cursor: pointer; }

@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.48";
-import { factionStyle } from "./factions.js?v=8.48";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.48";
-import { structuredToLibrary } from "./datasheets.js?v=8.48";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.48";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.48";
-import { factionMatches } from "./search.js?v=8.48";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.48";
+import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.49";
+import { factionStyle } from "./factions.js?v=8.49";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.49";
+import { structuredToLibrary } from "./datasheets.js?v=8.49";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.49";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.49";
+import { factionMatches } from "./search.js?v=8.49";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.49";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
@@ -87,11 +87,11 @@ function factionsInLibrary() {
     for (const p of d.points || []) if (KNOWN_FACTIONS.includes(p.section)) set.add(p.section);
   }
   return [...set].sort();
-}/* The library: a downloaded Game Pack collapses into a single box (⋮ → Delete removes everything it
-   installed). Anything not part of a Game Pack — pre-existing local data — still shows as its own box per
-   document, the way the library has always worked: each faction's PDF in its colours with its symbol
-   (tap to open the faction), then mission packs, then the Core Rules, points and updates. ⋮ on one of
-   those: Remove. */
+}/* The library: a downloaded Game Pack collapses into a single box (tap to open its Rules/Mission Packs/
+   Factions sections; ⋮ → Delete removes everything it installed). Anything not part of a Game Pack —
+   pre-existing local data — still shows as its own box per document, the way the library has always
+   worked: each faction's PDF in its colours with its symbol (tap to open the faction), then mission
+   packs, then the Core Rules, points and updates. ⋮ on one of those: Remove. */
 const KEBAB = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg>`;
 const libKebab = (key, title) => `<button type="button" class="lib-kebab" data-lib-menu="${esc(key)}" data-menu-key="d:${esc(key)}" title="More" aria-label="More options for ${esc(title)}" aria-haspopup="menu">${KEBAB}</button>`;
 /** A quick count summary ("Core Rules · 2 Updates · 1 Mission Pack · 12 Factions") for a Game Pack's box. */
@@ -105,7 +105,7 @@ function docsSummary(docs) {
   if (counts.faction) parts.push(`${counts.faction} Faction${counts.faction === 1 ? "" : "s"}`);
   return parts.join(" · ");
 }
-const bundleCard = (bundleId, title, docs) => `<div class="lib-card lib-bundle">
+const bundleCard = (bundleId, title, docs) => `<div class="lib-card lib-bundle" role="button" tabindex="0" data-bundle-open="${esc(bundleId)}">
     <div class="lib-icon">${icon("book")}</div>
     <div class="lib-text"><div class="lib-name">${esc(title)}</div><div class="lib-meta">${esc(docsSummary(docs))}</div></div>${libKebab("bundle:" + bundleId, title)}</div>`;
 function renderLibrary() {

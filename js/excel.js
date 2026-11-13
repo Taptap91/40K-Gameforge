@@ -1,9 +1,9 @@
 /* RulesForge · excel.js
  * The Excel workbook: writing it (compressed .xlsx), reading it back (ours or one saved by Excel/Numbers), and turning it into faction data.
  */
-import { tidyApostrophes } from "./faction-parser.js?v=8.48";
-import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.48";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.48";
+import { tidyApostrophes } from "./faction-parser.js?v=8.49";
+import { detUnique, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.49";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.49";
 
 /* A small built-in .xlsx writer (one sheet per table, bold header row), so no extra library is needed. */
 

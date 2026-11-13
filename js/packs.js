@@ -7,9 +7,9 @@
  * workflow converts it into the .xlsx this module downloads and slots into the right bundle. This module
  * only handles the browsing/downloading side, once a bundle is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.48";
-import { importWorkbookBuffer } from "./library.js?v=8.48";
-import { renderAll } from "./main.js?v=8.48";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.49";
+import { importWorkbookBuffer } from "./library.js?v=8.49";
+import { renderAll } from "./main.js?v=8.49";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs

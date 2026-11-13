@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.48";
-import { wargearOf } from "./loadout.js?v=8.48";
-import { factionMatches } from "./search.js?v=8.48";
-import { coreAbilityRule } from "./rules-doc.js?v=8.48";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.48";
+import { esc, state, uid } from "./core.js?v=8.49";
+import { wargearOf } from "./loadout.js?v=8.49";
+import { factionMatches } from "./search.js?v=8.49";
+import { coreAbilityRule } from "./rules-doc.js?v=8.49";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.49";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
