@@ -15,6 +15,41 @@
           "description": "",
           "file": "warhammer-40k-11th-edition/orks.xlsx",
           "sizeKB": 82
+        },
+        {
+          "kind": "faction",
+          "title": "Custodes Codex",
+          "faction": "Adeptus Custodes",
+          "version": "2026-11-13",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/adeptus-custodes.xlsx",
+          "sizeKB": 55
+        },
+        {
+          "kind": "faction",
+          "title": "Dark Angels Faction Pack",
+          "faction": "Dark Angels",
+          "version": "2026-11-13",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/dark-angels.xlsx",
+          "sizeKB": 111
+        },
+        {
+          "kind": "faction",
+          "title": "Death Guard Codex",
+          "faction": "Death Guard",
+          "version": "2026-11-13",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/death-guard.xlsx",
+          "sizeKB": 66
+        },
+        {
+          "kind": "core",
+          "title": "Event Companion",
+          "version": "2026-11-13",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/event-companion.xlsx",
+          "sizeKB": 23
         }
       ]
     }
