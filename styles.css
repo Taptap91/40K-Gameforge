@@ -537,6 +537,23 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .sheet-head p { margin: 4px 0 0; color: var(--text-2); font-size: 13px; }
 .sheet-body { padding: 14px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .sheet-foot { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); }
+
+/* ---------- Game Packs: the catalog pop-up (js/packs.js) ---------- */
+.pk-group + .pk-group { margin-top: 18px; }
+.pk-group h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.pk-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.pk-group .pk-row:first-of-type { border-top: 0; padding-top: 0; }
+.pk-icon { flex: none; width: 36px; height: 36px; border-radius: 9px; background: var(--control); display: grid; place-items: center; color: var(--accent); }
+.pk-icon svg { width: 18px; height: 18px; }
+.pk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pk-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pk-meta { font-size: 12.5px; color: var(--text-2); }
+.pk-meta2 { font-size: 13px; color: var(--text-2); }
+.pk-by { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.pk-get { flex: none; align-self: center; min-height: 38px; }
+.pk-get:disabled { opacity: .6; }
+.pk-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 6px; background: var(--control); color: var(--text-2); }
+.pk-tag-new { background: var(--accent-soft); color: var(--accent); }
 .choice { display: flex; gap: 12px; align-items: flex-start; padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: 10px; cursor: pointer; }
 .choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .choice input { margin-top: 3px; accent-color: var(--accent); }
@@ -1173,9 +1190,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-x:hover { background: var(--control); color: var(--text); }
 .lib-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 18px 24px; display: flex; flex-direction: column; gap: 14px; }
 .lib-body .hint { margin: 0; text-align: center; }
-.fp-libbtn svg, .fp-addpdf svg { flex: none; }
-.fp-libbtn, .fp-addpdf { display: inline-flex; align-items: center; gap: 8px; flex: none; }
-.fp-addpdf svg { width: 18px; height: 18px; }
+.fp-libbtn svg, .fp-addpdf svg, .fp-packs svg { flex: none; }
+.fp-libbtn, .fp-addpdf, .fp-packs { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.fp-addpdf svg, .fp-packs svg { width: 18px; height: 18px; }
 .fp-homeback { display: none; }
 
 /* Desktop: Library slides in from the right over Factions; the toolbar has Library and Add PDF. */
@@ -1196,16 +1213,18 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   #view-factions.fp-home .lib-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   #view-factions.fp-home .fp-host { display: none; }
   #view-factions.fp-home .lib-body { padding: 12px 16px 28px; }
-  .fp-addpdf { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; margin-left: auto; }
-  .fp-addpdf span { display: none; }
-  .fp-addpdf svg { width: 22px; height: 22px; }
+  .fp-addpdf, .fp-packs { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; margin-left: auto; }
+  .fp-addpdf span, .fp-packs span { display: none; }
+  .fp-addpdf svg, .fp-packs svg { width: 22px; height: 22px; }
   #view-factions:not(.fp-home) .fp-groups, #view-factions:not(.fp-home) .fp-toolbar h1 { display: none; }
   #view-factions:not(.fp-home) .fp-homeback { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; font-weight: 600; }
   #view-factions:not(.fp-home) .fp-toolbar { flex-wrap: nowrap; }
   #view-factions:not(.fp-home) .fp-bar { flex-basis: auto; flex: 1; display: flex; align-items: center; }
+  #view-factions:not(.fp-home) .fp-packs { margin-left: 0; }
   .fp-toolbar { position: relative; }
-  #view-factions.fp-home .fp-toolbar h1 { padding-right: 56px; }
+  #view-factions.fp-home .fp-toolbar h1 { padding-right: 100px; }
   #view-factions.fp-home .fp-addpdf { position: absolute; right: 16px; top: 8px; }
+  #view-factions.fp-home .fp-packs { position: absolute; right: 68px; top: 8px; }
   #view-factions.fp-home .fp-groups { margin-top: 8px; }
 }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {

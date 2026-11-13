@@ -1,21 +1,22 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.42";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.42";
-import { exportDocToExcel } from "./excel.js?v=8.42";
-import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.42";
-import * as core from "./core.js?v=8.42";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.42";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.42";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.42";
-import { buildIndex } from "./search.js?v=8.42";
-import { openDataViewer } from "./viewer.js?v=8.42";
-import { openMissionViewer } from "./mission-viewer.js?v=8.42";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.42";
-import { fixApostrophes } from "./text.js?v=8.42";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.42";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.42";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.43";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.43";
+import { exportDocToExcel } from "./excel.js?v=8.43";
+import { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary } from "./library.js?v=8.43";
+import { openPacksSheet } from "./packs.js?v=8.43";
+import * as core from "./core.js?v=8.43";
+import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.43";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.43";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.43";
+import { buildIndex } from "./search.js?v=8.43";
+import { openDataViewer } from "./viewer.js?v=8.43";
+import { openMissionViewer } from "./mission-viewer.js?v=8.43";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.43";
+import { fixApostrophes } from "./text.js?v=8.43";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.43";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.43";
 
 function renderAll() {
   renderScope();
@@ -96,6 +97,7 @@ function showView(name) {
   const input = $("#fileInput");
   const pick = () => input.click();
   document.addEventListener("click", e => { if (e.target.closest("[data-lib-add]")) pick(); });
+  document.addEventListener("click", e => { if (e.target.closest("[data-lib-packs]")) openPacksSheet(); });
   input.addEventListener("change", () => {
     const files = [...input.files].filter(f => /\.pdf$/i.test(f.name) || f.type === "application/pdf" || isExcelFile(f));
     input.value = "";

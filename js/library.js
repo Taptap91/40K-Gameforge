@@ -1,17 +1,17 @@
 /* RulesForge · library.js
  * Library page: adding PDFs and Excel workbooks, the document list, and the points editor.
  */
-import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.42";
-import { factionStyle } from "./factions.js?v=8.42";
-import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.42";
-import { structuredToLibrary } from "./datasheets.js?v=8.42";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.42";
-import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.42";
-import { renderAll } from "./main.js?v=8.42";
-import { chunkPages, readPdf } from "./pdf-reader.js?v=8.42";
-import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.42";
-import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.42";
-import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.42";
+import { $, $$, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, openSheet, state, toast, uid } from "./core.js?v=8.43";
+import { factionStyle } from "./factions.js?v=8.43";
+import { looksLikeMissionPack, missionChunks, parseMissionPack } from "./mission-parser.js?v=8.43";
+import { structuredToLibrary } from "./datasheets.js?v=8.43";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "./excel.js?v=8.43";
+import { dropPageFurniture, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "./faction-parser.js?v=8.43";
+import { renderAll } from "./main.js?v=8.43";
+import { chunkPages, readPdf } from "./pdf-reader.js?v=8.43";
+import { detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks } from "./rules-doc.js?v=8.43";
+import { buildIndex, detectFactions, factionMatches } from "./search.js?v=8.43";
+import { applyPackRules, canonicalFaction, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.43";
 
 /** How many datasheets make a PDF a faction pack whatever type was picked (rulebooks print a few examples). */
 const PACK_MIN_DATASHEETS = 5;
@@ -115,25 +115,39 @@ async function importExcelFile(f, faction) {
   $("#importText").textContent = `Reading ${f.name}…`;
   $("#importBar").style.width = "40%";
   const buffer = await f.arrayBuffer();
+  await importWorkbookBuffer(buffer, f.name, { faction });
+}
+
+/** The shared half of importing a RulesForge workbook, used both for a file the player picked (importExcelFile)
+ *  and for a Game Pack downloaded over the network (packs.js) — same data, same place it ends up in the Library.
+ *  `meta.pack`, if given, is stamped onto the resulting doc so the Library can show where it came from and
+ *  check for updates later. Returns the doc that was saved (a rules doc or a faction doc). */
+async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = null, title: titleOverride = "" } = {}) {
   const book = await readXlsx(buffer);
+  const niceName = titleOverride || fileName.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
   // A rules workbook (Core Rules or an update) rather than faction data.
   const rules = rulesFromWorkbook(book);
   if (rules) {
-    const title = rules.title || f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
-    return replaceRulesDoc({ id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) }, f.name);
+    const title = rules.title || niceName;
+    const doc = { id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) };
+    if (pack) doc.pack = pack;
+    await replaceRulesDoc(doc, fileName);
+    return doc;
   }
   const data = sortDatasheetAbilities(structuredFromWorkbook(book));
   // Faction pack ruleset, rules 2 and 7: the same faction name, symbol and colours as the PDF the workbook came from.
-  const docFaction = packFaction({ datasheets: data.datasheets, title: data.faction, fileName: f.name, typed: faction });
+  const docFaction = packFaction({ datasheets: data.datasheets, title: data.faction, fileName, typed: faction });
   const theme = data.theme; delete data.faction; delete data.theme;
-  const title = f.name.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
+  const title = niceName;
   const lib = structuredToLibrary(data, docFaction);
   const doc = { id: uid(), title, kind: "faction", faction: docFaction, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", structured: data, chunks: lib.chunks, points: lib.points };
   if (theme?.icon) doc.icon = theme.icon;
   const worked = await packTheme(docFaction, doc.icon);
   // A faction that isn't built in and has no coloured symbol keeps the colours its workbook was made with.
   doc.theme = { rules: 1, ...(worked.from === "name" && theme?.c1 ? { c1: theme.c1, c2: theme.c2 || worked.c2, from: "workbook" } : worked) };
-  await replaceFaction(doc, f.name);
+  if (pack) doc.pack = pack;
+  await replaceFaction(doc, fileName);
+  return doc;
 }
 
 /** Stores a rules document; the same document added again (same kind and title) replaces the earlier copy. */
@@ -217,12 +231,15 @@ function openLibraryMenu(btn) {
     `<button type="button" role="menuitem" class="danger" data-delete="${d.id}">Remove</button>`].join(""));
 }
 
+/** Where a Game Pack download came from, shown in the Library the same way a PDF's page count or edition is. */
+const packMeta = d => d.pack ? `Pack by ${d.pack.author}${d.pack.version ? ` · v${d.pack.version}` : ""}` : "";
+
 function docMeta(d) {
   const ed = editionLabel(d.edition);
-  if (isRulesDoc(d)) return [`${d.structured.sections.length} rule sections`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed];
+  if (isRulesDoc(d)) return [`${d.structured.sections.length} rule sections`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed, packMeta(d)].filter(Boolean);
   return [d.faction, d.source === "wahapedia" ? `${d.pageCount} datasheets · Wahapedia${d.updated ? " " + d.updated.slice(0, 10) : ""}`
     : d.structured?.datasheets ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.filter(r => !r.partOf).length} army rules${d.source === "excel" ? " · Excel" : ""}`
-    : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : "", ed].filter(Boolean);
+    : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : "", ed, packMeta(d)].filter(Boolean);
 }
 
 /** For rules documents: how many of its rules are in force, and what it replaced or what replaced it. */
@@ -345,4 +362,4 @@ function openPointsSheet(docId) {
   };
 }
 
-export { addLibraryFiles, factionsInLibrary, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary };
+export { addLibraryFiles, factionsInLibrary, importWorkbookBuffer, isExcelFile, openLibraryMenu, openPointsSheet, renderLibrary };

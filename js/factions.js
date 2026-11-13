@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.42";
-import { armyData } from "./army.js?v=8.42";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.42";
-import { factionMatches } from "./search.js?v=8.42";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.42";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.42";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.43";
+import { armyData } from "./army.js?v=8.43";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.43";
+import { factionMatches } from "./search.js?v=8.43";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.43";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.43";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -98,6 +98,7 @@ function renderFactionBar(names) {
     ${names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
     <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>` : `<div class="fp-facs"></div>`}
     <button type="button" class="btn fp-libbtn" data-lib-show>${BOOK_SVG}Library</button>
+    <button type="button" class="btn fp-packs" data-lib-packs title="Game Packs" aria-label="Game Packs">${icon("download")}<span>Game Packs</span></button>
     <button type="button" class="btn primary fp-addpdf" data-lib-add title="Add PDF" aria-label="Add PDF">${ADDPDF_SVG}<span>Add PDF</span></button>
     ${names.length ? `<button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : ""}`;
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
