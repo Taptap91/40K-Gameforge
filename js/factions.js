@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.30";
-import { armyData } from "./army.js?v=8.30";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.30";
-import { factionMatches } from "./search.js?v=8.30";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.30";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.30";
+import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.41";
+import { armyData } from "./army.js?v=8.41";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.41";
+import { factionMatches } from "./search.js?v=8.41";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.41";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.41";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -287,7 +287,6 @@ function leftHTML(c) {
     <div class="fp-none" hidden>Nothing matches that name.</div>`;
 }
 
-const flavourHTML = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
 /** Under a selected detachment in the list: two boxes, Stratagems then Enhancements. Choosing one shows its entries in the right column. */
 function detSubsHTML(d) {
   const k = normName(d.name);
@@ -329,9 +328,6 @@ function rightHTML(c) {
     const disp = d.dispositions?.length ? d.dispositions : uq ? [uq] : [];
     const rivals = uq ? c.detachments.filter(o => o !== d && normName(detUnique(o)) === normName(uq)).map(o => o.name) : [];
     const rules = d.rules.filter(r => !/^unique\b/i.test(r.name));
-    const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
-    const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
-    const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
     // Lore text (in italics) above the rules, when the faction pack prints any.
     const fl = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
     const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;

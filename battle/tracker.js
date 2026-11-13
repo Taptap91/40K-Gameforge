@@ -6,13 +6,13 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { esc, openSheet, state, store } from "../js/core.js?v=8.30";
-import { factionStyle } from "../js/factions.js?v=8.30";
-import { armyData, evaluateList } from "../js/army.js?v=8.30";
-import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.30";
-import { effectiveRules } from "../js/rules-doc.js?v=8.30";
-import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.30";
-import { capWords, keywordList, richHTML } from "../js/text.js?v=8.30";
+import { $, esc, openSheet, state, store } from "../js/core.js?v=8.41";
+import { factionStyle } from "../js/factions.js?v=8.41";
+import { armyData, evaluateList } from "../js/army.js?v=8.41";
+import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.41";
+import { effectiveRules } from "../js/rules-doc.js?v=8.41";
+import { buffsFor, loadoutOf, weaponBase } from "../js/loadout.js?v=8.41";
+import { capWords, keywordList, richHTML } from "../js/text.js?v=8.41";
 
 const PHASES = [["Command", "CMD"], ["Movement", "MOVE"], ["Shooting", "SHO"], ["Charge", "CHG"], ["Fight", "FGT"], ["End", "END"]];
 const MAX = 45;
@@ -30,8 +30,9 @@ const saveArmies = () => { try { localStorage.setItem("rf.battleArmies", JSON.st
 /** A new battle from the finished setup. */
 function newBattle({ me, them, firstTurn }) {
   const player = p => ({ name: p.name || "", faction: p.faction || "", battleReady: !!p.battleReady, primary: 0, secondary: 0, cp: 0, army: p.army || "", priMission: p.mission || "", priScores: [], secs: [] });
-  B = { active: true, started: Date.now(), updated: Date.now(), round: 1, phase: 0, turn: firstTurn === "opponent" ? "opponent" : "you", first: firstTurn === "opponent" ? "opponent" : "you", me: player(me), them: player(them), events: [] };
+  B = { active: true, started: Date.now(), updated: Date.now(), round: 1, phase: 0, turn: firstTurn === "opponent" ? "opponent" : "you", first: firstTurn === "opponent" ? "opponent" : "you", secondariesStyle: me.secondariesStyle || "tactical", me: player(me), them: player(them), events: [] };
   pane = "tracker"; sheet = null;
+  grantPhaseCP(B);
   save();
   return B;
 }
@@ -52,6 +53,7 @@ function undoEffect(b, ev) {
   if (u.t === "cp") {
     p.cp = Math.max(0, p.cp - u.d);
     if (u.key && p.used?.sig === u.sig) p.used.keys = p.used.keys.filter(k => k !== u.key);
+    if (u.key && u.forever && p.usedForever) p.usedForever = p.usedForever.filter(k => k !== u.key);
   } else if (u.t === "score") {
     if (u.kind === "pri") {
       const i = p.priScores.findIndex(r => r.round === u.round);
@@ -86,11 +88,22 @@ const capPerRound = () => +String(missionPack()?.limits?.[0]?.perRound || "").ma
 const primaryCard = name => (name ? missionPack()?.primaries?.find(m => m.name === name) || null : null);
 /* A scoring line's VP as printed ("5VP", or "5VP / 10VP" for a Fixed and a Tactical value). The score counted is the first number. */
 const vpText = v => (v && typeof v === "object" ? Object.values(v).filter(Boolean).join(" / ") : String(v || ""));
-const vpValue = v => { const s = v && typeof v === "object" ? (v.tactical ?? v.fixed ?? Object.values(v)[0] ?? "") : v; const n = /\d+/.exec(String(s || "")); return n ? +n[0] : 0; };
-/** Every scoring line of a mission, in order (the index is its checkbox). */
-const scoringRows = card => (card?.scoring || []).flatMap(b => b.rows.map(r => ({ round: b.round, text: r.text, vp: vpText(r.vp), n: vpValue(r.vp) })));
-/** VP already scored this round for Primary ("pri") or for the Secondary Missions ("sec"). */
-const gainedThisRound = (p, kind) => (kind === "pri" ? (p.priScores.find(r => r.round === B.round)?.vp || 0) : p.secs.filter(s => s.round === B.round).reduce((a, s) => a + (+s.vp || 0), 0));
+/* C6: the style chosen for Secondary Missions in Battle Setup ("tactical" or "fixed"), used for Primary too — Battle
+ *  Setup has only the one Fixed/Tactical toggle. A scoring line marked for only one of the two doesn't apply to a
+ *  battle played the other way; a line with both values, or a plain value, applies either way. */
+const scoreStyle = () => (B?.secondariesStyle === "fixed" ? "fixed" : "tactical");
+const vpApplies = (v, style) => !(v && typeof v === "object") || v[style] !== undefined;
+const vpValue = (v, style = scoreStyle()) => { const s = v && typeof v === "object" ? (v[style] ?? v.tactical ?? v.fixed ?? Object.values(v)[0] ?? "") : v; const n = /\d+/.exec(String(s || "")); return n ? +n[0] : 0; };
+/** Every scoring line of a mission, in order (the index is its checkbox). A line from a CUMULATIVE block (e.g.
+ *  "2VP per success, up to a max of 5VP") is scored by a repeat count rather than a single checkbox, capped at
+ *  the block's own printed cap when there is one. */
+const scoringRows = card => {
+  const style = scoreStyle();
+  return (card?.scoring || []).flatMap(b => {
+    const blockCap = b.cap ? +String(b.cap).match(/\d+/)?.[0] || null : null;
+    return b.rows.filter(r => vpApplies(r.vp, style)).map(r => ({ round: b.round, text: r.text, vp: vpText(r.vp), n: vpValue(r.vp, style), cumulative: !!b.cumulative, blockCap }));
+  });
+};
 function logEv(b, by, ev) {
   b.events ||= [];
   b.events.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), round: b.round, by, struck: false, ...ev });
@@ -125,6 +138,8 @@ const costsOf = cp => [...new Set([...String(cp || "").matchAll(/\d+/g)].map(m =
    the same on both phones, so a stratagem used here shows as used on the other phone too. */
 const sigOf = b => `${b.round}.${b.turn === b.first ? 0 : 1}.${b.phase}`;
 const usedKeys = p => (p?.used?.sig === sigOf(B) ? p.used.keys : []);
+/* Once-per-battle stratagems (X3/C3) stay marked used for the rest of the battle, in a ledger that doesn't reset each phase. */
+const usedForever = p => p?.usedForever || [];
 /* Can this stratagem be used now? Its owner's own turn, or the other player's, and the current phase. */
 function inWindow(s) {
   const phase = PHASE_NAMES[B.phase];
@@ -138,16 +153,22 @@ function coreStratagems() {
     .filter(s => /stratagem/i.test(s.chapter || "") && /\d/.test(String(s.cp || "")))
     .map(s => ({ name: s.title, cp: s.cp, text: s.text, rich: s.rich, group: "Core" }));
 }
+/* X3 / C3: "RESTRICTIONS: … more than once per battle." (not "… per battle round") marks a stratagem as usable once
+   in the whole battle, not just once per phase; Insane Bravery is one example, shared by every army. */
+const ONCE_PER_BATTLE_RE = /\bmore than once per battle\b(?!\s*round)/i;
 function strategyList(side, army) {
   const dets = army ? army.data.detachments.filter(d => (army.list.detachments || []).includes(d.name)) : [];
   const all = [...coreStratagems(), ...dets.flatMap(d => (d.det.stratagems || []).map(s => ({ ...s, group: d.name })))];
-  return all.map(s => ({
-    owner: side, name: s.name, group: s.group,
-    // The key marks a stratagem as used: the same on both phones, whichever side they're seen from. The id is for this screen.
-    key: `${s.group}|${s.name}`, id: `${side}|${s.group}|${s.name}`,
-    cp: String(s.cp || "").replace(/(\d+)\s*CP/gi, "$1 CP"), costs: costsOf(s.cp).length ? costsOf(s.cp) : [0],
-    body: (s.rich || s.text || "").replace(/^\**CORE STRATAGEM\**\s*/i, ""), timing: timingOf(s.text || s.rich),
-  }));
+  return all.map(s => {
+    const text = s.rich || s.text || "";
+    return {
+      owner: side, name: s.name, group: s.group,
+      // The key marks a stratagem as used: the same on both phones, whichever side they're seen from. The id is for this screen.
+      key: `${s.group}|${s.name}`, id: `${side}|${s.group}|${s.name}`,
+      cp: String(s.cp || "").replace(/(\d+)\s*CP/gi, "$1 CP"), costs: costsOf(s.cp).length ? costsOf(s.cp) : [0],
+      body: text.replace(/^\**CORE STRATAGEM\**\s*/i, ""), timing: timingOf(text), onceOnly: ONCE_PER_BATTLE_RE.test(text),
+    };
+  });
 }
 
 /* ---------- the tracker ---------- */
@@ -167,7 +188,7 @@ function column(p, who, fallback) {
 }
 /** One stratagem: its name and cost on the left, a Use button on the right (for your own). A tap on the row opens its text. */
 function stratRow(s, p, mine) {
-  const used = usedKeys(p).includes(s.key);
+  const used = usedKeys(p).includes(s.key) || (s.onceOnly && usedForever(p).includes(s.key));
   const can = mine && !used && p.cp >= s.costs[0];
   return `<div class="bt-strat${mine && !can ? " dim" : ""}${used ? " used" : ""}">
     <div class="bt-srow" data-bt-strat="${esc(s.id)}" role="button" tabindex="0" aria-expanded="${openStrats.has(s.id)}">
@@ -187,6 +208,199 @@ function boxHTML(id, title, count, body) {
 }
 const ruleBlock = (name, text) => `<div class="bt-rule"><b>${esc(name)}</b><div class="fv-rich">${richHTML(text)}</div></div>`;
 /** The boxes under the two columns: Stratagems (yours, usable now), Opponent's Stratagems, Army Rules, Detachment Rules. */
+/* ---------- X2: army-rule choices made at a set time ---------- */
+/* An army rule that opens "At the start of your Command phase…", "At the start of the battle round…" or
+ *  "…the Declare Battle Formations step…" and asks you to select or choose one of its listed options. */
+function timedArmyRules(armyRules) {
+  const tops = (armyRules || []).filter(r => !r.partOf);
+  return tops.map(r => {
+    const text = r.text || r.rich || "";
+    // Only the rule's opening sentence decides this: Martial Ka'tah also mentions "select" later, for a different,
+    // per-unit, repeatable choice, not a single once-a-phase army-wide pick like a Combat Doctrine or a Plague.
+    const lead = (text.match(/^[^.]*\./) || [text])[0];
+    const timing = /^at the start of your command phase/i.test(lead) ? "command"
+      : /^at the start of the battle round/i.test(lead) ? "round"
+      : /\bdeclare battle formations step\b/i.test(lead) ? "pregame" : null;
+    if (!timing || !/\b(select|choose)\b/i.test(lead)) return null;
+    const options = armyRuleParts(r, armyRules);
+    return { rule: r, timing, onceOnly: ONCE_PER_BATTLE_RE.test(text), options };
+  }).filter(Boolean);
+}
+/* The signature that marks a choice as "made for now": a fresh choice is needed again once this changes. */
+function choiceSig(b, timing) {
+  if (timing === "command") return `${b.round}.${b.turn === b.first ? 0 : 1}`;
+  if (timing === "round") return String(b.round);
+  return "pregame";
+}
+/** X2 is a pop-up, shown automatically regardless of which pane/section is on screen, not a box tucked into
+ *  Section 2 — so a due choice is never missed just because the player hasn't scrolled to it. */
+function dueArmyChoices(army) {
+  if (!army) return [];
+  return timedArmyRules(army.armyRules)
+    .filter(e => e.timing !== "command" || B.turn === "you")
+    .map(entry => {
+      const sig = choiceSig(B, entry.timing);
+      const made = B.me.armyChoices?.[entry.rule.name];
+      if (made?.sig === sig) return null;   // already chosen for now
+      return { entry, sig };
+    }).filter(Boolean);
+}
+/** Remembers which rules were already shown-and-dismissed for their current signature, so closing the pop-up
+ *  (Cancel or Confirm) doesn't make it pop straight back up on the very next render. */
+let achoiceDismissed = {};
+function openArmyChoiceSheet(host, due) {
+  const body = due.map(({ entry }) => {
+    const { rule, onceOnly, options } = entry;
+    const opts = options.length ? options : [{ name: rule.name }];
+    const btns = opts.map(o => {
+      const used = onceOnly && (B.me.armyChoicesUsed || []).includes(`${rule.name}|${o.name}`);
+      return `<button type="button" class="btn${used ? " lb-off" : ""}" data-achoice-pick="${esc(rule.name)}|${esc(o.name)}" ${used ? "disabled" : ""}>${esc(o.name)}${used ? " (used)" : ""}</button>`;
+    }).join("");
+    return `<div class="bt-rule"><b>${esc(rule.name)}</b><div class="fv-rich">${richHTML(rule.rich || rule.text)}</div><div class="bt-achoicebtns">${btns}</div></div>`;
+  }).join("");
+  const d = openSheet(`<div class="sheet-head"><h2>Army Choice</h2><p>Pick an option for each rule below.</p></div>
+    <div class="sheet-body">${body}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+  d.addEventListener("close", () => { due.forEach(({ entry, sig }) => { achoiceDismissed[entry.rule.name] = sig; }); renderTracker(host); }, { once: true });
+  d.onclick = e => {
+    const pick = e.target.closest("[data-achoice-pick]");
+    if (!pick || pick.disabled) return;
+    const [ruleName, choice] = pick.dataset.achoicePick.split("|");
+    const entry = due.find(x => x.entry.rule.name === ruleName)?.entry;
+    if (!entry) return;
+    d.close();
+    change(b => {
+      const sig = choiceSig(b, entry.timing);
+      b.me.armyChoices ||= {}; b.me.armyChoices[ruleName] = { sig, choice };
+      if (entry.onceOnly) { b.me.armyChoicesUsed ||= []; const key = `${ruleName}|${choice}`; if (!b.me.armyChoicesUsed.includes(key)) b.me.armyChoicesUsed.push(key); }
+      logEv(b, "you", { text: `Chose ${choice} for ${ruleName}` });
+    }, host);
+  };
+}
+function maybeOpenArmyChoicePrompt(host) {
+  const due = dueArmyChoices(armyOf("me")).filter(d => achoiceDismissed[d.entry.rule.name] !== d.sig);
+  if (!due.length) return;
+  if ($("#sheet")?.open) return;
+  openArmyChoiceSheet(host, due);
+}
+
+/* ---------- C2: battle-shock ---------- */
+const unitAlive = (b, x) => Math.max(0, (x.models || 0) - ((b.destroyed || {})[x.id] || 0));
+/** Units that need a battle-shock roll: at half (or fewer) of their starting models, but not destroyed outright. */
+function battleShockList(side, army) {
+  if (!army) return [];
+  return army.r.entries.filter(x => x.unit).filter(x => {
+    const alive = unitAlive(B, x);
+    return alive > 0 && x.models > 0 && alive <= x.models / 2;
+  });
+}
+/** The signature a battle-shock prompt was shown for: once per side's own Command phase. */
+const shockDueSig = b => `${b.round}.${b.turn === b.first ? 0 : 1}`;
+let shockPromptSig = null;
+function openBattleShockSheet(host, units) {
+  const rowHTML = x => {
+    const shocked = !!(B.me.shocked || {})[x.id];
+    const ld = x.unit.ds.profiles?.[0]?.LD || "";
+    return `<div class="bt-shockrow${shocked ? " done" : ""}" data-shock-row="${esc(x.id)}">
+      <div class="bt-shocktext"><b>${esc(nameOf(x))}</b><span>Ld ${esc(ld)}${shocked ? " · Battle-shocked" : ""}</span></div>
+      <div class="bt-shockbtns"><button type="button" class="btn${!shocked ? " on" : ""}" data-shock-pass="${esc(x.id)}">Pass</button><button type="button" class="btn danger${shocked ? " on" : ""}" data-shock-fail="${esc(x.id)}">Fail</button></div>
+    </div>`;
+  };
+  const d = openSheet(`<div class="sheet-head"><h2>Battle-shock</h2><p>These units are at half strength (or fewer models) this Command phase. Roll for each before continuing.</p></div>
+    <div class="sheet-body bt-shocklist" id="shockBody">${units.map(rowHTML).join("")}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`);
+  d.addEventListener("close", () => renderTracker(host), { once: true });
+  d.onclick = e => {
+    const pass = e.target.closest("[data-shock-pass]"), fail = e.target.closest("[data-shock-fail]");
+    if (!pass && !fail) return;
+    const id = pass ? pass.dataset.shockPass : fail.dataset.shockFail;
+    const x = units.find(u => u.id === id);
+    change(b => {
+      b.me.shocked ||= {};
+      if (fail) b.me.shocked[id] = true; else delete b.me.shocked[id];
+      logEv(b, "you", fail
+        ? { badge: "Shocked", tone: "cp-minus", text: `${x ? nameOf(x) : "A unit"} failed its battle-shock roll` }
+        : { text: `${x ? nameOf(x) : "A unit"} passed its battle-shock roll` });
+    }, host);
+    const row = d.querySelector(`[data-shock-row="${id.replace(/"/g, "")}"]`);
+    if (row) row.outerHTML = rowHTML(x);
+  };
+}
+/** Auto-fires once per own Command phase when any unit qualifies; narrower than the old box (no longer
+ *  re-shown just because a unit is already marked battle-shocked). */
+function maybeOpenShockPrompt(host) {
+  if (B.phase !== 0 || B.turn !== "you") return;
+  const sig = shockDueSig(B);
+  if (shockPromptSig === sig) return;
+  const units = battleShockList("me", armyOf("me"));
+  if (!units.length) return;
+  if ($("#sheet")?.open) return;
+  shockPromptSig = sig;
+  openBattleShockSheet(host, units);
+}
+
+/* ---------- X4 / X7: reminder pop-ups for timed rules that have nothing to choose ---------- */
+/* X4 is scoped to rules that affect the whole army (not a single unit); X7 is scoped to a rule tied to a
+ *  specific Phase/Round/Turn, whichever unit it belongs to. Both just remind — there's no choice to make, so
+ *  the player applies the rule themselves and the pop-up is dismissed with Cancel or Confirm alike. "command" =
+ *  your own Command phase, every round; "round" = the start of every battle round; "round1" = the start of the
+ *  first battle round only. */
+const REMINDER_RULES = [
+  { match: /assemblage of might/i, timing: "command", label: "Assemblage of Might" },       // X4 — Adeptus Custodes
+  { match: /plaguesurge/i, timing: "command", label: "Plaguesurge" },                        // X4 — Death Guard
+  { match: /priority quarry/i, timing: "round1", label: "Priority Quarry" },                 // X7 — Adeptus Custodes
+  { match: /miasmic bombardment/i, timing: "round", label: "Miasmic Bombardment" },          // X7 — Death Guard
+  { match: /forward assault warsuit/i, timing: "round1", label: "Forward Assault Warsuit" }, // X7 — Dark Angels
+];
+function reminderDue(timing) {
+  if (timing === "command") return B.phase === 0 && B.turn === "you";
+  if (timing === "round") return B.phase === 0 && B.turn === B.first;
+  if (timing === "round1") return B.round === 1 && B.phase === 0 && B.turn === B.first;
+  return false;
+}
+const reminderSig = timing => (timing === "command" ? `${B.round}.${B.turn === B.first ? 0 : 1}` : String(B.round));
+/** Every piece of rules text your own army could have a reminder match against: army rules, the chosen
+ *  detachment's rules, and every unit's datasheet abilities (a reminder isn't limited to army-wide rules — X7
+ *  has none of that restriction, only X4 does, and X4's own candidates already happen to be army/detachment
+ *  rules rather than datasheet abilities). */
+function reminderSources(army) {
+  if (!army) return [];
+  const out = (army.armyRules || []).map(r => ({ name: r.name, text: r.text || r.rich || "" }));
+  for (const d of army.data.detachments.filter(d => (army.list.detachments || []).includes(d.name))) {
+    for (const r of d.det.rules || []) out.push({ name: r.name, text: r.text || r.rich || "" });
+  }
+  for (const x of army.r.entries) {
+    for (const a of x.unit?.ds?.abilities || []) out.push({ name: a.name, text: a.text || a.rich || "" });
+  }
+  return out;
+}
+let reminderDismissed = {};   // label -> signature already shown-and-closed, so it won't pop straight back up
+function dueReminders(army) {
+  const sources = reminderSources(army), due = [];
+  for (const rule of REMINDER_RULES) {
+    if (!reminderDue(rule.timing)) continue;
+    const src = sources.find(s => rule.match.test(s.name) || rule.match.test(s.text));
+    if (!src) continue;   // this army doesn't have the rule at all
+    const sig = reminderSig(rule.timing);
+    if (reminderDismissed[rule.label] === sig) continue;
+    due.push({ rule, src, sig });
+  }
+  return due;
+}
+function openReminderSheet(host, due) {
+  const body = due.map(({ rule, src }) => `<div class="bt-rule"><b>${esc(rule.label)}</b><div class="fv-rich">${richHTML(src.text)}</div></div>`).join("");
+  const d = openSheet(`<div class="sheet-head"><h2>${due.length > 1 ? "Reminders" : "Reminder"}</h2><p>${due.length > 1 ? "These rules apply now." : "This rule applies now."}</p></div>
+    <div class="sheet-body">${body}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-close>Confirm</button></div>`, true);
+  d.addEventListener("close", () => { due.forEach(({ rule, sig }) => { reminderDismissed[rule.label] = sig; }); renderTracker(host); }, { once: true });
+}
+function maybeOpenReminderPrompt(host) {
+  const due = dueReminders(armyOf("me"));
+  if (!due.length) return;
+  if ($("#sheet")?.open) return;
+  openReminderSheet(host, due);
+}
+
 function boxesHTML(armies) {
   const mine = lastStrats.me.filter(inWindow), theirs = lastStrats.them.filter(inWindow);
   const usable = mine.filter(s => !usedKeys(B.me).includes(s.key) && B.me.cp >= s.costs[0]).length;
@@ -236,7 +450,8 @@ function trackerHTML(armies) {
 function missionDetail(name, card) {
   if (!name) return `<p class="bt-hint">Not chosen yet. Set the Force Dispositions in setup.</p>`;
   if (!card) return `<div class="bt-mname">${esc(name)}</div><p class="bt-hint">Add the mission pack in Library to see how it scores.</p>`;
-  return `<div class="bt-mname">${esc(name)}</div>` + card.scoring.map(b => `<div class="bt-mround"><span>${esc(b.round)}</span>${b.cap ? `<em>${esc(b.cap)}</em>` : ""}</div>${b.rows.map(r => `<div class="bt-mline"><span>${esc(r.text)}</span><b>${esc(vpText(r.vp))}</b></div>`).join("")}`).join("");
+  const style = scoreStyle();
+  return `<div class="bt-mname">${esc(name)}</div>` + card.scoring.map(b => `<div class="bt-mround"><span>${esc(b.round)}</span>${b.cap ? `<em>${esc(b.cap)}</em>` : ""}</div>${b.rows.filter(r => vpApplies(r.vp, style)).map(r => `<div class="bt-mline"><span>${esc(r.text)}</span><b>${esc(vpText(r.vp))}</b></div>`).join("")}`).join("");
 }
 /** The Primary and Secondary boxes above the Stratagems: each is a box like the others, and its details open inside it. */
 const ARROW = `<svg class="bt-arrow" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -280,7 +495,7 @@ function logHTML() {
   }).join("");
   return `<div class="bt-logh"><h2>Event Log</h2></div>
     <div class="bt-logl">${rows || `<p class="bt-hint">Nothing yet. Command Points, stratagems and scoring appear here as they happen.</p>`}</div>
-    <button type="button" class="btn bt-end" data-bt-end>End Battle</button>`;
+    <div class="bt-endrow"><button type="button" class="btn bt-pause" data-bt-pause>Leave Battle</button><button type="button" class="btn bt-end" data-bt-end>End Battle</button></div>`;
 }
 
 /** The strip sits under the header when it's full, and inside the header bar once the second screen is showing.
@@ -294,21 +509,10 @@ function watchView(pane) {
   viewWatch.disconnect(); viewWatch.observe(pane);
 }
 const reduceMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-/* Phone and tablet: once past section one, the first section starts where the phase tracker's top was in section one. */
-let phaseTopS1 = null;
-function alignSectionTop(compact, el, header, pane) {
+/* Phone and tablet: once past section one, the Next Phase button at the top of section 2 sits a standard gap under the header. */
+function alignSectionTop(compact, pane) {
   if (!pane) return;
-  const narrow = matchMedia("(max-width: 1279px)").matches;
-  if (!compact) {
-    const ph = el.querySelector(".bt-phases");
-    if (ph) phaseTopS1 = ph.getBoundingClientRect().top;
-    pane.style.marginTop = "";
-    return;
-  }
-  if (!narrow) { pane.style.marginTop = ""; return; }
-  const headerBottom = header.getBoundingClientRect().bottom, paneTop = pane.getBoundingClientRect().top;
-  // The pane starts under the header; the padding puts its first section at the phase tracker's old top.
-  pane.style.marginTop = "16px";   // the Next Phase button at the top of section 2 sits a standard gap under the header
+  pane.style.marginTop = compact && matchMedia("(max-width: 1279px)").matches ? "16px" : "";
 }
 function mountStick(compact, animate = false) {
   const host = document.querySelector("#battleHost"), header = document.querySelector("#view-battle > header");
@@ -323,7 +527,7 @@ function mountStick(compact, animate = false) {
   const tpl = document.createElement("template"); tpl.innerHTML = stickHTML(compact);
   const el = tpl.content.firstElementChild;
   if (compact) header.append(el); else host.prepend(el);
-  alignSectionTop(compact, el, header, pane);
+  alignSectionTop(compact, pane);
   fitView(pane);
   // The pane's height changed under the scroll: put the position back (the browser may have clamped it).
   if (pane && pane.scrollTop !== keepTop) pane.scrollTop = keepTop;
@@ -367,39 +571,26 @@ function armyOf(side) {
 }
 const nameOf = x => x.label || x.unit?.name || x.key;
 
-/** Health boxes: one per model (up to ten), tap one to mark that model and the ones before it destroyed. */
-/** Wound pips for a model: W of them, the wounds greying out from the right. */
+/** Wound pips for a model: W of them, the wounds greying out from the right. Still used inside the full
+ *  datasheet (battleDatasheet), where a weapon-loadout group has its own per-model wound tracking. */
 function pipsHTML(W, lost) {
   return Array.from({ length: W }, (_, k) => `<span class="bt-hp-box${k >= W - lost ? " dead" : ""}"></span>`).join("");
 }
-/** The unit's model whose wounds the list shows: a wounded model by priority (basic, basic with another loadout,
- *  leader), else the basic model. Returns its row, front model index and wounds, or null when nothing is left. */
-function focusOf(x) {
-  const rows = rowsOf(x), dg = splitDestroyed(B, x, rows);
-  let s = 0;
-  const spans = rows.map((r, i) => {
-    const sp = { i, front: s + dg[i], alive: r.n - dg[i], pri: r.pri, lost: 0 };
-    s += r.n;
-    sp.lost = sp.alive > 0 ? (B.wounds || {})[`${x.id}|${sp.front}`] || 0 : 0;
-    return sp;
-  }).filter(sp => sp.alive > 0);
-  const byPri = (a, b) => a.pri - b.pri || a.i - b.i;
-  const pick = spans.filter(sp => sp.lost > 0).sort(byPri)[0] || [...spans].sort(byPri)[0];
-  return pick ? { ...pick, W: Math.min(Math.max(1, +(x.unit.ds.profiles?.[0]?.W) || 1), 12) } : null;
-}
-function hpHTML(x, side) {
-  const f = focusOf(x);
-  if (!f) return "";
-  return `<span class="bt-hp" data-bt-wound="${esc(x.id)}|${f.i}|${side}" title="Tap to wound this model">${pipsHTML(f.W, f.lost)}</span>`;
+/** The unit card's model count, in place of the old health boxes: how many models of this entry are left,
+ *  out of how many it started with — this entry's own count only, not combined with any attached unit. */
+function modelCountHTML(x) {
+  return `<span class="bt-mcount">${unitAlive(B, x)}/${x.models || 0}</span>`;
 }
 function armyHTML(side, army = armyOf(side)) {
   const p = side === "me" ? B.me : B.them, st = factionStyle(p.faction || "");
-  const head = `<div class="bt-armyhead" style="--c1:${st.c1};--c2:${st.c2}">${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc(army?.list.name || p.army || "")}${army ? ` · ${army.r.total} pts` : ""}</span></div></div>`;
+  // Viewing one unit's datasheet: the back control is a small icon button inside the faction-coloured head
+  // itself, rather than a separate line of text under it, with the head's own content re-centred to fit it.
+  const x = sheet?.side === side ? army?.r.entries.find(e => e.id === sheet.id) : null;
+  const showingDs = !!x?.unit;
+  const back = showingDs ? `<button type="button" class="bt-dsback" data-bt-dsback aria-label="Back to ${esc(army?.list.name || "the army list")}">‹</button>` : "";
+  const head = `<div class="bt-armyhead${showingDs ? " bt-armyhead-ds" : ""}" style="--c1:${st.c1};--c2:${st.c2}">${back}${st.img ? `<img src="${esc(st.img)}" alt="">` : ""}<div><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc(army?.list.name || p.army || "")}${army ? ` · ${army.r.total} pts` : ""}</span></div></div>`;
   if (!army) return head + `<div class="bt-hint">${side === "me" ? "Your army list isn't on this device." : "Sync with your opponent before the battle to see their army here."}</div>`;
-  if (sheet?.side === side) {
-    const x = army.r.entries.find(e => e.id === sheet.id);
-    if (x?.unit) return head + `<button type="button" class="btn bt-dsback" data-bt-dsback>‹ ${esc(army.list.name)}</button>` + battleDatasheet(x, army);
-  }
+  if (showingDs) return head + battleDatasheet(x, army, side);
   // A→Z, no categories. Every unit has its own full box; the units it is attached to or that are attached to it sit
   // beneath it at reduced size (a leader under its unit, a unit under its leader), each with its own pips.
   const entries = army.r.entries.filter(e => e.unit);
@@ -417,10 +608,10 @@ function armyHTML(side, army = armyOf(side)) {
     const isWl = x.warlord || x.id === wlId;
     const tags = [x.enh ? `<span class="lb-tag enh">${esc(x.enh)}</span>` : "", x.upg ? `<span class="lb-tag upg">${esc(x.upg)}</span>` : ""].join("");
     return `<div class="bt-unitwrap"><button type="button" class="bt-unit" data-bt-unit="${esc(x.id)}" data-side="${side}">
-        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span>${hpHTML(x, side)}</span>
+        <span class="bt-unit-top"><span class="bt-namewrap"><b>${esc(nameOf(x))}</b>${isWl ? `<span class="bt-wl">Warlord</span>` : ""}</span><span>${x.total} pts</span>${modelCountHTML(x)}</span>
         <span class="bt-unit-row"><span class="bt-unit-left">${x.label ? `<span class="bt-unit-orig">${esc(x.unit.name)}</span>` : ""}
         <span class="bt-unit-meta">${x.models} model${x.models === 1 ? "" : "s"}</span>${tags ? `<span class="lb-ctags">${tags}</span>` : ""}</span></span></button>
-      ${related(x).map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span>${hpHTML(c, side)}</button>`).join("")}</div>`;
+      ${related(x).map(c => `<button type="button" class="bt-unit bt-attached" data-bt-unit="${esc(c.id)}" data-side="${side}"><span aria-hidden="true">↳</span> <b>${esc(nameOf(c))}</b><span>${c.total} pts</span>${modelCountHTML(c)}</button>`).join("")}</div>`;
   };
   return head + `<div class="bt-units">${top.map(card).join("")}</div>`;
 }
@@ -452,8 +643,41 @@ function splitDestroyed(b, x, rows) {
   return rows.map(r => { const k = Math.min(left, r.n); left -= k; return k; });
 }
 /** A unit's datasheet for the battle: its profile, only the wargear it has, and its abilities. No options, no leader lists. */
-function battleDatasheet(x, army) {
+/* C15: "Damaged X" (Core Ability 24.39) — while a model's remaining wounds are at or below X, it's damaged. The app
+ *  shows the datasheet's own wording for what that does, worked out live from its current wounds, so it appears and
+ *  disappears automatically as the model is wounded or healed back up. No state is stored for it. */
+function damagedInfo(ds) {
+  const ab = (ds.abilities || []).find(a => /^damaged\s+(\d+)\b/i.test(a.name || ""));
+  const n = ab && +ab.name.match(/\d+/)[0];
+  return Number.isFinite(n) ? { n, text: ab.text || ab.rich || "" } : null;
+}
+/* X2: the weapon-ability keywords a chosen army rule option currently grants, and to which weapon type. */
+function activeChoiceOptions(side, army) {
+  const p = B[side];
+  if (!p?.armyChoices || !army) return [];
+  const tops = (army.armyRules || []).filter(r => !r.partOf);
+  const out = [];
+  for (const [ruleName, rec] of Object.entries(p.armyChoices)) {
+    const entry = timedArmyRules(army.armyRules).find(e => e.rule.name === ruleName);
+    if (!entry || choiceSig(B, entry.timing) !== rec.sig) continue;
+    const rule = tops.find(r => r.name === ruleName);
+    const opt = entry.options.find(o => o.name === rec.choice) || (rec.choice === ruleName ? rule : null);
+    if (opt) out.push({ rule: ruleName, name: opt.name, text: opt.text || opt.rich || "" });
+  }
+  return out;
+}
+function activeChoiceKeywords(side, army) {
+  return activeChoiceOptions(side, army).flatMap(o => {
+    const kws = [...o.text.matchAll(/\[([A-Z][A-Z \-]*\d*)\]/g)].map(m => `[${m[1]}]`);
+    const type = /ranged attacks/i.test(o.text) ? "Ranged" : /melee attacks/i.test(o.text) ? "Melee" : null;
+    return kws.map(kw => ({ type, kw }));
+  });
+}
+function battleDatasheet(x, army, side) {
   const ds = x.unit.ds, buffs = buffsFor(x, army.r), W = Math.min(Math.max(1, +(ds.profiles?.[0]?.W) || 1), 12);
+  const dmg = damagedInfo(ds);
+  const choiceOpts = activeChoiceOptions(side, army);
+  const choiceKws = activeChoiceKeywords(side, army);
   const counts = new Map();
   for (const g of x.loadout || []) for (const [w, n] of Object.entries(g.counts || {})) if (n > 0) counts.set(w, (counts.get(w) || 0) + n);
   const rows = rowsOf(x), dg = splitDestroyed(B, x, rows);
@@ -466,7 +690,8 @@ function battleDatasheet(x, army) {
   const profileHTML = p => {
     const melee = p.type === "Melee";
     const cells = [["Range", "range", null], ["A", "A", "A"], [melee ? "WS" : "BS", "skill", null], ["S", "S", "S"], ["AP", "AP", "AP"], ["D", "D", "D"]];
-    const kws = keywordList(p.tags);
+    const extraKws = choiceKws.filter(c => !c.type || c.type === p.type).map(c => c.kw);
+    const kws = [...keywordList(p.tags), ...extraKws];
     return `<div class="bt-wpn"><div class="bt-wpn-name">${esc(capWords(p.name))}</div>
       <div class="bt-wstats">${cells.map(([l, k, stat]) => { const s = statOf(p, k, stat); return `<span><small>${esc(l)}</small><b class="${s.buffed ? "lb-buffed" : ""}">${esc(s.v ?? "")}</b></span>`; }).join("")}</div>
       ${kws.length ? `<div class="bt-wkw">${kws.map(k => `<span class="fv-kw">${esc(k)}</span>`).join("")}</div>` : ""}</div>`;
@@ -478,9 +703,11 @@ function battleDatasheet(x, army) {
     const lost = alive > 0 ? (B.wounds || {})[`${x.id}|${front}`] || 0 : 0;
     const pips = alive > 0 ? pipsHTML(W, lost) : "";
     const profiles = (ds.weapons || []).filter(w => r.weapons.includes(weaponBase(w.name)));
-    return `<section class="bt-grp${alive ? "" : " done"}">
-      <div class="bt-grp-head"><b class="bt-grp-name">${esc(r.name)}</b><span class="bt-hp bt-grp-pips" data-bt-wound="${esc(x.id)}|${ri}|${sheet?.side}" title="Tap to wound this model">${pips}</span>
+    const isDamaged = !!dmg && alive > 0 && (W - lost) <= dmg.n;
+    return `<section class="bt-grp${alive ? "" : " done"}${isDamaged ? " damaged" : ""}">
+      <div class="bt-grp-head"><b class="bt-grp-name">${esc(r.name)}</b>${isDamaged ? `<span class="bt-tag bt-dmgtag" title="${esc(dmg.text)}">Damaged</span>` : ""}<span class="bt-hp bt-grp-pips" data-bt-wound="${esc(x.id)}|${ri}|${sheet?.side}" title="Tap to wound this model">${pips}</span>
         <span class="bt-grp-count"><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|1" aria-label="Destroy one" ${alive ? "" : "disabled"}>−</button><span class="bt-cnt-n">${alive}</span><button type="button" class="bt-cnt" data-bt-gset="${esc(x.id)}|${ri}|-1" aria-label="Revive one" ${dg[ri] ? "" : "disabled"}>+</button></span></div>
+      ${isDamaged ? `<p class="bt-hint bt-dmghint">${esc(dmg.text)}</p>` : ""}
       ${profiles.map(profileHTML).join("")}
     </section>`;
   };
@@ -494,6 +721,7 @@ function battleDatasheet(x, army) {
     ${statHTML}
     <div class="bt-grps">${groupsHTML}</div>
     ${taken.map(e => panelHTML(`${e.upgrade ? "Upgrade" : "Enhancement"} · ${esc(e.name)}`, `<div class="fv-rich">${richHTML(e.rich || e.text)}</div>`)).join("")}
+    ${choiceOpts.map(o => panelHTML(`Army Choice · ${esc(o.name)}`, `<div class="fv-rich">${richHTML(o.text)}</div>`)).join("")}
     ${datasheetDetailsHTML(ds, army.armyRules, { battle: true, equipped: [...counts.keys()] })}
   </div>`;
 }
@@ -506,7 +734,7 @@ function renderTracker(host) {
   const i = PANES.indexOf(pane);
   const armies = { me: armyOf("me"), them: armyOf("them") };
   lastStrats = { me: strategyList("me", armies.me), them: strategyList("them", armies.them) };
-  const navBtn = (side, p) => { const st = factionStyle(p.faction || ""); return `<button type="button" class="bt-navbtn${pane === side ? " on" : ""}" data-bt-pane="${side}" style="--c1:${st.c1};--c2:${st.c2}"><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc((side === "me" ? armies.me?.list.name : armies.them?.list?.name) || p.army || "Army")}</span></button>`; };
+  const navBtn = (side, p) => { const st = factionStyle(p.faction || ""); return `<button type="button" class="bt-navbtn${pane === side ? " on" : ""}" data-bt-pane="${side}" style="--c1:${st.c1};--c2:${st.c2}">${st.img ? `<img class="bt-navmark" src="${esc(st.img)}" alt="">` : ""}<span class="bt-navtxt"><b>${esc(p.name || (side === "me" ? "You" : "Opponent"))}</b><span>${esc((side === "me" ? armies.me?.list.name : armies.them?.list?.name) || p.army || "Army")}</span></span></button>`; };
   const keep = [...host.querySelectorAll(".bt-pane")].map(el => el.scrollTop);
   host.innerHTML = `<div class="bt-shell" style="--i:${i}">
       <div class="bt-pane" data-pane="me">${armyHTML("me", armies.me)}</div>
@@ -537,8 +765,11 @@ function renderTracker(host) {
   mountStick(compact);
   if (tp) watchView(tp);
   host.querySelectorAll(".bt-pane").forEach((el, k) => { if (keep[k] != null) el.scrollTop = keep[k]; });
-  // The nearest section top is where the screen rests.
-  if (tp) { const st = sectionStarts(tp); restPos = st.reduce((b, v) => (Math.abs(v - (keep[1] || 0)) < Math.abs(b - (keep[1] || 0)) ? v : b), st[0] ?? 0); }
+  // C2 and X2 are pop-ups that appear on their own, whichever pane/section is on screen, rather than a box
+  // that has to be scrolled to. Checked last, after the pane is drawn, and only one at a time.
+  maybeOpenArmyChoicePrompt(host);
+  maybeOpenShockPrompt(host);
+  maybeOpenReminderPrompt(host);
 }
 /** Round choice: five boxes the same width, a double gap, then Cancel. Sits over a blurred screen, not the whole of it. */
 function openRoundPicker(host) {
@@ -556,7 +787,7 @@ function openRoundPicker(host) {
   const onKey = e => { if (e.key === "Escape") close(); };
   el.addEventListener("click", e => {
     const r = e.target.closest("[data-round]");
-    if (r) { const n = +r.dataset.round; close(); if (n !== B.round) change(b => { b.round = n; }, host); return; }
+    if (r) { const n = +r.dataset.round; close(); if (n !== B.round) change(b => { b.round = n; grantPhaseCP(b); }, host); return; }
     if (e.target.closest("[data-rclose]")) close();
   });
   document.addEventListener("keydown", onKey);
@@ -575,68 +806,175 @@ function change(fn, host) {
   sendToPeer({ battle: B });   // sent as seen from this phone; the other phone flips it
 }
 function nextPhase(b) {
-  if (b.phase < PHASES.length - 1) { b.phase++; return; }
-  // End phase done: the other player's turn; once both have had a turn, the next battle round.
-  b.phase = 0;
-  b.turn = FLIP[b.turn];
-  if (b.turn === b.first) b.round++;
+  if (b.phase < PHASES.length - 1) { b.phase++; }
+  else {
+    // End phase done: the other player's turn; once both have had a turn, the next battle round.
+    b.phase = 0;
+    b.turn = FLIP[b.turn];
+    if (b.turn === b.first) b.round++;
+  }
+  grantPhaseCP(b);
+}
+/* ---------- C1 / X1: Command Points gained automatically ---------- */
+/* Both players gain 1 Core CP every Command phase (Core Rules 08.02) — once per player turn, so twice a round each.
+   A Warlord with a "gain 1CP" battle-round ability (e.g. Aquila Commander, Transhuman Strategist) adds one more,
+   once per battle round, for whichever side has it. Both are logged so they can be undone like any other CP change. */
+const WARLORD_CP_RE = /start of the battle round,?\s*if a model with this ability is your\s*warlord,?\s*gain\s*1\s*cp/i;
+function cpGain(b, side, amount, why) {
+  const p = b[side]; if (!p) return;
+  p.cp = Math.max(0, p.cp + amount);
+  logEv(b, side === "me" ? "you" : "opponent", { badge: amount > 0 ? `+${amount}` : String(amount), tone: amount > 0 ? "cp-plus" : "cp-minus", text: `${amount > 0 ? "Gained" : "Spent"} a Command Point (${why}) — ${p.name || (side === "me" ? "You" : "Opponent")}`, undo: { t: "cp", d: amount } });
+}
+function warlordAbilityText(side) {
+  const army = armyOf(side);
+  if (!army) return "";
+  const wlId = army.r.entries.find(e => e.warlord)?.id ?? army.list.units?.find(e => e.warlord)?.id;
+  const x = wlId && army.r.entries.find(e => e.id === wlId);
+  return (x?.unit?.ds?.abilities || []).map(a => `${a.text || ""} ${a.rich || ""}`).join(" \n ");
+}
+function grantPhaseCP(b) {
+  // C1: both players gain 1 CP every Command phase, including the very first one.
+  if (b.phase === 0) {
+    const sig = `${b.round}.${b.turn === b.first ? 0 : 1}`;
+    if (b.cpSig !== sig) {
+      b.cpSig = sig;
+      cpGain(b, "me", 1, "Command phase");
+      cpGain(b, "them", 1, "Command phase");
+    }
+  }
+  // X1: a Warlord ability that grants 1 CP at the start of the battle round (once per round, per side that has it).
+  const rsig = String(b.round);
+  b.wlSig ||= {};
+  for (const side of ["me", "them"]) {
+    if (b.wlSig[side] === rsig) continue;
+    b.wlSig[side] = rsig;
+    if (WARLORD_CP_RE.test(warlordAbilityText(side))) cpGain(b, side, 1, "Warlord ability");
+  }
 }
 
-/** Spends Command Points on one of your stratagems and marks it used for this phase. */
+/** Spends Command Points on one of your stratagems and marks it used for this phase (and for the rest of the
+ *  battle, if it's a once-per-battle stratagem like Insane Bravery). */
 function spend(key, cost, host) {
-  const name = lastStrats.me.find(x => x.key === key)?.name || "a stratagem";
+  const strat = lastStrats.me.find(x => x.key === key);
+  const name = strat?.name || "a stratagem";
   change(b => {
     if (cost > b.me.cp) return;
     const sg = sigOf(b);
     if (b.me.used?.sig !== sg) b.me.used = { sig: sg, keys: [] };
     if (!b.me.used.keys.includes(key)) b.me.used.keys.push(key);
+    const forever = !!strat?.onceOnly;
+    if (forever) { b.me.usedForever ||= []; if (!b.me.usedForever.includes(key)) b.me.usedForever.push(key); }
     b.me.cp -= cost;
-    if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}`, undo: { t: "cp", d: -cost, key, sig: sg } });
+    if (cost > 0) logEv(b, "you", { badge: `-${cost}`, tone: "cp-minus", text: `Spent on ${name}`, undo: { t: "cp", d: -cost, key, sig: sg, forever } });
   }, host);
 }
-/** Points for a mission, from the boxes ticked. Up to the round's limit; what was counted is what's recorded. */
-function openScoreSheet(kind, host, idx) {
-  const p = B.me, sec = kind === "sec" ? p.secs[idx] : null;
-  if (kind === "sec" && !sec) return;
-  const name = kind === "pri" ? p.priMission : sec.name;
-  const rows = scoringRows(kind === "pri" ? primaryCard(p.priMission) : missionPack()?.secondaries?.find(m => m.name === sec.name));
-  const rec = kind === "pri" ? p.priScores.find(r => r.round === B.round) : sec;
-  const checked = new Set(rec?.checks || []);
+/** Points for a mission, from the boxes ticked (or counted, for a CUMULATIVE line). Up to the round's limit;
+ *  what was counted is what's recorded. */
+/* C6: every scorable mission in one pop-up, with checkboxes the player can tick directly — no separate menu
+ *  step. Shown automatically at the two points scoring is checked (end of the Command phase, end of your turn),
+ *  and reused by the manual Score buttons on the Primary/Secondary boxes for just the one mission tapped. */
+function missionBlocks() {
+  const p = B.me, blocks = [];
+  if (p.priMission) blocks.push({ kind: "pri", idx: null, name: p.priMission, rows: scoringRows(primaryCard(p.priMission)), rec: p.priScores.find(r => r.round === B.round) });
+  p.secs.forEach((s, i) => blocks.push({ kind: "sec", idx: i, name: s.name, rows: scoringRows(missionPack()?.secondaries?.find(m => m.name === s.name)), rec: s }));
+  return blocks;
+}
+/** Local tick/count state for one mission's rows while its pop-up is open. */
+function scoreState(rows, rec) {
+  if (!rec || rec.round !== B.round) return { checked: new Set(), counts: {} };
+  return { checked: new Set((rec.checks || []).filter(i => !rows[i]?.cumulative)), counts: { ...(rec.counts || {}) } };
+}
+const scoreSum = (rows, state) => rows.reduce((a, r, i) => a + (r.cumulative ? (state.counts[i] || 0) * r.n : (state.checked.has(i) ? r.n : 0)), 0);
+function scoreRowHTML(r, i, state) {
+  if (r.cumulative) {
+    const n = state.counts[i] || 0, atCap = r.blockCap != null && (n + 1) * r.n > r.blockCap;
+    return `<div class="bt-scorerow bt-scorerow-cum"><span><i>${esc(r.round)}</i>${esc(r.text)}</span>
+      <span class="bt-scorestep"><button type="button" class="btn" data-k-dec="${i}" ${n <= 0 ? "disabled" : ""}>−</button><b>${n}</b><button type="button" class="btn" data-k-inc="${i}" ${atCap ? "disabled" : ""}>+</button></span>
+      <b>${n * r.n} VP</b></div>`;
+  }
+  return `<label class="bt-scorerow"><input type="checkbox" data-k="${i}" ${state.checked.has(i) ? "checked" : ""}><span><i>${esc(r.round)}</i>${esc(r.text)}</span><b>${r.n} VP</b></label>`;
+}
+/** `only` scopes the pop-up to one mission (the manual Score buttons); `timing` marks it as the automatic
+ *  end-of-phase nudge, which advances to the next phase once the pop-up closes, however it was closed. */
+function openScorePopup(host, { timing, only } = {}) {
+  let blocks = missionBlocks();
+  if (only) blocks = blocks.filter(b => b.kind === only.kind && b.idx === only.idx);
+  if (!blocks.length) { if (timing) change(nextPhase, host); return; }
   const cap = capPerRound();
-  const own = rec?.round === B.round ? rec.vp || 0 : 0;
-  const other = gainedThisRound(p, kind) - own;   // VP this round from the rest of the same kind
-  const sumOf = set => [...set].reduce((a, i) => a + (rows[i]?.n || 0), 0);
-  const counted = () => Math.min(sumOf(checked), Math.max(0, cap - other));
-  const d = openSheet(`<div class="sheet-head"><h2>${esc(name || "Score")}</h2>
-      <p>Tick each way ${kind === "pri" ? "the Primary Mission" : "this Secondary Mission"} was scored this round. ${cap} VP is the most that counts for each of Primary and Secondary in one round.</p></div>
-    <div class="sheet-body bt-scorelist">${rows.length ? rows.map((r, i) => `<label class="bt-scorerow"><input type="checkbox" data-k="${i}" ${checked.has(i) ? "checked" : ""}><span><i>${esc(r.round)}</i>${esc(r.text)}</span><b>${r.n} VP</b></label>`).join("") : `<p class="bt-hint">No scoring is printed for this mission in the mission pack.</p>`}</div>
-    <p class="bt-scoretot" aria-live="polite"></p>
-    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-close>Cancel</button><button class="btn primary" type="button" data-accept ${rows.length ? "" : "disabled"}>Accept</button></div>`);
-  const tot = d.querySelector(".bt-scoretot");
-  const show = () => { const raw = sumOf(checked), c = counted(); tot.textContent = `${c} VP this round${c < raw ? ` (counts ${c} of ${raw}: the round's limit is ${cap})` : ""}`; };
-  show();
-  d.onchange = e => { const k = +e.target.dataset.k; if (Number.isNaN(k)) return; e.target.checked ? checked.add(k) : checked.delete(k); show(); };
+  const states = blocks.map(b => scoreState(b.rows, b.rec));
+  const when = timing === "command" ? "the end of this Command phase" : timing === "turn" ? "the end of your turn" : null;
+  const render = () => {
+    let secOther = 0;
+    return blocks.map((b, bi) => {
+      const rows = b.rows, state = states[bi], raw = scoreSum(rows, state);
+      let counted;
+      if (b.kind === "pri") counted = Math.min(raw, cap);
+      else { counted = Math.max(0, Math.min(raw, cap - secOther)); secOther += counted; }
+      return `<div class="bt-scoreblock" data-block="${bi}">
+        <h3>${esc(b.name)} <span class="bt-hint">(${b.kind === "pri" ? "Primary" : "Secondary"})</span></h3>
+        ${rows.length ? rows.map((r, i) => scoreRowHTML(r, i, state)).join("") : `<p class="bt-hint">No scoring is printed for this mission in the mission pack.</p>`}
+        <p class="bt-scoretot" aria-live="polite">${counted} VP this round${counted < raw ? ` (counts ${counted} of ${raw}: the round's limit is ${cap})` : ""}</p>
+      </div>`;
+    }).join("");
+  };
+  const d = openSheet(`<div class="sheet-head"><h2>Score missions?</h2>${when ? `<p>Check whether you scored at ${when} before moving on.</p>` : ""}</div>
+    <div class="sheet-body bt-scorelist" id="scoreBody">${render()}</div>
+    <div class="sheet-foot"><button class="btn bt-cancel" type="button" data-cancel>Cancel</button><button class="btn primary" type="button" data-accept>Confirm</button></div>`, true);
+  const refresh = () => { d.querySelector("#scoreBody").innerHTML = render(); };
+  d.addEventListener("close", () => { if (timing) change(nextPhase, host); }, { once: true });
+  d.onchange = e => {
+    const k = +e.target.dataset.k; if (Number.isNaN(k)) return;
+    const bi = +e.target.closest("[data-block]").dataset.block;
+    e.target.checked ? states[bi].checked.add(k) : states[bi].checked.delete(k);
+    refresh();
+  };
   d.onclick = e => {
-    if (!e.target.closest("[data-accept]") || e.target.closest("[disabled]")) return;
-    const vp = counted(), keys = [...checked].sort((a, b) => a - b);
-    d.close();
+    const dec = e.target.closest("[data-k-dec]"), inc = e.target.closest("[data-k-inc]");
+    if ((dec || inc) && !(dec || inc).disabled) {
+      const bi = +(dec || inc).closest("[data-block]").dataset.block;
+      const i = +(dec ? dec.dataset.kDec : inc.dataset.kInc);
+      const state = states[bi], r = blocks[bi].rows[i];
+      let n = state.counts[i] || 0;
+      if (dec) n = Math.max(0, n - 1);
+      else if (r.blockCap == null || (n + 1) * r.n <= r.blockCap) n += 1;
+      state.counts[i] = n;
+      refresh();
+      return;
+    }
+    if (e.target.closest("[data-cancel]")) { d.close(); return; }
+    if (!e.target.closest("[data-accept]")) return;
     change(b => {
       const pl = b.me;
-      let undo;
-      if (kind === "pri") {
-        let r = pl.priScores.find(x => x.round === b.round);
-        undo = { t: "score", kind, name, round: b.round, had: !!r, checks: r?.checks || [], vp: r?.vp || 0 };
-        if (!r) pl.priScores.push(r = { round: b.round, checks: [], vp: 0 });
-        r.checks = keys; r.vp = vp;
-      } else {
-        const s = pl.secs[idx]; if (!s) return;
-        undo = { t: "score", kind, name: s.name, round: s.round, checks: s.checks || [], vp: s.vp || 0, prevRound: s.round };
-        s.checks = keys; s.vp = vp; s.round = b.round;
-      }
-      const prev = undo.vp;
-      if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${name} (${kind === "pri" ? "Primary" : "Secondary"})`, undo });
+      let secOther = 0;
+      blocks.forEach((blk, bi) => {
+        const rows = blk.rows, state = states[bi], raw = scoreSum(rows, state);
+        let vp;
+        if (blk.kind === "pri") vp = Math.min(raw, cap);
+        else { vp = Math.max(0, Math.min(raw, cap - secOther)); secOther += vp; }
+        const checks = [...state.checked].sort((x, y) => x - y), counts = { ...state.counts };
+        if (blk.kind === "pri") {
+          let r = pl.priScores.find(x => x.round === b.round);
+          const prev = r?.vp || 0;
+          if (!r) pl.priScores.push(r = { round: b.round, checks: [], counts: {}, vp: 0 });
+          r.checks = checks; r.counts = counts; r.vp = vp;
+          if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${blk.name} (Primary)`, undo: { t: "score", kind: "pri", name: blk.name, round: b.round, had: true, checks: r.checks, counts: r.counts, vp: prev } });
+        } else {
+          const s = pl.secs[blk.idx]; if (!s) return;
+          const prev = s.round === b.round ? (s.vp || 0) : 0;
+          const undo = { t: "score", kind: "sec", name: s.name, round: s.round, checks: s.checks || [], counts: s.counts || {}, vp: s.vp || 0, prevRound: s.round };
+          s.checks = checks; s.counts = counts; s.vp = vp; s.round = b.round;
+          if (vp !== prev) logEv(b, "you", { badge: `${vp - prev > 0 ? "+" : ""}${vp - prev} VP`, tone: "vp", text: `${s.name} (Secondary)`, undo });
+        }
+      });
     }, host);
+    d.close();
   };
+}
+/** Next Phase: on your own turn, a scoring nudge appears first at the end of the Command phase and the end of your turn. */
+function advancePhase(host) {
+  if (B.turn === "you" && B.phase === 0) { openScorePopup(host, { timing: "command" }); return; }
+  if (B.turn === "you" && B.phase === PHASES.length - 1) { openScorePopup(host, { timing: "turn" }); return; }
+  change(nextPhase, host);
 }
 /** Taking a Secondary Mission off the list asks first. Cancel does nothing. */
 function openRemoveSheet(idx, host) {
@@ -679,7 +1017,7 @@ function openSpendSheet(s, host) {
 /** The Use button: greyed out (no action) when it's already used this phase or the Command Points don't cover it. */
 function useStratagem(key, host) {
   const s = lastStrats.me.find(x => x.key === key);
-  if (!s || usedKeys(B.me).includes(key) || B.me.cp < s.costs[0]) return;
+  if (!s || usedKeys(B.me).includes(key) || (s.onceOnly && usedForever(B.me).includes(key)) || B.me.cp < s.costs[0]) return;
   if (s.costs.length > 1) openSpendSheet(s, host);
   else spend(key, s.costs[0], host);
 }
@@ -689,12 +1027,12 @@ const toggleIn = (set, id) => (set.has(id) ? set.delete(id) : set.add(id));
 function handleTrackerClick(e, host) {
   if (!B?.active) return false;
   const t = e.target;
-  if (t.closest("[data-bt-next]")) { change(nextPhase, host); return true; }
+  if (t.closest("[data-bt-next]")) { advancePhase(host); return true; }
   // The phase in the header bar (past section one) takes you back to the top section.
   if (t.closest(".bt-stick.compact .bt-phases")) { if (pane !== "tracker") showPane("tracker", host); const tp = host.querySelector('.bt-pane[data-pane="tracker"]'); if (tp) glideTo(tp, 0); return true; }
   if (t.closest("[data-bt-round]")) { openRoundPicker(host); return true; }
   const ph = t.closest("[data-bt-phase]");
-  if (ph) { change(b => { b.phase = +ph.dataset.btPhase; }, host); return true; }
+  if (ph) { change(b => { b.phase = +ph.dataset.btPhase; grantPhaseCP(b); }, host); return true; }
   const cp = t.closest("[data-bt-cp]");
   if (cp && !cp.disabled) {
     const who = cp.dataset.btCp, d = +cp.dataset.d, name = who === "me" ? B.me.name || "You" : B.them.name || "Opponent";
@@ -712,6 +1050,8 @@ function handleTrackerClick(e, host) {
   // The boxes under the columns: open and close, expand a stratagem's text, or use it.
   const use = t.closest("[data-bt-use]");
   if (use) { useStratagem(use.dataset.btUse, host); return true; }
+  // X2 (army-rule choices) and C2 (battle-shock) are now pop-ups, opened automatically from renderTracker
+  // and handled by their own dialog, not by clicks in the tracker pane.
   // The Primary and Secondary boxes, their Score buttons, and the Secondary Missions' rows.
   const mh = t.closest("[data-bt-mhead]");
   if (mh) {   // one of the two is open at a time: their stems would cross
@@ -720,9 +1060,9 @@ function handleTrackerClick(e, host) {
     if (!was) openBoxes.add(id);
     renderTracker(host); return true;
   }
-  if (t.closest("[data-bt-score]")) { openScoreSheet("pri", host); return true; }
+  if (t.closest("[data-bt-score]")) { openScorePopup(host, { only: { kind: "pri", idx: null } }); return true; }
   const ss = t.closest("[data-bt-secscore]");
-  if (ss) { openScoreSheet("sec", host, +ss.dataset.btSecscore); return true; }
+  if (ss) { openScorePopup(host, { only: { kind: "sec", idx: +ss.dataset.btSecscore } }); return true; }
   const sd = t.closest("[data-bt-secdel]");
   if (sd) { openRemoveSheet(+sd.dataset.btSecdel, host); return true; }
   if (t.closest("[data-bt-secadd]")) { openAddSheet(host); return true; }
@@ -779,7 +1119,7 @@ function handleTrackerClick(e, host) {
      so it can't overshoot.
    A new gesture (after a short pause, or a new touch) starts from where the screen is. */
 const GAP = 150, SNAP_TIME = 170, MIN_WHEEL = 2, MIN_TOUCH = 6;
-let restPos = 0, glide = null, gest = null, lastEv = 0;
+let glide = null, gest = null, lastEv = 0;
 
 /** The top of each section, in the pane's scroll coordinates. */
 function sectionStarts(pane) {
@@ -801,7 +1141,6 @@ function glideTo(pane, index) {
   // where each section sits. So the stop is measured after that change, not before it.
   setCompact(index >= 1);
   const target = sectionStarts(pane)[index];
-  restPos = target;
   if (Math.abs(target - from) < 1) { glide = null; return; }
   const g = glide = { pane, from, to: target, t0: performance.now() };
   const step = now => {
@@ -814,7 +1153,6 @@ function glideTo(pane, index) {
       // The header's size may have settled since the stop was measured: land exactly on the section's top.
       const t = sectionStarts(pane)[index];
       if (Math.abs(t - pane.scrollTop) >= 1) { pane.scrollTop = t; }
-      restPos = t;
     }
   };
   requestAnimationFrame(step);
@@ -923,6 +1261,52 @@ function endTracker() {
   document.querySelectorAll("#view-battle .bt-stick").forEach(el => el.remove());
   const title = document.querySelector("#view-battle h1"); if (title) title.textContent = "Battle";
 }
+/* ---------- finished battles: the record kept on the Battle screen ----------
+   result: "you" = you conceded (a loss for you) · "opponent" = your opponent conceded (a loss for them) · "none" = ended at the current scores. */
+const RECORDS_KEY = "rf.battles";
+const FLIP_RESULT = { you: "opponent", opponent: "you", none: "none" };
+/** Ends the battle in progress, saves its record, and tells the other phone. Returns the record. */
+function finishBattle(result) {
+  if (!B?.active) return null;
+  const side = p => ({ name: p.name || "", faction: p.faction || "", score: score(p) });
+  const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), date: Date.now(), started: B.started || Date.now(), round: B.round, result, you: side(B.me), opponent: side(B.them) };
+  store.set(RECORDS_KEY, [rec, ...store.get(RECORDS_KEY, [])]);
+  sendToPeer({ ended: rec });
+  endTracker();
+  return rec;
+}
+/** The other phone ended the battle: keep the same record, seen from this side, and close the tracker. */
+function receiveEnded(rec) {
+  if (!rec?.id) return false;
+  const have = store.get(RECORDS_KEY, []);
+  if (!have.some(r => r.id === rec.id)) store.set(RECORDS_KEY, [{ ...rec, result: FLIP_RESULT[rec.result] || "none", you: rec.opponent, opponent: rec.you }, ...have]);
+  if (B?.active) endTracker();
+  return true;
+}
+
+/* ---------- paused battles: set aside on this device, and picked up again where they were left ---------- */
+const PAUSED_KEY = "rf.pausedBattles";
+const pausedBattles = () => store.get(PAUSED_KEY, []);
+/** Sets the battle in progress aside (with its armies) and closes the tracker. Returns false if there is nothing to pause. */
+function pauseTracker() {
+  if (!B?.active) return false;
+  const copy = JSON.parse(JSON.stringify(B));
+  store.set(PAUSED_KEY, [{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), saved: Date.now(), battle: copy, armies: JSON.parse(JSON.stringify(A)) }, ...pausedBattles()]);
+  endTracker();
+  return true;
+}
+/** Brings a paused battle back as the battle in progress. Does nothing while another battle is open. */
+function resumeBattle(id) {
+  const list = pausedBattles(), entry = list.find(e => e.id === id);
+  if (!entry || B?.active) return false;
+  A = entry.armies || { me: null, them: null }; saveArmies();
+  B = entry.battle; B.active = true; B.updated = Date.now(); ensure(B); save();
+  pane = "tracker"; sheet = null;
+  store.set(PAUSED_KEY, list.filter(e => e.id !== id));
+  return true;
+}
+const discardPaused = id => store.set(PAUSED_KEY, pausedBattles().filter(e => e.id !== id));
+
 const currentBattle = () => B;
 
-export { currentBattle, endTracker, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, mirror, wireTrackerSwipes };
+export { currentBattle, discardPaused, finishBattle, receiveEnded, pauseTracker, pausedBattles, resumeBattle, handleTrackerClick, receiveBattle, renderTracker, setTrackerSend, startTracker, trackerActive, wireTrackerSwipes };
