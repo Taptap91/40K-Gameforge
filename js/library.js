@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { $, DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.49";
-import { factionStyle } from "./factions.js?v=8.49";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.49";
-import { structuredToLibrary } from "./datasheets.js?v=8.49";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.49";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.49";
-import { factionMatches } from "./search.js?v=8.49";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.49";
+import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.50";
+import { factionStyle } from "./factions.js?v=8.50";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.50";
+import { structuredToLibrary } from "./datasheets.js?v=8.50";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.50";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.50";
+import { factionMatches } from "./search.js?v=8.50";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.50";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
@@ -108,12 +108,14 @@ function docsSummary(docs) {
 const bundleCard = (bundleId, title, docs) => `<div class="lib-card lib-bundle" role="button" tabindex="0" data-bundle-open="${esc(bundleId)}">
     <div class="lib-icon">${icon("book")}</div>
     <div class="lib-text"><div class="lib-name">${esc(title)}</div><div class="lib-meta">${esc(docsSummary(docs))}</div></div>${libKebab("bundle:" + bundleId, title)}</div>`;
-function renderLibrary() {
-  const host = $("#docList");
-  if (!host) return;
+const ADD_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
+const addTileHTML = `<button class="lib-addtile" type="button" data-lib-packs>${ADD_SVG}Click to add Game Pack</button>`;
+/** The Library: the Game Packs page's home screen — every downloaded Game Pack, faction, mission pack and
+ *  rules document, grouped the same way it always has been. Returns the HTML for the whole screen (the
+ *  Game Packs page renders this straight into its content area, the same place a faction or mission pack does). */
+function libraryHTML() {
   if (!state.docs.length) {
-    host.innerHTML = `<div class="empty">Nothing here yet — download a Game Pack to begin.</div>`;
-    return;
+    return `<div class="lib-body"><div class="empty">Nothing here yet — download a Game Pack to begin.</div>${addTileHTML}<p class="hint">Everything in your Library comes from a Game Pack you've downloaded.</p></div>`;
   }
   const bundled = state.docs.filter(d => d.pack?.bundleId);
   const unbundled = state.docs.filter(d => !d.pack?.bundleId);
@@ -150,10 +152,11 @@ function renderLibrary() {
       <div class="lib-text"><div class="lib-name">${esc(d.kind === "core" ? "Core Rules" : d.title)}</div>
         <div class="lib-meta">${esc(d.kind === "core" ? d.title.replace(/^core rules\s*/i, "").replace(/^\[|\]$/g, "") || KINDS.core.desc : KINDS[d.kind]?.label || "")}</div>
         <div class="lib-meta2">${esc(docMeta(d).join(" · "))}</div>${isRulesDoc(d) ? rulesStatus(d) : ""}</div>${libKebab(d.id, d.title)}</div>`;
-  host.innerHTML = bundlesHTML
+  const docList = bundlesHTML
     + (facs.length ? `<div class="group-title">Your factions · ${facs.length}</div><div class="lib-cards">${facs.map(facCard).join("")}</div>` : "")
     + (packs.length ? `<div class="group-title">Mission Packs</div><div class="lib-cards">${packs.map(packCard).join("")}</div>` : "")
     + (rest.length ? `<div class="group-title">Rules</div><div class="lib-cards">${rest.map(docCard).join("")}</div>` : "");
+  return `<div class="lib-body"><div id="docList" class="stack">${docList}</div>${addTileHTML}<p class="hint">Everything in your Library comes from a Game Pack you've downloaded.</p></div>`;
 }
 /** The ⋮ menu for a box in the library: a Game Pack bundle gets just Delete (removes everything it
  *  installed); any other document gets Remove. */
@@ -191,4 +194,4 @@ function rulesStatus(d) {
   return bits.length ? `<div class="meta lib-status">${esc(bits.join(" · "))}</div>` : "";
 }
 
-export { factionsInLibrary, importWorkbookBuffer, openLibraryMenu, renderLibrary };
+export { factionsInLibrary, importWorkbookBuffer, libraryHTML, openLibraryMenu };

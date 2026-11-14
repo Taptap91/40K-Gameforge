@@ -113,7 +113,7 @@ function openPopMenu(btn, key, itemsHTML) {
   if (was === key) return null;
   const m = document.createElement("div");
   m.className = "lb-menu"; m.setAttribute("role", "menu"); m.dataset.for = key; m.innerHTML = itemsHTML;
-  (btn.closest(".view, .lib-panel") || document.body).append(m);
+  (btn.closest(".view") || document.body).append(m);
   const r = btn.getBoundingClientRect(), h = m.offsetHeight, w = m.offsetWidth;
   const below = r.bottom + 6 + h < innerHeight - 90;
   m.style.left = `${Math.max(12, r.right - w)}px`;
@@ -146,6 +146,6 @@ function askText(title, label, value) {
 }
 
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
-const APP_VERSION = "8.49";
+const APP_VERSION = "8.50";
 
 export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, openPopMenu, closePopMenu, settingsTabsHTML, state, store, toast, uid };

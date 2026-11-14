@@ -669,10 +669,11 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-left { border-right: 0; }
 }
 
-/* ---------- Factions: faction buttons in the header ---------- */
+/* ---------- The header: just the page title and the download button ---------- */
 .fp-toolbar { padding-top: 6px; padding-bottom: 6px; }
-.fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
-.fp-facs { flex: 1; min-width: 0; display: flex; gap: 10px; overflow-x: auto; padding: 8px 10px; margin: 0 -2px; scrollbar-width: thin; }
+.fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+/* A faction's own button look, reused only for the preview in its "symbol, banner & colours" sheet now
+   that faction buttons no longer sit in the header. */
 .fp-fac {
   position: relative; flex: none; height: 39px; padding: 0 20px;
   display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap;
@@ -696,19 +697,17 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   box-shadow: -4px 0 12px -3px color-mix(in srgb, var(--c1) 70%, transparent), 4px 0 12px -3px color-mix(in srgb, var(--c2) 70%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .fp-fac, .fp-fac-sym { transition: none; } }
-/* Mission Pack buttons: the same look as a faction button, with a fixed accent instead of a faction's own
-   colours, and a flag icon in place of a symbol. */
-.fp-missions { flex: none; display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 10px; margin: 0 -2px; }
-.fp-mission { --c1: var(--accent); --c2: var(--accent); padding-right: 54px; }
-.fp-mission .fp-fac-sym { opacity: 1; transform: none; color: var(--text-2); }
-.fp-mission.on .fp-fac-sym { color: var(--text); }
-.fp-mission .fp-fac-sym svg { width: 18px; height: 18px; }
-/* The gear for "Symbol, banner & colours", in the same near-white as the RulesForge name. */
-.fp-style { flex: none; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--text); cursor: pointer; opacity: .92; transition: background .15s, opacity .15s, transform .25s; }
-.fp-style:hover { background: rgba(255,255,255,.08); opacity: 1; }
+/* The gear for "Symbol, banner & colours", floated in the corner of a faction's own banner (it's the only
+   place it appears now that the header holds just the title and the download button). */
+.fp-style { position: absolute; top: 14px; right: max(14px, env(safe-area-inset-right, 0px)); z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: rgba(0,0,0,.22); color: #fff; cursor: pointer; opacity: .92; transition: background .15s, opacity .15s, transform .25s; }
+.fp-style:hover { background: rgba(0,0,0,.34); opacity: 1; }
 .fp-style:hover svg { transform: rotate(30deg); }
 .fp-style svg { transition: transform .3s; }
 .fp-style:focus-visible { outline: 2px solid var(--accent, #0a84ff); outline-offset: 2px; }
+/* The small "‹ Game Packs" link inside every banner (a faction's, a mission pack's, a rules document's,
+   and a Game Pack's own sections screen), back to the home screen. */
+.fp-homelink { align-self: flex-start; display: inline-flex; align-items: center; min-height: 32px; padding: 5px 12px; margin-bottom: 2px; border: 1px solid rgba(255,255,255,.3); border-radius: 10px; background: rgba(0,0,0,.22); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fp-homelink:hover { background: rgba(0,0,0,.34); }
 .fp-stylebody { display: flex; flex-direction: column; gap: 16px; }
 .fp-stylepreview { display: flex; padding: 10px; }
 .fp-stylerow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -741,7 +740,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 @media (max-width: 760px) {
   .fp-toolbar { flex-wrap: wrap; row-gap: 0; position: relative; }
   .fp-bar { flex-basis: 100%; }
-  .fp-style { position: absolute; right: 8px; top: 6px; }
 }
 
 /* ---------- Factions: banner (full width, above both columns) ---------- */
@@ -939,7 +937,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .set-tab.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   .nav-settings { display: flex; }
-  .ai-status, .fp-style { display: none !important; }
+  .ai-status { display: none !important; }
+  /* The gear now lives in the faction's own banner (not the toolbar), so it stays reachable on touch too;
+     only hide it while a datasheet's unit view has taken over the banner. */
+  #view-factions.fp-unitmode .fp-style { display: none !important; }
   #view-factions.fp-unitmode .fp-toolbar { display: none; }
   .fp-unitbanner, .fp-unitbanner.has-art { min-height: 0; padding-top: 12px; padding-bottom: 14px; transition: padding .28s ease; }
   .fp-unitbanner .fp-banner-text { gap: 6px; }
@@ -1174,56 +1175,19 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-meta2 { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
 .lib-kebab { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; }
 .lib-kebab:hover, .lib-kebab:focus-visible { background: rgba(255,255,255,.08); }
-.lib-panel .group-title { margin: 6px 2px 8px; }
 .lib-addtile { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 60px; border: 1.5px dashed var(--border-strong); border-radius: 12px; background: transparent; color: var(--text); font: 600 15px var(--font); cursor: pointer; }
 .lib-addtile:hover { border-color: var(--accent); background: var(--accent-soft); }
-.lib-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; }
-.lib-head h2 { margin: 0; flex: 1; font-size: 19px; }
-.lib-x { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text-2); cursor: pointer; }
-.lib-x:hover { background: var(--control); color: var(--text); }
-.lib-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 18px 24px; display: flex; flex-direction: column; gap: 14px; }
+/* The Library is the Game Packs page's home screen: it renders straight into the page's own content
+   area (the same place a faction, a mission pack or a rules document does), not a separate panel. */
+.lib-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 14px; }
 .lib-body .hint { margin: 0; text-align: center; }
-.fp-libbtn svg, .fp-packs svg { flex: none; }
-.fp-libbtn, .fp-packs { display: inline-flex; align-items: center; gap: 8px; flex: none; }
-.fp-packs svg { width: 18px; height: 18px; }
-.fp-homeback { display: none; }
-
-/* Desktop: Library slides in from the right over Factions; the toolbar has Library and Add PDF. */
-@media (min-width: 1401px), (pointer: fine) and (min-width: 1280px), (pointer: none) and (min-width: 1280px) {
-  .lib-panel { position: absolute; top: 0; right: 0; bottom: 0; z-index: 30; width: min(460px, 92vw); display: flex; flex-direction: column;
-    background: var(--panel-2); border-left: 1px solid var(--border-strong); box-shadow: -20px 0 40px rgba(0,0,0,.4);
-    transform: translateX(105%); visibility: hidden; transition: transform .26s ease, visibility 0s linear .26s; }
-  #view-factions.lib-open .lib-panel { transform: none; visibility: visible; transition: transform .26s ease; }
-  .lib-scrim { position: absolute; inset: 0; z-index: 29; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .26s ease; }
-  #view-factions.lib-open .lib-scrim { opacity: 1; pointer-events: auto; }
-  .fp-bar { gap: 10px; }
-}
-/* Phones and tablets: the Factions home is the library (no panel, no drop area); "‹ Factions" inside a faction. */
+.fp-packs svg { flex: none; width: 18px; height: 18px; }
+.fp-packs { display: inline-flex; align-items: center; gap: 8px; flex: none; }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  .lib-scrim, .lib-head, .fp-libbtn { display: none !important; }
-  .lib-panel { display: none; }
-  #view-factions.fp-home .lib-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-  #view-factions.fp-home .fp-host { display: none; }
-  #view-factions.fp-home .lib-body { padding: 12px 16px 28px; }
-  .fp-packs { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; margin-left: auto; }
+  .lib-body { padding: 12px 16px 28px; }
+  .fp-packs { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; }
   .fp-packs span { display: none; }
   .fp-packs svg { width: 22px; height: 22px; }
-  #view-factions:not(.fp-home) .fp-toolbar h1 { display: none; }
-  #view-factions:not(.fp-home) .fp-homeback { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel); color: var(--text); font-size: 15px; font-weight: 600; }
-  #view-factions:not(.fp-home) .fp-toolbar { flex-wrap: nowrap; }
-  #view-factions:not(.fp-home) .fp-bar { flex-basis: auto; flex: 1; display: flex; align-items: center; }
-  #view-factions:not(.fp-home) .fp-packs { margin-left: 0; }
-  .fp-toolbar { position: relative; }
-  #view-factions.fp-home .fp-toolbar h1 { padding-right: 56px; }
-  #view-factions.fp-home .fp-packs { position: absolute; right: 16px; top: 8px; }
-  #view-factions.fp-home .fp-facs { margin-top: 8px; }
-}
-@media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
-  /* Factions home: title and Add PDF on the first row, the faction buttons on their own full-width row below. */
-  #view-factions.fp-home .fp-toolbar { flex-wrap: wrap; }
-  #view-factions.fp-home .fp-bar { flex-basis: 100%; flex-wrap: wrap; }
-  #view-factions.fp-home .fp-facs { flex-basis: 100%; }
-  #view-factions.fp-home .fp-toolbar h1 { min-height: 44px; display: flex; align-items: center; }
 }
 
 /* ---------- 8.0: Mission packs ---------- */

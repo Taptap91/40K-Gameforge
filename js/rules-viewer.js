@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.49";
-import { richHTML, softenCaps } from "./text.js?v=8.49";
+import { esc } from "./core.js?v=8.50";
+import { richHTML, softenCaps } from "./text.js?v=8.50";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -23,7 +23,7 @@ function sectionsGrouped(doc) {
 
 function rulesBannerHTML(doc) {
   const n = doc.structured.sections.length;
-  return `<div class="fp-banner"><div class="fp-banner-text"><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : "Update"}</div>
+  return `<div class="fp-banner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Game Packs</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : "Update"}</div>
     <div class="fp-banner-name">${esc(doc.title)}</div><div class="fp-banner-counts"><span><b>${n}</b> Rule${n === 1 ? "" : "s"}</span></div></div></div>`;
 }
 

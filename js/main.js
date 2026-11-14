@@ -1,23 +1,22 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.49";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.49";
-import { factionsInLibrary, openLibraryMenu, renderLibrary } from "./library.js?v=8.49";
-import { openPacksSheet } from "./packs.js?v=8.49";
-import * as core from "./core.js?v=8.49";
-import { openLibrary, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.49";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.49";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.49";
-import { buildIndex } from "./search.js?v=8.49";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.49";
-import { fixApostrophes } from "./text.js?v=8.49";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.49";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.49";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.50";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.50";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.50";
+import { openPacksSheet } from "./packs.js?v=8.50";
+import * as core from "./core.js?v=8.50";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.50";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.50";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.50";
+import { buildIndex } from "./search.js?v=8.50";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.50";
+import { fixApostrophes } from "./text.js?v=8.50";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.50";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.50";
 
 function renderAll() {
   renderScope();
-  renderLibrary();
   renderChat();
   renderSaved();
   renderAIStatus();
@@ -28,8 +27,8 @@ function renderAll() {
 
 function showView(name) {
   const views = ["rules", "lists", "factions", "battle"];
-  // Library now lives in Factions: the Factions home on phones and tablets, a panel on desktop.
-  if (name === "library") { name = "factions"; setTimeout(() => openLibrary(), 0); }
+  // Library now lives in Factions: it's the Game Packs page's own home screen.
+  if (name === "library") { name = "factions"; setTimeout(() => goHome(), 0); }
   if (!views.includes(name)) name = "factions";
   for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
@@ -93,7 +92,7 @@ function showView(name) {
   // Library
   document.addEventListener("click", e => { if (e.target.closest("[data-lib-packs]")) openPacksSheet(); });
   document.addEventListener("click", async e => {
-    if (!e.target.closest(".lib-panel, .lb-menu")) return;
+    if (!e.target.closest(".lib-body, .lb-menu")) return;
     const menu = e.target.closest("[data-lib-menu]");
     if (menu) return openLibraryMenu(menu);
     const delBundle = e.target.closest("[data-delete-bundle]");
