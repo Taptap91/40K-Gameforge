@@ -140,6 +140,14 @@
           "description": "",
           "file": "warhammer-40k-11th-edition/space-wolves.xlsx",
           "sizeKB": 115
+        },
+        {
+          "kind": "missions",
+          "title": "Mission Deck 2026-27",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/mission-deck-2026-27.xlsx",
+          "sizeKB": 815
         }
       ]
     }
