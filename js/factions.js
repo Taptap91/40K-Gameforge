@@ -1,22 +1,22 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.50";
-import { armyData } from "./army.js?v=8.50";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.50";
-import { factionMatches } from "./search.js?v=8.50";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.50";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.50";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.50";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.50";
-import { libraryHTML } from "./library.js?v=8.50";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.51";
+import { armyData } from "./army.js?v=8.51";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.51";
+import { factionMatches } from "./search.js?v=8.51";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.51";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.51";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.51";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.51";
+import { libraryHTML } from "./library.js?v=8.51";
 
-/** The link back to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
+/** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
-const HOME_LINK = `<button type="button" class="btn plain fp-homelink" data-fp-home>‹ Game Packs</button>`;
+const HOME_LINK = `<button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button>`;
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
-const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null };
+const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All" };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -90,7 +90,7 @@ function openMissionFromLibrary(docId) {
  *  Factions (A–Z), each shown as a box laid out like the Library's own, so picking one opens it the
  *  same way picking it from the Library would. */
 function openBundleFromLibrary(bundleId) {
-  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false;
+  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false; fUI.facGroup = "All";
   renderFactionsPage();
 }
 /** A Rules box (Core Rules or an Update) inside a Game Pack's sections opens its own full-page view:
@@ -100,16 +100,37 @@ function openRulesFromLibrary(docId) {
   renderFactionsPage();
 }
 const bundleDocs = bundleId => state.docs.filter(d => d.pack?.bundleId === bundleId);
-/** The Game Pack's sections screen: Rules, Mission Packs, and Factions (A–Z) as boxes, laid out like the Library's own. */
+
+/** Which of the three broad groups a faction belongs to, for the All/Imperium/Chaos/Xenos toggle in a
+ *  Game Pack's Factions section. Anything not listed (every Xenos faction, and any new one the app
+ *  doesn't know yet) falls into Xenos. */
+const FACTION_GROUPS = [
+  ["Imperium", ["Adepta Sororitas", "Adeptus Custodes", "Adeptus Mechanicus", "Astra Militarum", "Black Templars", "Blood Angels", "Dark Angels",
+    "Deathwatch", "Grey Knights", "Imperial Agents", "Imperial Knights", "Space Marines", "Space Wolves"]],
+  ["Chaos", ["Chaos Daemons", "Chaos Knights", "Chaos Space Marines", "Death Guard", "Emperor's Children", "Thousand Sons", "World Eaters"]],
+  ["Xenos", null],
+];
+const groupOf = f => (FACTION_GROUPS.find(([, list]) => list && list.some(x => normName(x) === normName(f))) || FACTION_GROUPS[2])[0];
+
+/** The Game Pack's sections screen: Core Rules at the top (its own section, boxed like a faction/codex),
+ *  then Mission Packs, then Factions (A–Z, filterable by an All/Imperium/Chaos/Xenos toggle) — each laid
+ *  out like the Library's own boxes. */
 function bundleSectionsHTML(bundleId) {
   const docs = bundleDocs(bundleId);
   const title = docs[0]?.pack?.bundleTitle || bundleId;
-  const rules = docs.filter(d => d.kind === "core" || d.kind === "updates").sort((a, b) => (a.kind === b.kind ? a.title.localeCompare(b.title) : a.kind === "core" ? -1 : 1));
+  const core = docs.find(d => d.kind === "core");
+  const updates = docs.filter(d => d.kind === "updates").sort((a, b) => a.title.localeCompare(b.title));
   const missions = docs.filter(d => d.kind === "missions").sort((a, b) => a.title.localeCompare(b.title));
-  const facs = docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)));
-  const rulesCard = d => `<div class="lib-card" role="button" tabindex="0" data-rules-open="${esc(d.id)}">
-      <div class="lib-icon">${icon(d.kind === "core" ? "book" : "clock")}</div>
-      <div class="lib-text"><div class="lib-name">${esc(d.kind === "core" ? "Core Rules" : d.title)}</div></div></div>`;
+  const allFacs = docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)));
+  const facGroup = allFacs.some(d => groupOf(d.faction || d.title) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
+  const facs = facGroup === "All" ? allFacs : allFacs.filter(d => groupOf(d.faction || d.title) === facGroup);
+
+  const coreCard = d => `<div class="lib-card lib-core" role="button" tabindex="0" data-rules-open="${esc(d.id)}">
+      <div class="lib-icon">${icon("book")}</div>
+      <div class="lib-text"><div class="lib-name">Core Rules</div></div></div>`;
+  const updateCard = d => `<div class="lib-card" role="button" tabindex="0" data-rules-open="${esc(d.id)}">
+      <div class="lib-icon">${icon("clock")}</div>
+      <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
   const missionCard = d => `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-open="${esc(d.id)}">
       <div class="lib-icon">${icon("flag")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
@@ -120,11 +141,15 @@ function bundleSectionsHTML(bundleId) {
       <div class="lib-text"><div class="lib-name">${esc(d.faction)}</div></div></div>`;
   };
   const group = (label, items, card) => items.length ? `<div class="group-title">${esc(label)}</div><div class="lib-cards">${items.map(card).join("")}</div>` : "";
+  const facToggle = `<div class="set-tabs fp-facgroup-tabs" role="tablist" aria-label="Faction group">
+      ${["All", ...FACTION_GROUPS.map(([g]) => g)].map(g => `<button type="button" role="tab" class="set-tab${facGroup === g ? " on" : ""}" aria-selected="${facGroup === g}" data-fp-facgroup="${esc(g)}">${esc(g)}</button>`).join("")}
+    </div>`;
+
   return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>
     <div class="fp-bundle-sections">
-      ${group("Rules", rules, rulesCard)}
+      ${core || updates.length ? `<div class="group-title">Core Rules</div><div class="lib-cards">${core ? coreCard(core) : ""}${updates.map(updateCard).join("")}</div>` : ""}
       ${group("Mission Packs", missions, missionCard)}
-      ${group("Factions", facs, facCard)}
+      ${allFacs.length ? `<div class="group-title">Factions</div>${facToggle}<div class="lib-cards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div>` : ""}
     </div>`;
 }
 /** The header above the page content: just the title (in index.html) and this one download button —
@@ -490,6 +515,8 @@ function wireFactionsPage() {
     }
     if (e.target.closest("[data-fp-back]")) { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); return; }
     if (e.target.closest("[data-fp-style]")) openStyleSheet(fUI.faction);
+    const grp = e.target.closest("[data-fp-facgroup]");
+    if (grp) { fUI.facGroup = grp.dataset.fpFacgroup; renderFactionsPage(); }
   });
   // Phones and tablets: swipe right on the datasheet to go back to the list.
   onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) { fUI.open = false; renderFactionsPage(); } });

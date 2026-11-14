@@ -7,9 +7,9 @@
  * workflow converts it into the .xlsx this module downloads and slots into the right bundle. This module
  * only handles the browsing/downloading side, once a bundle is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.50";
-import { importWorkbookBuffer } from "./library.js?v=8.50";
-import { renderAll } from "./main.js?v=8.50";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.51";
+import { importWorkbookBuffer } from "./library.js?v=8.51";
+import { renderAll } from "./main.js?v=8.51";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -64,13 +64,13 @@ function packRow(bundle) {
   const { have, update } = bundleStatus(bundle);
   const status = !have ? "" : update ? `<span class="pk-tag pk-tag-new">Update available</span>` : `<span class="pk-tag">Installed</span>`;
   const label = !have ? "Download" : update ? "Update" : "Re-download";
-  return `<div class="pk-row" data-pk-id="${esc(bundle.id)}">
+  return `<div class="pk-row" role="button" tabindex="0" data-pk-id="${esc(bundle.id)}" data-pk-get="${esc(bundle.id)}">
     <div class="pk-head">
       <div class="pk-icon">${icon("book")}</div>
-      <div class="pk-name">${esc(bundle.title)}${status}</div>
+      <div class="pk-text"><div class="pk-name">${esc(bundle.title)}${status}</div>
+        <div class="pk-meta">${esc([bundle.editionTag, bundleSummary(bundle.components)].filter(Boolean).join(" · "))}</div></div>
+      <div class="pk-get" aria-hidden="true">${label}</div>
     </div>
-    <div class="pk-meta">${esc([bundle.editionTag, bundleSummary(bundle.components)].filter(Boolean).join(" · "))}</div>
-    <button type="button" class="btn pk-get" data-pk-get="${esc(bundle.id)}">${label}</button>
   </div>`;
 }
 
@@ -103,28 +103,36 @@ async function openPacksSheet() {
     return;
   }
   body.innerHTML = groupedHTML(bundles);
-  d.onclick = async e => {
-    const btn = e.target.closest("[data-pk-get]");
-    if (!btn) return;
-    const bundle = bundles.find(b => b.id === btn.dataset.pkGet);
+  const activate = async row => {
+    if (row.classList.contains("busy")) return;
+    const bundle = bundles.find(b => b.id === row.dataset.pkGet);
     if (!bundle) return;
-    await downloadPack(bundle, btn, body);
+    await downloadPack(bundle, row, body);
     d.close();
   };
+  d.onclick = e => { const row = e.target.closest("[data-pk-get]"); if (row) activate(row); };
+  d.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target.closest("[data-pk-get]");
+    if (!row) return;
+    e.preventDefault();
+    activate(row);
+  });
 }
 
-async function downloadPack(bundle, btn, body) {
-  btn.disabled = true;
+async function downloadPack(bundle, row, body) {
+  row.classList.add("busy");
+  const chip = row.querySelector(".pk-get");
   const total = bundle.components.length;
   const failures = [];
   for (let i = 0; i < total; i++) {
     const c = bundle.components[i];
-    btn.textContent = `Downloading ${i + 1} of ${total}…`;
+    chip.textContent = `Downloading ${i + 1} of ${total}…`;
     try {
       const res = await fetch(PACKS_BASE + c.file);
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const buffer = await res.arrayBuffer();
-      btn.textContent = `Installing ${i + 1} of ${total}…`;
+      chip.textContent = `Installing ${i + 1} of ${total}…`;
       await importWorkbookBuffer(buffer, c.file.split("/").pop(), {
         title: c.title,
         faction: c.kind === "faction" ? (c.faction || c.title) : "",
@@ -136,8 +144,8 @@ async function downloadPack(bundle, btn, body) {
   }
   renderAll();
   toast(failures.length ? `${bundle.title}: installed ${total - failures.length} of ${total} (${failures.length} couldn't be installed)` : `${bundle.title} added to your Library`);
-  const row = body.querySelector(`[data-pk-id="${CSS.escape(bundle.id)}"]`);
-  if (row) row.outerHTML = packRow(bundle);
+  const freshRow = body.querySelector(`[data-pk-id="${CSS.escape(bundle.id)}"]`);
+  if (freshRow) freshRow.outerHTML = packRow(bundle);
 }
 
 export { openPacksSheet };

@@ -4,7 +4,7 @@
  * page shell that shows this (sectioned on the left, content on the right, the same way a faction does) is
  * in factions.js, which calls into tabHTML/TABS here for each section's content.
  */
-import { esc } from "./core.js?v=8.50";
+import { esc } from "./core.js?v=8.51";
 
 const TABS = [["battle", "Battle"], ["dispositions", "Force Dispositions"], ["primaries", "Primary Missions"], ["secondaries", "Secondary Missions"], ["deployments", "Deployments"], ["twists", "Twists"], ["faq", "FAQ"]];
 const vpHTML = v => {

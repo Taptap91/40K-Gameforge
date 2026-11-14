@@ -539,17 +539,21 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 /* ---------- Game Packs: the catalog pop-up (js/packs.js) ---------- */
 .pk-group + .pk-group { margin-top: 18px; }
 .pk-group h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
-.pk-row { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 1px solid var(--border); }
+/* The whole row is the download button now (name, size/contents and all) — .pk-get is just the trailing
+   label ("Download"/"Update"/"Re-download"), not a separate control. */
+.pk-row { display: block; padding: 12px 10px; margin: 0 -10px; border-top: 1px solid var(--border); cursor: pointer; }
 .pk-group .pk-row:first-of-type { border-top: 0; padding-top: 0; }
+.pk-row:hover, .pk-row:focus-visible { background: var(--control); border-radius: 10px; outline: 0; }
+.pk-row.busy { cursor: default; opacity: .75; pointer-events: none; }
 .pk-head { display: flex; align-items: center; gap: 10px; }
 .pk-icon { flex: none; width: 36px; height: 36px; border-radius: 9px; background: var(--control); display: grid; place-items: center; color: var(--accent); }
 .pk-icon svg { width: 18px; height: 18px; }
-.pk-name { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pk-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pk-meta { font-size: 12.5px; color: var(--text-2); }
 .pk-meta2 { font-size: 13px; color: var(--text-2); }
 .pk-by { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.pk-get { width: 100%; min-height: 40px; margin-top: 8px; }
-.pk-get:disabled { opacity: .6; }
+.pk-get { flex: none; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
 .pk-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 6px; background: var(--control); color: var(--text-2); }
 .pk-tag-new { background: var(--accent-soft); color: var(--accent); }
 .choice { display: flex; gap: 12px; align-items: flex-start; padding: 11px 13px; border: 1px solid var(--border-strong); border-radius: 10px; cursor: pointer; }
@@ -704,10 +708,11 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-style:hover svg { transform: rotate(30deg); }
 .fp-style svg { transition: transform .3s; }
 .fp-style:focus-visible { outline: 2px solid var(--accent, #0a84ff); outline-offset: 2px; }
-/* The small "‹ Game Packs" link inside every banner (a faction's, a mission pack's, a rules document's,
-   and a Game Pack's own sections screen), back to the home screen. */
-.fp-homelink { align-self: flex-start; display: inline-flex; align-items: center; min-height: 32px; padding: 5px 12px; margin-bottom: 2px; border: 1px solid rgba(255,255,255,.3); border-radius: 10px; background: rgba(0,0,0,.22); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
-.fp-homelink:hover { background: rgba(0,0,0,.34); }
+/* The back button inside every banner (a faction's, a mission pack's, a rules document's, and a Game
+   Pack's own sections screen), to the home screen — same bordered-box look as the app's other back
+   buttons (e.g. .fp-bannerback on a datasheet), just available on every layout, not touch only. */
+.fp-homelink { align-self: flex-start; display: inline-flex; align-items: center; min-height: 36px; padding: 6px 14px; margin-bottom: 4px; border: 1px solid rgba(255,255,255,.55); border-radius: 10px; background: rgba(0,0,0,.25); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.fp-homelink:hover { background: rgba(0,0,0,.4); }
 .fp-stylebody { display: flex; flex-direction: column; gap: 16px; }
 .fp-stylepreview { display: flex; padding: 10px; }
 .fp-stylerow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -1166,6 +1171,14 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-fac::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; background: linear-gradient(180deg, var(--c1), var(--c2)); }
 .lib-fac:hover { border-color: color-mix(in srgb, var(--c1) 50%, var(--border)); }
 .lib-fac:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Core Rules: the same prominent, coloured-edge treatment as a faction/codex box, keyed to the app's own
+   accent colour instead of a faction's, since it's the one section every Game Pack has in common. */
+.lib-core { padding-left: 18px; cursor: pointer; background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 28%, var(--window)) 0%, color-mix(in srgb, var(--accent) 10%, var(--window)) 60%, color-mix(in srgb, var(--accent) 16%, var(--window)) 100%); }
+.lib-core::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; background: var(--accent); }
+.lib-core:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.lib-core:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lib-core .lib-icon { background: color-mix(in srgb, var(--accent) 22%, var(--control)); }
+.lib-core .lib-name { font-size: 19px; }
 .lib-mark { flex: none; width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c1) 50%, transparent)); }
 .lib-icon { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 10px; background: var(--control); color: var(--accent); }
 .lib-icon svg { width: 22px; height: 22px; }
@@ -1200,6 +1213,9 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* A Game Pack's own sections screen (Rules, Mission Packs, Factions A–Z), opened from its box in the Library. */
 .fp-bundle-sections { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 18px; }
 .fp-bundle-sections .group-title:first-child { margin-top: 0; }
+/* The All/Imperium/Chaos/Xenos toggle, between the Factions header and its boxes. */
+.fp-bundle-sections .group-title:has(+ .fp-facgroup-tabs) { margin-bottom: 0; }
+.fp-facgroup-tabs { max-width: 480px; margin: 2px 0 2px; }
 .mc-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 22px 10px; scrollbar-width: none; }
 .mc-tabs::-webkit-scrollbar { display: none; }
 .mc-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); color: var(--text-2); font: 600 14px var(--font); cursor: pointer; }

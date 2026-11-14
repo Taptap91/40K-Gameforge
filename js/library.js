@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.50";
-import { factionStyle } from "./factions.js?v=8.50";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.50";
-import { structuredToLibrary } from "./datasheets.js?v=8.50";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.50";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.50";
-import { factionMatches } from "./search.js?v=8.50";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.50";
+import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.51";
+import { factionStyle } from "./factions.js?v=8.51";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.51";
+import { structuredToLibrary } from "./datasheets.js?v=8.51";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.51";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.51";
+import { factionMatches } from "./search.js?v=8.51";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.51";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
