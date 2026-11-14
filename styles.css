@@ -650,6 +650,12 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-left { border-right: 1px solid var(--border); background: var(--bg); padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 4px; }
 .fp-right { padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 8px; }
 .fp-filter { margin-bottom: 6px; }
+/* The full-width search bar under a screen's banner (Core Rules, a faction, a Game Pack's own
+   sections) — standard padding either side, matching the content pane it sits above. */
+.fp-search-wrap { padding: 14px 24px 10px; flex: none; }
+.fp-search { position: relative; display: flex; align-items: center; }
+.fp-search svg { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--text-3); pointer-events: none; }
+.fp-search input.input { padding-left: 34px; }
 .fp-grp { margin-top: 10px; }
 .fp-grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0 6px; }
 .fp-grp > summary::-webkit-details-marker { display: none; }
@@ -1235,6 +1241,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-bundle-sections .group-title:first-child { margin-top: 0; }
 /* The All/Imperium/Chaos/Xenos toggle, between the Factions header and its boxes. */
 .fp-bundle-sections .group-title:has(+ .fp-facgroup-tabs) { margin-bottom: 0; }
+/* Core Rules, Mission Packs and Factions each as one unit (title + its boxes), so a search that
+   empties a whole section can hide it — title included — in one go, same standard gap either way. */
+.fp-sgrp { display: flex; flex-direction: column; gap: 18px; }
+.fp-sgrp > .group-title { margin: 0 4px; }
 .fp-facgroup-tabs { max-width: 480px; margin: 2px 0 2px; }
 .mc-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 0 22px 10px; scrollbar-width: none; }
 .mc-tabs::-webkit-scrollbar { display: none; }

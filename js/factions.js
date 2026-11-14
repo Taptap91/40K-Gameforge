@@ -1,22 +1,60 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.55";
-import { armyData } from "./army.js?v=8.55";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.55";
-import { factionMatches } from "./search.js?v=8.55";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.55";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.55";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.55";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.55";
-import { libraryHTML } from "./library.js?v=8.55";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.56";
+import { armyData } from "./army.js?v=8.56";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.56";
+import { factionMatches } from "./search.js?v=8.56";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.56";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.56";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.56";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.56";
+import { libraryHTML } from "./library.js?v=8.56";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
 const HOME_LINK = `<button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button>`;
 
+/** A full-width search bar, placed under a screen's banner: Core Rules, a faction, and a Game Pack's
+ *  own sections screen each get one, searching only what's on that screen. Matching (applySearch,
+ *  below) is a plain case-insensitive substring test against each box's own text — no AI, no fuzzy or
+ *  keyword-expanded matching. */
+const SEARCH_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
+const searchBarHTML = scope => `<div class="fp-search-wrap"><div class="fp-search">${SEARCH_SVG}<input type="text" class="input" data-fp-search placeholder="Search ${esc(scope)}…" value="${esc(fUI.search)}" aria-label="Search ${esc(scope)}"></div></div>`;
+
+/** Hides whatever in `root` doesn't match `query` (a plain, case-insensitive substring test against
+ *  each box's own data-search text — everything printed on or inside it, not just its name) and shows
+ *  the rest; a hidden box collapses away rather than leaving a gap, and a chapter or section with
+ *  nothing left inside it hides too (reopening if it's a closed chapter that now has a match). Shared
+ *  by the search bar on Core Rules, a faction, and a Game Pack's own sections screen. */
+function applySearch(root, query) {
+  if (!root) return;
+  const q = query.trim().toLowerCase();
+  let shown = 0;
+  for (const el of root.querySelectorAll("[data-search]")) {
+    const hit = !q || el.dataset.search.includes(q);
+    (el.closest(".fp-detwrap") || el).hidden = !hit;
+    if (hit) shown++;
+  }
+  for (const g of root.querySelectorAll(".fp-grp, .fp-sgrp")) {
+    const any = [...g.querySelectorAll("[data-search]")].some(el => !(el.closest(".fp-detwrap") || el).hidden);
+    g.hidden = !any;
+    if (q && any && g.tagName === "DETAILS") g.open = true;
+  }
+  const none = root.querySelector(".fp-search-none");
+  if (none) none.hidden = shown > 0;
+}
+/** Re-applies the current screen's search (if any) to whatever was just rendered — a fresh render has
+ *  no memory of which boxes a moment-ago search had hidden. */
+function applyCurrentSearch() {
+  const root = fUI.bundle ? document.querySelector("#factionsHost .fp-bundle-sections")
+    : (fUI.rulesDoc || fUI.faction) ? document.querySelector("#factionsHost .fp-left")
+    : null;
+  applySearch(root, fUI.search);
+}
+
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
-const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All" };
+const fUI = { faction: store.get("rf.faction", ""), sel: null, search: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All" };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -77,27 +115,27 @@ function factionButton(f, on) {
 }
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 /** Goes to the Game Packs home screen (the Library) — the page's default view. */
-function goHome() { fUI.home = true; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null; fUI.open = false; renderFactionsPage(); }
+function goHome() { fUI.home = true; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null; fUI.open = false; fUI.search = ""; renderFactionsPage(); }
 function openFactionFromLibrary(f) {
-  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.filter = ""; fUI.home = false; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null;
+  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.search = ""; fUI.home = false; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null;
   renderFactionsPage();
 }
 const missionDocs = () => state.docs.filter(d => d.kind === "missions" && d.structured?.missionPack).sort((a, b) => a.title.localeCompare(b.title));
 function openMissionFromLibrary(docId) {
-  fUI.mission = docId; fUI.missionTab = "battle"; fUI.open = false; fUI.home = false; fUI.bundle = null; fUI.rulesDoc = null;
+  fUI.mission = docId; fUI.missionTab = "battle"; fUI.open = false; fUI.home = false; fUI.bundle = null; fUI.rulesDoc = null; fUI.search = "";
   renderFactionsPage();
 }
 /** A Game Pack's box in the Library opens this: its contents split into Rules, Mission Packs and
  *  Factions (A–Z), each shown as a box laid out like the Library's own, so picking one opens it the
  *  same way picking it from the Library would. */
 function openBundleFromLibrary(bundleId) {
-  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false; fUI.facGroup = "All";
+  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false; fUI.facGroup = "All"; fUI.search = "";
   renderFactionsPage();
 }
 /** A Rules box (Core Rules or an Update) inside a Game Pack's sections opens its own full-page view:
  *  numbered rules on the left, the selected one's text on the right. */
 function openRulesFromLibrary(docId) {
-  fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false;
+  fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false; fUI.search = "";
   renderFactionsPage();
 }
 const bundleDocs = bundleId => state.docs.filter(d => d.pack?.bundleId === bundleId);
@@ -126,31 +164,35 @@ function bundleSectionsHTML(bundleId) {
   const facGroup = allFacs.some(d => groupOf(d.faction || d.title) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
   const facs = facGroup === "All" ? allFacs : allFacs.filter(d => groupOf(d.faction || d.title) === facGroup);
 
-  const coreCard = d => `<div class="lib-card lib-core" role="button" tabindex="0" data-rules-open="${esc(d.id)}">
+  // Each card's data-search covers that whole component's own content (every rule, stratagem, unit…),
+  // not just its name — so a search here can find a term buried inside any of a Game Pack's sections.
+  const coreCard = d => `<div class="lib-card lib-core" role="button" tabindex="0" data-rules-open="${esc(d.id)}" data-search="${esc(searchBlob(d.structured))}">
       <div class="lib-icon">${icon("book")}</div>
       <div class="lib-text"><div class="lib-name">Core Rules</div></div></div>`;
-  const updateCard = d => `<div class="lib-card" role="button" tabindex="0" data-rules-open="${esc(d.id)}">
+  const updateCard = d => `<div class="lib-card" role="button" tabindex="0" data-rules-open="${esc(d.id)}" data-search="${esc(searchBlob(d.title, d.structured))}">
       <div class="lib-icon">${icon("clock")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
-  const missionCard = d => `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-open="${esc(d.id)}">
+  const missionCard = d => `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-open="${esc(d.id)}" data-search="${esc(searchBlob(d.title, d.structured))}">
       <div class="lib-icon">${icon("flag")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
   const facCard = d => {
     const st = factionStyle(d.faction || "");
-    return `<div class="lib-card lib-fac${st.img ? " has-mark" : ""}" role="button" tabindex="0" data-lib-open="${esc(d.faction)}" style="--c1:${st.c1};--c2:${st.c2}">
+    const c = factionContent(d.faction);
+    return `<div class="lib-card lib-fac${st.img ? " has-mark" : ""}" role="button" tabindex="0" data-lib-open="${esc(d.faction)}" style="--c1:${st.c1};--c2:${st.c2}" data-search="${esc(searchBlob(d.faction, c.armyRules, c.detachments, c.datasheets))}">
       ${st.img ? `<img class="lib-mark" src="${esc(st.img)}" alt="">` : ""}
       <div class="lib-text"><div class="lib-name">${esc(d.faction)}</div></div></div>`;
   };
-  const group = (label, items, card) => items.length ? `<div class="group-title">${esc(label)}</div><div class="lib-cards">${items.map(card).join("")}</div>` : "";
+  const group = (label, items, card) => items.length ? `<div class="fp-sgrp"><div class="group-title">${esc(label)}</div><div class="lib-cards">${items.map(card).join("")}</div></div>` : "";
   const facToggle = `<div class="set-tabs fp-facgroup-tabs" role="tablist" aria-label="Faction group">
       ${["All", ...FACTION_GROUPS.map(([g]) => g)].map(g => `<button type="button" role="tab" class="set-tab${facGroup === g ? " on" : ""}" aria-selected="${facGroup === g}" data-fp-facgroup="${esc(g)}">${esc(g)}</button>`).join("")}
     </div>`;
 
-  return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>
+  return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>${searchBarHTML("this Game Pack")}
     <div class="fp-bundle-sections">
-      ${core || updates.length ? `<div class="group-title">Core Rules</div><div class="lib-cards">${core ? coreCard(core) : ""}${updates.map(updateCard).join("")}</div>` : ""}
+      ${core || updates.length ? `<div class="fp-sgrp"><div class="group-title">Core Rules</div><div class="lib-cards">${core ? coreCard(core) : ""}${updates.map(updateCard).join("")}</div></div>` : ""}
       ${group("Mission Packs", missions, missionCard)}
-      ${allFacs.length ? `<div class="group-title">Factions</div>${facToggle}<div class="lib-cards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div>` : ""}
+      ${allFacs.length ? `<div class="fp-sgrp"><div class="group-title">Factions</div>${facToggle}<div class="lib-cards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div></div>` : ""}
+      <p class="fp-empty fp-search-none" hidden>Nothing in this Game Pack matches your search.</p>
     </div>`;
 }
 /** The header above the page content: just the title (in index.html) and this one download button —
@@ -306,6 +348,7 @@ function renderFactionsPage() {
     host.innerHTML = bundleSectionsHTML(fUI.bundle);
     host.classList.add("fp-has-wide");
     applyAccent(host, "");
+    applyCurrentSearch();
     return;
   }
   if (fUI.rulesDoc) {
@@ -313,12 +356,13 @@ function renderFactionsPage() {
     const flat = sectionsGrouped(doc).flatMap(g => g.items);
     if (!fUI.ruleSel || !flat.some(s => ruleKey(s) === fUI.ruleSel)) fUI.ruleSel = flat[0] ? ruleKey(flat[0]) : null;
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
-    host.innerHTML = `${rulesBannerHTML(doc)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML("Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel)}</div>
         <div class="fp-right" id="fpRight">${rulesRightHTML(sel)}</div>
       </div>`;
     host.classList.add("fp-has-wide");
     applyAccent(host, "");
+    applyCurrentSearch();
     return;
   }
   if (fUI.mission) {
@@ -334,7 +378,7 @@ function renderFactionsPage() {
   }
   const c = factionContent(fUI.faction);
   if (!fUI.sel) fUI.sel = c.topRules[0] ? { t: "army", k: normName(c.topRules[0].name) } : c.detachments[0] ? { t: "det", k: normName(c.detachments[0].name) } : null;
-  host.innerHTML = `${bannerHTML(fUI.faction, c)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+  host.innerHTML = `${bannerHTML(fUI.faction, c)}${unitMode() ? "" : searchBarHTML(fUI.faction)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
       <div class="fp-left">${leftHTML(c)}</div>
       <div class="fp-right" id="fpRight">${rightHTML(c)}</div>
     </div>`;
@@ -342,7 +386,7 @@ function renderFactionsPage() {
   $("#view-factions").classList.toggle("fp-unitmode", unitMode());
   host.querySelector(".fp-right").onscroll = shrinkBanner;
   applyAccent(host, fUI.faction);
-  applyFilter();
+  applyCurrentSearch();
 }
 
 /** Unit header: shrinks once the datasheet is scrolled down, and grows again only when it's back near the top
@@ -355,8 +399,14 @@ function shrinkBanner(e) {
   else if (y < 12 && b.classList.contains("compact")) b.classList.remove("compact");
 }
 
+/** Everything searchable about a rule, detachment or unit — not just its name — as one lowercase blob
+ *  for the search bar's substring matching. A plain dump of the underlying data rather than a
+ *  hand-picked list of fields, so nothing printed on the box (or on its stratagems/enhancements/
+ *  abilities) is ever missed. */
+const searchBlob = (...parts) => JSON.stringify(parts).toLowerCase();
+
 function leftHTML(c) {
-  const item = (t, k, name, meta = "") => `<button type="button" class="fp-item${fUI.sel?.t === t && fUI.sel.k === k ? " on" : ""}" data-fp="${t}" data-k="${esc(k)}" data-name="${esc(normName(name))}">
+  const item = (t, k, name, meta = "", search = "") => `<button type="button" class="fp-item${fUI.sel?.t === t && fUI.sel.k === k ? " on" : ""}" data-fp="${t}" data-k="${esc(k)}" data-name="${esc(normName(name))}" data-search="${esc(searchBlob(name, search))}">
       <span class="fp-iname">${esc(softenCaps(name))}</span>${meta ? `<span class="fp-imeta">${esc(meta)}</span>` : ""}</button>`;
   const group = (id, title, items) => items.length ? `<details class="fp-grp" data-grp="${esc(id)}" ${fUI.collapsed.has(id) ? "" : "open"}>
       <summary><span class="lb-grp-title">${esc(title)} · ${items.length}</span></summary><div class="fp-items">${items.join("")}</div></details>` : "";
@@ -371,17 +421,16 @@ function leftHTML(c) {
   const detItem = d => {
     const k = normName(d.name), uq = detUnique(d), dp = parseInt(d.dp, 10);
     // One line: name, then the Unique tag, then DP at the right edge.
-    return `<button type="button" class="fp-item fp-det${inDet(k) ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}" title="${esc(d.name)}${uq ? ` · Unique: ${esc(uq)}` : ""}">
+    return `<button type="button" class="fp-item fp-det${inDet(k) ? " on" : ""}" data-fp="det" data-k="${esc(k)}" data-name="${esc(k)}" data-search="${esc(searchBlob(d))}" title="${esc(d.name)}${uq ? ` · Unique: ${esc(uq)}` : ""}">
       <span class="fp-irow"><span class="fp-iname">${esc(softenCaps(d.name))}</span>${uq ? `<span class="fp-uq"><span class="fp-uq-k">Unique</span><span class="fp-uq-v">${esc(uq)}</span></span>` : ""}${dp ? `<span class="fp-dp">${dp} DP</span>` : ""}</span></button>`;
   };
   const pts = ds => { const u = c.priced.get(normName(ds.name)); const o = u?.options || ds.points || []; return o.length ? `${Math.min(...o.map(p => p.points))} pts` : ""; };
-  return `<input class="input fp-filter" id="fpFilter" placeholder="Filter by name…" value="${esc(fUI.filter)}">
-    ${group("army", "Army Rules", c.topRules.map(r => { const ps = armyRuleParts(r, c.armyRules);
-      return item("army", normName(r.name), r.name, r.special ? "Special move" : ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : ""); }))}
+  return `${group("army", "Army Rules", c.topRules.map(r => { const ps = armyRuleParts(r, c.armyRules);
+      return item("army", normName(r.name), r.name, r.special ? "Special move" : ps.length ? `${ps.length} ${pluralKind(ps[0].kind, ps.length)}` : "", searchBlob(r, ps)); }))}
     ${group("det", "Detachments", c.detachments.map(d => { const k = normName(d.name);
       return `<div class="fp-detwrap" data-name="${esc(k)}">${detItem(d)}${inDet(k) ? detSubsHTML(d) : ""}</div>`; }))}
-    ${groups.map(g => group(g.title, g.title, g.items.sort((a, b) => a.name.localeCompare(b.name)).map(ds => item("unit", normName(ds.name), ds.name, pts(ds))))).join("")}
-    <div class="fp-none" hidden>Nothing matches that name.</div>`;
+    ${groups.map(g => group(g.title, g.title, g.items.sort((a, b) => a.name.localeCompare(b.name)).map(ds => item("unit", normName(ds.name), ds.name, pts(ds), searchBlob(ds))))).join("")}
+    <div class="fp-none fp-search-none" hidden>Nothing matches your search.</div>`;
 }
 
 /** Under a selected detachment in the list: two boxes, Stratagems then Enhancements. Choosing one shows its entries in the right column. */
@@ -444,20 +493,6 @@ function rightHTML(c) {
   return `${back}<div class="fp-head"><h2>${esc(ds.name)}</h2>
       <div class="fp-sub">${opts.map(o => `${o.models} model${o.models === 1 ? "" : "s"} – ${o.points} pts`).join(" · ") || "No points listed"}${u?.pointsFrom ? ` · points from ${esc(u.pointsFrom)}` : ""}</div></div>
     ${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
-}
-
-function applyFilter() {
-  const q = normName(fUI.filter);
-  let shown = 0;
-  for (const g of document.querySelectorAll("#factionsHost .fp-grp")) {
-    let any = 0;
-    for (const b of g.querySelectorAll(".fp-item")) { const hit = !q || b.dataset.name.includes(q); (b.closest(".fp-detwrap") || b).hidden = !hit; any += hit; }
-    g.hidden = !any;
-    if (q && any) g.open = true;
-    shown += any;
-  }
-  const none = document.querySelector("#factionsHost .fp-none");
-  if (none) none.hidden = shown > 0;
 }
 
 /** Calls back on a mostly-horizontal swipe to the right — a finger on touch screens, or a two-finger
@@ -557,10 +592,10 @@ function wireFactionsPage() {
     else if (e.target.matches?.("[data-bundle-open]")) { e.preventDefault(); openBundleFromLibrary(e.target.dataset.bundleOpen); }
     else if (e.target.matches?.("[data-rules-open]")) { e.preventDefault(); openRulesFromLibrary(e.target.dataset.rulesOpen); }
   });
-  view.addEventListener("input", e => { if (e.target.id === "fpFilter") { fUI.filter = e.target.value; applyFilter(); } });
+  view.addEventListener("input", e => { if (e.target.matches("[data-fp-search]")) { fUI.search = e.target.value; applyCurrentSearch(); } });
   view.addEventListener("toggle", e => {
     const g = e.target.dataset?.grp;
-    if (g && !fUI.filter) e.target.open ? fUI.collapsed.delete(g) : fUI.collapsed.add(g);
+    if (g && !fUI.search) e.target.open ? fUI.collapsed.delete(g) : fUI.collapsed.add(g);
   }, true);
 }
 

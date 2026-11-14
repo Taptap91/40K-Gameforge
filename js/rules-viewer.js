@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.55";
-import { richHTML, softenCaps } from "./text.js?v=8.55";
+import { esc } from "./core.js?v=8.56";
+import { richHTML, softenCaps } from "./text.js?v=8.56";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -47,11 +47,13 @@ function rulesBannerHTML(doc) {
 
 function rulesLeftHTML(doc, selKey) {
   const groups = sectionsGrouped(doc);
-  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}">
+  // data-search covers the rule's full text, not just its title, so a search finds a word buried in
+  // the body even when the heading itself doesn't mention it.
+  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-search="${esc(JSON.stringify(s).toLowerCase())}">
     <span class="fp-iname">${ruleLabelHTML(s)}</span></button>`;
   return groups.map(g => g.chapter
     ? `<details class="fp-grp" open><summary><span class="lb-grp-title">${esc(g.chapter)} · ${g.items.length}</span></summary><div class="fp-items">${g.items.map(item).join("")}</div></details>`
-    : `<div class="fp-items">${g.items.map(item).join("")}</div>`).join("");
+    : `<div class="fp-items">${g.items.map(item).join("")}</div>`).join("") + `<div class="fp-empty fp-search-none" hidden>Nothing matches your search.</div>`;
 }
 
 function rulesRightHTML(section) {

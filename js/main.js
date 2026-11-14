@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.55";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.55";
-import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.55";
-import { openPacksSheet } from "./packs.js?v=8.55";
-import * as core from "./core.js?v=8.55";
-import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.55";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.55";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.55";
-import { buildIndex } from "./search.js?v=8.55";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.55";
-import { fixApostrophes } from "./text.js?v=8.55";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.55";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.55";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.56";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.56";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.56";
+import { openPacksSheet } from "./packs.js?v=8.56";
+import * as core from "./core.js?v=8.56";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.56";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.56";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.56";
+import { buildIndex } from "./search.js?v=8.56";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.56";
+import { fixApostrophes } from "./text.js?v=8.56";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.56";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.56";
 
 function renderAll() {
   renderScope();
