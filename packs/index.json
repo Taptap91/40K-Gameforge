@@ -45,11 +45,101 @@
         },
         {
           "kind": "core",
-          "title": "Event Companion",
-          "version": "2026-11-13",
+          "title": "Core Rules [Warhammer 40,000 11th edition]",
+          "version": "2026-11-14",
           "description": "",
-          "file": "warhammer-40k-11th-edition/event-companion.xlsx",
-          "sizeKB": 23
+          "file": "warhammer-40k-11th-edition/core-rules-warhammer-40-000-11th-edition.xlsx",
+          "sizeKB": 52
+        },
+        {
+          "kind": "faction",
+          "title": "Adepta Sororitas Codex",
+          "faction": "Adepta Sororitas",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/adepta-sororitas.xlsx",
+          "sizeKB": 65
+        },
+        {
+          "kind": "faction",
+          "title": "Adeptus Mechanicus Codex",
+          "faction": "Adeptus Mechanicus",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/adeptus-mechanicus.xlsx",
+          "sizeKB": 65
+        },
+        {
+          "kind": "faction",
+          "title": "Astra Militarum Codex",
+          "faction": "Astra Militarum",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/astra-militarum.xlsx",
+          "sizeKB": 115
+        },
+        {
+          "kind": "faction",
+          "title": "Blood Angels Codex",
+          "faction": "Blood Angels",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/blood-angels.xlsx",
+          "sizeKB": 110
+        },
+        {
+          "kind": "faction",
+          "title": "Deathwatch Codex",
+          "faction": "Deathwatch",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/deathwatch.xlsx",
+          "sizeKB": 104
+        },
+        {
+          "kind": "faction",
+          "title": "Grey Knights Codex",
+          "faction": "Grey Knights",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/grey-knights.xlsx",
+          "sizeKB": 58
+        },
+        {
+          "kind": "faction",
+          "title": "Imperial Agents Codex",
+          "faction": "Imperial Agents",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/imperial-agents.xlsx",
+          "sizeKB": 59
+        },
+        {
+          "kind": "faction",
+          "title": "Imperial Knights Codex",
+          "faction": "Imperial Knights",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/imperial-knights.xlsx",
+          "sizeKB": 65
+        },
+        {
+          "kind": "faction",
+          "title": "Ultramarines Codex",
+          "faction": "Space Marines",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/space-marines.xlsx",
+          "sizeKB": 102
+        },
+        {
+          "kind": "faction",
+          "title": "Space Wolves Codex",
+          "faction": "Space Wolves",
+          "version": "2026-11-14",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/space-wolves.xlsx",
+          "sizeKB": 115
         }
       ]
     }
