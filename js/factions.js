@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.57";
-import { armyData } from "./army.js?v=8.57";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.57";
-import { factionMatches } from "./search.js?v=8.57";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.57";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.57";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.57";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.57";
-import { libraryHTML } from "./library.js?v=8.57";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.58";
+import { armyData } from "./army.js?v=8.58";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.58";
+import { factionMatches } from "./search.js?v=8.58";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.58";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.58";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.58";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.58";
+import { libraryHTML } from "./library.js?v=8.58";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -337,6 +337,10 @@ function renderFactionsPage() {
   // Nothing in particular selected (or it just got deleted out from under us): the Game Packs home screen.
   if (!fUI.bundle && !fUI.rulesDoc && !fUI.mission && !fUI.faction) fUI.home = true;
   renderFactionBar();
+  // The "Game Packs" title bar and its download button are the home screen's own header — once the user is
+  // inside a bundle, a faction, Core Rules, or a mission pack, that screen has its own banner (with a Back
+  // button), so the home header is redundant and hides.
+  $("#view-factions").classList.toggle("fp-home", fUI.home);
   $("#view-factions").classList.remove("fp-unitmode");
   if (fUI.home) {
     host.innerHTML = libraryHTML();

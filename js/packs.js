@@ -7,9 +7,9 @@
  * workflow converts it into the .xlsx this module downloads and slots into the right bundle. This module
  * only handles the browsing/downloading side, once a bundle is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.57";
-import { importWorkbookBuffer } from "./library.js?v=8.57";
-import { renderAll } from "./main.js?v=8.57";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.58";
+import { importWorkbookBuffer } from "./library.js?v=8.58";
+import { renderAll } from "./main.js?v=8.58";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -102,7 +102,10 @@ async function openPacksSheet() {
     <div class="sheet-body" id="packsBody"><p class="bt-hint">Loading the catalog…</p></div>
     <div class="sheet-foot"><button class="btn" type="button" data-close>Cancel</button></div>`, true, "pk-pop");
   const body = $("#packsBody");
-  const bundles = await loadCatalog();
+  // Always fetch fresh (bypassing any cached copy, in memory or in the browser's HTTP cache) rather than
+  // reusing whatever was loaded earlier in the session — a volunteer's new or updated file on GitHub
+  // should show up next time this sheet opens, not only after a full page reload.
+  const bundles = await loadCatalog(true);
   if (!bundles) {
     body.innerHTML = `<p class="bt-hint">Couldn't load the pack catalog (${esc(loadError || "unknown error")}). Check your connection and try again.</p>
       <button type="button" class="btn" id="pkRetry">Try again</button>`;
