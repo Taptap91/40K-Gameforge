@@ -45,11 +45,11 @@
         },
         {
           "kind": "core",
-          "title": "Event Companion",
-          "version": "2026-11-13",
+          "title": "Core Rules [Warhammer 40,000 11th edition]",
+          "version": "2026-11-14",
           "description": "",
-          "file": "warhammer-40k-11th-edition/event-companion.xlsx",
-          "sizeKB": 23
+          "file": "warhammer-40k-11th-edition/core-rules-warhammer-40-000-11th-edition.xlsx",
+          "sizeKB": 52
         },
         {
           "kind": "faction",
