@@ -636,6 +636,15 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fv-ab-ref { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
 /* Factions page: list on the left (30%), the selected item on the right (70%) */
 .fp-host { flex: 1; min-height: 0; }
+/* Swipe or tap back (a finger, a trackpad, or the ‹ Back button): the old screen slides out to the
+   right, the new one slides in from the left — the same transition iOS uses for back navigation. */
+.fp-host.fp-leaving { animation: fpSlideOut .15s ease-in forwards; }
+.fp-host.fp-entering { animation: fpSlideIn .18s ease-out; }
+@keyframes fpSlideOut { to { transform: translateX(32px); opacity: 0; } }
+@keyframes fpSlideIn { from { transform: translateX(-28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .fp-host.fp-leaving, .fp-host.fp-entering { animation: none; }
+}
 .fp-shell { display: grid; grid-template-columns: calc(30% + 30px) minmax(0, 1fr); height: 100%; min-height: 0; }
 .fp-left, .fp-right { overflow-y: auto; min-height: 0; min-width: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .fp-left { border-right: 1px solid var(--border); background: var(--bg); padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 4px; }
@@ -668,6 +677,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
 .fp-head h2 { margin: 0; font-size: 22px; }
 .fp-sub { font-size: 13px; color: var(--text-2); }
+/* A rule's number, in the left list and the right-hand heading: not bold, with the dash either
+   side of it given a little extra breathing room. */
+.fp-rulenum { font-weight: 400; }
+.fp-ruledash { margin: 0 4px; }
 .fp-text { font-size: 13px; }
 .fp-back { display: none; align-self: flex-start; padding-left: 0; }
 .fp-empty, .fp-none { color: var(--text-2); text-align: center; padding: 40px 16px; }
@@ -681,7 +694,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 }
 
 /* ---------- The header: just the page title and the download button ---------- */
-.fp-toolbar { padding-top: 6px; padding-bottom: 6px; }
+.fp-toolbar { padding-top: 8px; padding-bottom: 8px; min-height: 0; }
 .fp-bar { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 /* A faction's own button look, reused only for the preview in its "symbol, banner & colours" sheet now
    that faction buttons no longer sit in the header. */
@@ -1195,8 +1208,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .lib-meta2 { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; }
 .lib-kebab { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; }
 .lib-kebab:hover, .lib-kebab:focus-visible { background: rgba(255,255,255,.08); }
-.lib-addtile { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 60px; border: 1.5px dashed var(--border-strong); border-radius: 12px; background: transparent; color: var(--text); font: 600 15px var(--font); cursor: pointer; }
-.lib-addtile:hover { border-color: var(--accent); background: var(--accent-soft); }
+.lib-addtile { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 60px; border: 1.5px solid var(--accent); border-radius: 12px; background: var(--accent); color: #fff; font: 600 15px var(--font); cursor: pointer; }
+.lib-addtile:hover { filter: brightness(1.1); }
 /* The Library is the Game Packs page's home screen: it renders straight into the page's own content
    area (the same place a faction, a mission pack or a rules document does), not a separate panel. */
 .lib-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 14px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }

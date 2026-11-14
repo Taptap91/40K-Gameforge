@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.53";
-import { armyData } from "./army.js?v=8.53";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.53";
-import { factionMatches } from "./search.js?v=8.53";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.53";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.53";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.53";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.53";
-import { libraryHTML } from "./library.js?v=8.53";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.54";
+import { armyData } from "./army.js?v=8.54";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.54";
+import { factionMatches } from "./search.js?v=8.54";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.54";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.54";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.54";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.54";
+import { libraryHTML } from "./library.js?v=8.54";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -23,6 +23,7 @@ const isPhone = () => matchMedia("(max-width: 760px)").matches;
 /** Phones and tablets: the bottom menu bar, closed categories, swipe to go back. */
 const TOUCH_LAYOUT = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
 const isTouchLayout = () => matchMedia(TOUCH_LAYOUT).matches;
+const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const factionDocs = f => state.docs.filter(d => d.structured?.datasheets && factionMatches(d.faction, f));
 const factionNames = () => [...new Set(state.docs.filter(d => d.structured?.datasheets && d.faction).map(d => d.faction))].sort();
 
@@ -461,7 +462,9 @@ function applyFilter() {
   if (none) none.hidden = shown > 0;
 }
 
-/** Calls back on a mostly-horizontal swipe to the right (touch screens), started where `where(event)` allows. */
+/** Calls back on a mostly-horizontal swipe to the right — a finger on touch screens, or a two-finger
+ *  swipe on a trackpad (which the browser reports as a horizontal wheel gesture) — started where
+ *  `where(event)` allows. */
 function onSwipeRight(el, where, cb) {
   let x0 = null, y0 = 0;
   el.addEventListener("touchstart", e => { const t = e.touches[0]; x0 = where(e) ? t.clientX : null; y0 = t.clientY; }, { passive: true });
@@ -470,6 +473,31 @@ function onSwipeRight(el, where, cb) {
     const t = e.changedTouches[0], dx = t.clientX - x0, dy = Math.abs(t.clientY - y0); x0 = null;
     if (dx > 70 && dy < dx * 0.6) cb();
   }, { passive: true });
+  // Trackpad: a two-finger swipe arrives as a burst of wheel events. Add up each burst's horizontal
+  // motion and fire once it clearly reads as a rightward swipe, then ignore the rest of that burst.
+  let wx = 0, wy = 0, wTimer = null, wFired = false;
+  el.addEventListener("wheel", e => {
+    if (e.ctrlKey || !where(e)) return; // ctrlKey marks a pinch-zoom, not a swipe
+    wx += e.deltaX; wy += e.deltaY;
+    clearTimeout(wTimer);
+    wTimer = setTimeout(() => { wx = 0; wy = 0; wFired = false; }, 220);
+    if (!wFired && wx < -60 && Math.abs(wy) < Math.abs(wx) * 0.6) { wFired = true; cb(); }
+  }, { passive: true });
+}
+/** Animates the current screen sliding out to the right before `mutate` changes what's shown, then
+ *  slides the new screen in from the left — the "swipe/tap back" transition used throughout the app. */
+function animateBack(mutate) {
+  const host = document.getElementById("factionsHost");
+  if (!host || prefersReducedMotion()) { mutate(); return; }
+  host.classList.add("fp-leaving");
+  setTimeout(() => {
+    mutate();
+    const h = document.getElementById("factionsHost");
+    if (!h) return;
+    h.classList.remove("fp-leaving");
+    h.classList.add("fp-entering");
+    h.addEventListener("animationend", () => h.classList.remove("fp-entering"), { once: true });
+  }, 150);
 }
 function wireFactionsPage() {
   const view = $("#view-factions");
@@ -484,7 +512,7 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
-    if (e.target.closest("[data-fp-home]")) { goHome(); return; }
+    if (e.target.closest("[data-fp-home]")) { animateBack(goHome); return; }
     const libFac = !e.target.closest(".lib-kebab") && e.target.closest("[data-lib-open]");
     if (libFac) return openFactionFromLibrary(libFac.dataset.libOpen);
     const missionOpen = !e.target.closest(".lib-kebab") && e.target.closest("[data-mission-open]");
@@ -513,14 +541,16 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
-    if (e.target.closest("[data-fp-back]")) { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); return; }
+    if (e.target.closest("[data-fp-back]")) { animateBack(() => { if (!isPhone() && unitMode()) fUI.sel = null; fUI.open = false; renderFactionsPage(); }); return; }
     if (e.target.closest("[data-fp-style]")) openStyleSheet(fUI.faction);
     const grp = e.target.closest("[data-fp-facgroup]");
     if (grp) { fUI.facGroup = grp.dataset.fpFacgroup; renderFactionsPage(); }
   });
-  // Phones and tablets: swipe right on the datasheet to go back to the list.
-  onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) { fUI.open = false; renderFactionsPage(); } });
-  onSwipeRight(view, e => isTouchLayout() && !fUI.home && !fUI.open && !!e.target.closest(".fp-left"), () => goHome());
+  // Phones and tablets: swipe right (finger or trackpad) on the datasheet to go back to the list.
+  onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) animateBack(() => { fUI.open = false; renderFactionsPage(); }); });
+  // Anywhere else in a faction, mission pack, rules document or Game Pack's own sections screen:
+  // swipe right (finger or trackpad) to go back to the Game Packs home screen.
+  onSwipeRight(view, e => !fUI.home && !fUI.open && !!e.target.closest(".fp-left, .fp-right, .fp-bundle-sections"), () => animateBack(goHome));
   // Keyboard: Enter or Space on a faction's, mission pack's, Game Pack's or rules box in the library opens it.
   view.addEventListener("keydown", e => {
     if (e.key !== "Enter" && e.key !== " ") return;

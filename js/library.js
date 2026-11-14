@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.53";
-import { factionStyle } from "./factions.js?v=8.53";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.53";
-import { structuredToLibrary } from "./datasheets.js?v=8.53";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.53";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.53";
-import { factionMatches } from "./search.js?v=8.53";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.53";
+import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.54";
+import { factionStyle } from "./factions.js?v=8.54";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.54";
+import { structuredToLibrary } from "./datasheets.js?v=8.54";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.54";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.54";
+import { factionMatches } from "./search.js?v=8.54";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.54";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
@@ -125,7 +125,8 @@ function libraryHTML() {
     if (!bundleGroups.has(id)) bundleGroups.set(id, { title: d.pack.bundleTitle || id, docs: [] });
     bundleGroups.get(id).docs.push(d);
   }
-  const bundlesHTML = bundleGroups.size ? `<div class="group-title">Game Packs</div><div class="lib-cards">${[...bundleGroups.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title)).map(([id, g]) => bundleCard(id, g.title, g.docs)).join("")}</div>` : "";
+  // No group-title label here — the page's own header already says "Game Packs".
+  const bundlesHTML = bundleGroups.size ? `<div class="lib-cards">${[...bundleGroups.entries()].sort((a, b) => a[1].title.localeCompare(b[1].title)).map(([id, g]) => bundleCard(id, g.title, g.docs)).join("")}</div>` : "";
 
   const newest = (a, b) => b.importedAt - a.importedAt;
   const facs = unbundled.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));

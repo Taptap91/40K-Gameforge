@@ -3,11 +3,23 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.53";
-import { richHTML, softenCaps } from "./text.js?v=8.53";
+import { esc } from "./core.js?v=8.54";
+import { richHTML, softenCaps } from "./text.js?v=8.54";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
+
+/** When a subsection's title repeats its own position as a leading "N. " (e.g. num "02.03", title
+ *  "3. Abilities"), that numbering is redundant once the "##.##" number is already shown, so it's
+ *  dropped for display only — `ruleKey` above still uses the untouched title, so selection state,
+ *  which depends on it, is unaffected. */
+const displayTitle = s => s.num ? s.title.replace(/^\d+\.\s*/, "") : s.title;
+
+/** A section's heading: its number in its own, unbolded span, then a dash with a little extra
+ *  breathing room either side, then the (bold) title. Shared by the left list and the right header. */
+const ruleLabelHTML = s => s.num
+  ? `<span class="fp-rulenum">${esc(s.num)}</span><span class="fp-ruledash"> - </span>${esc(softenCaps(displayTitle(s)))}`
+  : esc(softenCaps(displayTitle(s)));
 
 /** Sections grouped by chapter, keeping the document's own order. */
 function sectionsGrouped(doc) {
@@ -30,7 +42,7 @@ function rulesBannerHTML(doc) {
 function rulesLeftHTML(doc, selKey) {
   const groups = sectionsGrouped(doc);
   const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}">
-    <span class="fp-iname">${s.num ? esc(s.num) + " " : ""}${esc(softenCaps(s.title))}</span></button>`;
+    <span class="fp-iname">${ruleLabelHTML(s)}</span></button>`;
   return groups.map(g => g.chapter
     ? `<details class="fp-grp" open><summary><span class="lb-grp-title">${esc(g.chapter)} · ${g.items.length}</span></summary><div class="fp-items">${g.items.map(item).join("")}</div></details>`
     : `<div class="fp-items">${g.items.map(item).join("")}</div>`).join("");
@@ -39,7 +51,7 @@ function rulesLeftHTML(doc, selKey) {
 function rulesRightHTML(section) {
   const back = `<button type="button" class="btn plain fp-back" data-fp-back>‹ Back</button>`;
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
-  return `${back}<div class="fp-head"><h2>${section.num ? esc(section.num) + " " : ""}${esc(softenCaps(section.title))}</h2>${section.chapter ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
+  return `${back}<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
     <div class="fv-rich fp-text">${richHTML(section.rich || section.text)}</div>`;
 }
 
