@@ -21,7 +21,10 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+/* The whole page never scrolls — only the specific panes inside a view do (.scroll, .fp-host, .lib-body,
+   .chat, .fp-left/.fp-right, etc., each its own overflow-y: auto) — so the sidebar/nav and each view's
+   header stay fixed in place no matter how far into a view's content the user scrolls. */
+html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
   background: var(--bg);
   color: var(--text);
