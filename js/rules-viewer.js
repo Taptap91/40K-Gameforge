@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.54";
-import { richHTML, softenCaps } from "./text.js?v=8.54";
+import { esc } from "./core.js?v=8.55";
+import { richHTML, softenCaps } from "./text.js?v=8.55";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -33,10 +33,16 @@ function sectionsGrouped(doc) {
   return groups;
 }
 
+/** The banner's big title is the Game Pack's own game name (kept large, so it's easy to tell which
+ *  screen you're on at a glance) with its edition as a small line underneath, matching the kicker's
+ *  style — both come from the pack's own metadata rather than the document's title text, which may
+ *  be phrased however the PDF it was converted from happened to be titled. A document opened outside
+ *  a Game Pack (so with no pack metadata) falls back to showing its own title instead. */
 function rulesBannerHTML(doc) {
-  const n = doc.structured.sections.length;
+  const game = doc.pack?.game || doc.title;
+  const edition = doc.pack?.game ? doc.pack.editionTag : "";
   return `<div class="fp-banner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : "Update"}</div>
-    <div class="fp-banner-name">${esc(doc.title)}</div><div class="fp-banner-counts"><span><b>${n}</b> Rule${n === 1 ? "" : "s"}</span></div></div></div>`;
+    <div class="fp-banner-name">${esc(game)}</div>${edition ? `<div class="fp-banner-kicker">${esc(edition)}</div>` : ""}</div></div>`;
 }
 
 function rulesLeftHTML(doc, selKey) {

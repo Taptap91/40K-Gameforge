@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.54";
-import { armyData } from "./army.js?v=8.54";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.54";
-import { factionMatches } from "./search.js?v=8.54";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.54";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.54";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.54";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.54";
-import { libraryHTML } from "./library.js?v=8.54";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.55";
+import { armyData } from "./army.js?v=8.55";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.55";
+import { factionMatches } from "./search.js?v=8.55";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.55";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.55";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.55";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.55";
+import { libraryHTML } from "./library.js?v=8.55";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -178,11 +178,9 @@ function bannerHTML(f, c) {
     <div class="fp-banner-text"><button type="button" class="btn fp-bannerback" data-fp-back>‹ Back</button><div class="fp-banner-nameline"><span class="fp-banner-name">${esc(ds.name)}</span>${pts ? `<span class="fp-banner-pts">${esc(pts)}</span>` : ""}</div><div class="fp-banner-counts">${cost}</div></div>
   </div>`;
   }
-  const counts = [[c.topRules.length, "Army Rule"], [c.detachments.length, "Detachment"], [c.datasheets.length, "Datasheet"]]
-    .filter(([n]) => n).map(([n, w]) => `<span><b>${n}</b> ${w}${n === 1 ? "" : "s"}</span>`).join("");
   return `<div class="fp-banner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
     ${!art && st.img ? `<img class="fp-banner-mark" src="${esc(st.img)}" alt="">` : ""}
-    <div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Faction</div><div class="fp-banner-name">${esc(f)}</div><div class="fp-banner-counts">${counts}</div></div>
+    <div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Faction</div><div class="fp-banner-name">${esc(f)}</div></div>
     <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>
   </div>`;
 }
