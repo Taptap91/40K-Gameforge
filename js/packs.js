@@ -7,9 +7,9 @@
  * workflow converts it into the .xlsx this module downloads and slots into the right bundle. This module
  * only handles the browsing/downloading side, once a bundle is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.56";
-import { importWorkbookBuffer } from "./library.js?v=8.56";
-import { renderAll } from "./main.js?v=8.56";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.57";
+import { importWorkbookBuffer } from "./library.js?v=8.57";
+import { renderAll } from "./main.js?v=8.57";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -40,13 +40,16 @@ async function loadCatalog(force = false) {
 const componentKey = c => c.kind === "faction" ? `faction:${(c.faction || "").trim().toLowerCase()}` : c.kind === "core" ? "core" : `${c.kind}:${(c.title || "").trim().toLowerCase()}`;
 
 /** Whether a bundle is installed, and whether any of its components has a newer version than what's in
- *  the Library (so the sheet can say "Installed" / "Update" instead of just "Download" every time). */
+ *  the Library (so the sheet can say "Installed" / "Update" instead of just "Download" every time). `have`
+ *  maps each installed component's key to the version the user has, so an update can tell a missing
+ *  component (never installed) apart from a changed one (installed but out of date) and leave an
+ *  up-to-date component untouched. */
 function bundleStatus(bundle) {
   const installed = state.docs.filter(d => d.pack?.bundleId === bundle.id);
-  if (!installed.length) return { have: false, update: false };
   const have = new Map(installed.map(d => [d.pack.componentKey, d.pack.version]));
+  if (!installed.length) return { have: false, update: false, haveMap: have };
   const update = bundle.components.some(c => have.get(componentKey(c)) !== (c.version || ""));
-  return { have: true, update };
+  return { have: true, update, haveMap: have };
 }
 
 function bundleSummary(components) {
@@ -63,8 +66,12 @@ function bundleSummary(components) {
 function packRow(bundle) {
   const { have, update } = bundleStatus(bundle);
   const status = !have ? "" : update ? `<span class="pk-tag pk-tag-new">Update available</span>` : `<span class="pk-tag">Installed</span>`;
+  // Nothing installed yet: a plain download, same as "update" (every component is new). Already installed
+  // and current: offer a full "Re-download" that replaces every file. Already installed with something
+  // stale: "Update" touches only what's missing or changed, leaving up-to-date files alone.
+  const mode = !have ? "update" : update ? "update" : "redownload";
   const label = !have ? "Download" : update ? "Update" : "Re-download";
-  return `<div class="pk-row" role="button" tabindex="0" data-pk-id="${esc(bundle.id)}" data-pk-get="${esc(bundle.id)}">
+  return `<div class="pk-row" role="button" tabindex="0" data-pk-id="${esc(bundle.id)}" data-pk-get="${esc(bundle.id)}" data-pk-mode="${mode}">
     <div class="pk-head">
       <div class="pk-icon">${icon("book")}</div>
       <div class="pk-text"><div class="pk-name">${esc(bundle.title)}${status}</div>
@@ -107,7 +114,7 @@ async function openPacksSheet() {
     if (row.classList.contains("busy")) return;
     const bundle = bundles.find(b => b.id === row.dataset.pkGet);
     if (!bundle) return;
-    await downloadPack(bundle, row, body);
+    await downloadPack(bundle, row, body, row.dataset.pkMode === "redownload" ? "redownload" : "update");
     d.close();
   };
   d.onclick = e => { const row = e.target.closest("[data-pk-get]"); if (row) activate(row); };
@@ -120,13 +127,25 @@ async function openPacksSheet() {
   });
 }
 
-async function downloadPack(bundle, row, body) {
+/** mode "redownload" replaces every component in the bundle, same as a first-time download. mode "update"
+ *  only fetches components that are missing or whose catalog version differs from what's installed —
+ *  anything already matching the catalog is left alone (and not even fetched). */
+async function downloadPack(bundle, row, body, mode = "update") {
   row.classList.add("busy");
   const chip = row.querySelector(".pk-get");
-  const total = bundle.components.length;
+  const { haveMap } = bundleStatus(bundle);
+  const toFetch = mode === "redownload" ? bundle.components
+    : bundle.components.filter(c => haveMap.get(componentKey(c)) !== (c.version || ""));
+  const skipped = bundle.components.length - toFetch.length;
+  if (!toFetch.length) {
+    row.classList.remove("busy");
+    toast(`${bundle.title} is already up to date`);
+    return;
+  }
+  const total = toFetch.length;
   const failures = [];
   for (let i = 0; i < total; i++) {
-    const c = bundle.components[i];
+    const c = toFetch[i];
     chip.textContent = `Downloading ${i + 1} of ${total}…`;
     try {
       const res = await fetch(PACKS_BASE + c.file);
@@ -143,7 +162,11 @@ async function downloadPack(bundle, row, body) {
     }
   }
   renderAll();
-  toast(failures.length ? `${bundle.title}: installed ${total - failures.length} of ${total} (${failures.length} couldn't be installed)` : `${bundle.title} added to your Library`);
+  const installedCount = total - failures.length;
+  const skippedNote = skipped ? ` (${skipped} already up to date)` : "";
+  toast(failures.length ? `${bundle.title}: installed ${installedCount} of ${total}${skippedNote} (${failures.length} couldn't be installed)`
+    : mode === "update" ? `${bundle.title}: updated ${installedCount} file${installedCount === 1 ? "" : "s"}${skippedNote}`
+    : `${bundle.title} added to your Library`);
   const freshRow = body.querySelector(`[data-pk-id="${CSS.escape(bundle.id)}"]`);
   if (freshRow) freshRow.outerHTML = packRow(bundle);
 }
