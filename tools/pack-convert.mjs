@@ -16,6 +16,10 @@
  *   packs/incoming/<Game>/<Edition>/Factions/<name>.pdf    → a faction in the "<Game> - <Edition>" bundle
  *   packs/incoming/<Game>/<Edition>/Companions/<name>.pdf  → an Event Companion (Doubles, Teams, Dominatus, …)
  *                                                             in the "<Game> - <Edition>" bundle
+ *   packs/incoming/<Game>/<Edition>/Collections/<name>.xlsx → a filled-in Collection template: any game's
+ *                                                             reference entries (see packs/templates/README.md).
+ *                                                             A ready-made .xlsx of any RulesForge kind is
+ *                                                             added as it is, from any of these folders.
  *
  * A PDF that isn't nested exactly like that (missing the Game, Edition, or Rules/Factions folder) is
  * skipped with a warning rather than guessed at.
@@ -51,13 +55,13 @@ function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "pack";
 }
 
-/** Every *.pdf under `dir`, at any depth, as absolute paths. */
+/** Every *.pdf and ready-made *.xlsx under `dir`, at any depth, as absolute paths. */
 async function findPdfs(dir) {
   const out = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...await findPdfs(full));
-    else if (/\.pdf$/i.test(entry.name)) out.push(full);
+    else if (/\.(pdf|xlsx)$/i.test(entry.name)) out.push(full);
   }
   return out;
 }
@@ -69,8 +73,8 @@ function parseLocation(pdfPath) {
   if (rel.length !== 4) return null;
   const [game, edition, bucket] = rel;
   const b = bucket.trim().toLowerCase();
-  if (b !== "rules" && b !== "factions" && b !== "companions" && b !== "event companions") return null;
-  return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : "Companions" };
+  if (!["rules", "factions", "companions", "event companions", "collections"].includes(b)) return null;
+  return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : b === "collections" ? "Collections" : "Companions" };
 }
 
 function serveRoot(root, port) {
@@ -130,11 +134,11 @@ async function main() {
     const pdfName = path.relative(INCOMING, pdfPath);
     const loc = parseLocation(pdfPath);
     if (!loc) {
-      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions|Companions/${path.basename(pdfPath)}`);
-      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions|Companions/" });
+      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions|Companions|Collections/${path.basename(pdfPath)}`);
+      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions|Companions|Collections/" });
       continue;
     }
-    const metaPath = pdfPath.replace(/\.pdf$/i, ".json");
+    const metaPath = pdfPath.replace(/\.(pdf|xlsx)$/i, ".json");
     let meta = {};
     if (existsSync(metaPath)) {
       try { meta = JSON.parse(await readFile(metaPath, "utf8")); }
@@ -144,6 +148,26 @@ async function main() {
     try {
       const bytes = await readFile(pdfPath);
       const base64 = bytes.toString("base64");
+      if (/\.xlsx$/i.test(pdfPath)) {
+        // A ready-made workbook (a template filled in by hand): no conversion, just checked and added to the bundle.
+        const what = await page.evaluate(b64 => window.__inspectXlsx(b64), base64);
+        if (!what) throw new Error("not one of RulesForge's workbook formats (see packs/templates/README.md)");
+        const title = meta.title || what.title || path.basename(pdfPath, path.extname(pdfPath));
+        const bundle = getBundle(index, loc.game, loc.edition);
+        const bundleDir = path.join(PACKS_DIR, bundle.id);
+        await mkdir(bundleDir, { recursive: true });
+        const fileName = `${slugify(what.kind === "faction" ? (meta.faction || what.faction || title) : title)}.xlsx`;
+        await writeFile(path.join(bundleDir, fileName), bytes);
+        const entry = { kind: what.kind, title, faction: what.kind === "faction" ? (meta.faction || what.faction || title) : undefined, version: meta.version || new Date().toISOString().slice(0, 10), description: meta.description || "", file: `${bundle.id}/${fileName}`, sizeKB: Math.round(bytes.length / 1024) };
+        Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
+        const key = componentKey(entry), i = bundle.components.findIndex(c => componentKey(c) === key);
+        if (i >= 0) bundle.components[i] = entry; else bundle.components.push(entry);
+        await rm(pdfPath);
+        if (existsSync(metaPath)) await rm(metaPath);
+        console.log(`Added ${pdfName} → packs/${entry.file} (${bundle.id}, ${entry.kind})`);
+        results.converted.push(entry);
+        continue;
+      }
       const opts = { kind: loc.bucket === "Factions" ? "faction" : loc.bucket === "Companions" ? "companion" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "" };
       const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, path.basename(pdfPath), opts]);
 

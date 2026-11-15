@@ -168,6 +168,9 @@ function bundleSectionsHTML(bundleId) {
   const rank = d => [/event companion/i, /doubles/i, /teams/i].findIndex(r => r.test(d.title)) + 1 || 9;
   const dominatus = comps.filter(d => /dominatus/i.test(d.title)).sort((a, b) => a.title.localeCompare(b.title));
   const events = comps.filter(d => !dominatus.includes(d)).sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
+  // Collections (any game's reference entries) each get a column named by their own Section.
+  const collections = new Map();
+  for (const d of docs.filter(x => x.kind === "collection").sort((a, b) => a.title.localeCompare(b.title))) collections.set(d.section || "Reference", [...(collections.get(d.section || "Reference") || []), d]);
   const allFacs = docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)));
   const facGroup = allFacs.some(d => groupOf(d.faction || d.title) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
   const facs = facGroup === "All" ? allFacs : allFacs.filter(d => groupOf(d.faction || d.title) === facGroup);
@@ -205,6 +208,7 @@ function bundleSectionsHTML(bundleId) {
         ${column("bs-core", "Core Rules", (core ? coreCard(core) : "") + updates.map(updateCard).join(""))}
         ${column("bs-mis", "Mission Packs", missions.map(missionCard).join("") + dominatus.map(d => companionCard(d, "flag")).join(""))}
         ${column("bs-comp", "Event Companions", events.map(d => companionCard(d)).join(""))}
+        ${[...collections].map(([label, ds]) => column("bs-ref", label, ds.map(d => companionCard(d, "book")).join(""))).join("")}
       </div>
       ${allFacs.length ? `<div class="fp-sgrp"><div class="group-title">Factions</div>${facToggle}<div class="lib-cards fp-faccards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div></div>` : ""}
       <p class="fp-empty fp-search-none" hidden>Nothing in this Game Pack matches your search.</p>
@@ -348,7 +352,7 @@ function renderFactionsPage() {
   const missions = missionDocs();
   if (fUI.mission && !missions.some(d => d.id === fUI.mission)) fUI.mission = null;
   if (fUI.bundle && !bundleDocs(fUI.bundle).length) fUI.bundle = null;
-  if (fUI.rulesDoc && !state.docs.some(d => d.id === fUI.rulesDoc && (d.kind === "core" || d.kind === "updates" || d.kind === "companion"))) fUI.rulesDoc = null;
+  if (fUI.rulesDoc && !state.docs.some(d => d.id === fUI.rulesDoc && (d.kind === "core" || d.kind === "updates" || d.kind === "companion" || d.kind === "collection"))) fUI.rulesDoc = null;
   if (fUI.faction && !names.includes(fUI.faction)) fUI.faction = "";
   // Nothing in particular selected (or it just got deleted out from under us): the Game Packs home screen.
   if (!fUI.bundle && !fUI.rulesDoc && !fUI.mission && !fUI.faction) fUI.home = true;
@@ -376,7 +380,7 @@ function renderFactionsPage() {
     const flat = sectionsGrouped(doc).flatMap(g => g.items);
     if (!fUI.ruleSel || !flat.some(s => ruleKey(s) === fUI.ruleSel)) fUI.ruleSel = flat[0] ? ruleKey(flat[0]) : null;
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
-    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" || doc.kind === "collection" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel)}</div>
         <div class="fp-right" id="fpRight">${rulesRightHTML(sel)}</div>
       </div>`;

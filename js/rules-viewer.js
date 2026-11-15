@@ -39,9 +39,9 @@ function sectionsGrouped(doc) {
  *  be phrased however the PDF it was converted from happened to be titled. A document opened outside
  *  a Game Pack (so with no pack metadata) falls back to showing its own title instead. */
 function rulesBannerHTML(doc) {
-  const game = doc.kind === "companion" ? doc.title : doc.pack?.game || doc.title;   // a companion is named for itself, not the game
+  const game = doc.kind === "companion" || doc.kind === "collection" ? doc.title : doc.pack?.game || doc.title;   // a companion is named for itself, not the game
   const edition = doc.pack?.game ? doc.pack.editionTag : "";
-  return `<div class="fp-banner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : doc.kind === "companion" ? "Event Companion" : "Update"}</div>
+  return `<div class="fp-banner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : doc.kind === "companion" ? "Event Companion" : doc.kind === "collection" ? doc.section || "Reference" : "Update"}</div>
     <div class="fp-banner-name">${esc(game)}</div>${edition ? `<div class="fp-banner-kicker">${esc(edition)}</div>` : ""}</div></div>`;
 }
 

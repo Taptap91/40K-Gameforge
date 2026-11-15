@@ -6,7 +6,7 @@ import { factionStyle } from "./factions.js?v=8.67";
 import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.67";
 import { structuredToLibrary } from "./datasheets.js?v=8.67";
 import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.67";
-import { editionLabel, effectiveRules, isCompanionDoc, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.67";
+import { collectionFromWorkbook, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.67";
 import { factionMatches } from "./search.js?v=8.67";
 import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.67";
 
@@ -23,6 +23,14 @@ async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = nul
     const doc = { id: uid(), title: titleOverride || missionPack.name, kind: "missions", faction: "", pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", structured: { missionPack }, chunks: missionChunks(missionPack), points: [] };
     if (pack) doc.pack = pack;
     await replaceMissionPack(doc, fileName);
+    return doc;
+  }
+  // A Collection workbook (any game's reference entries) rather than rules or faction data.
+  const collection = collectionFromWorkbook(book);
+  if (collection) {
+    const doc = { id: uid(), title: collection.title || niceName, kind: "collection", section: collection.section, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: collection.edition, structured: collection.structured, chunks: sectionChunks(collection.structured.sections) };
+    if (pack) doc.pack = pack;
+    await replaceRulesDoc(doc, fileName);
     return doc;
   }
   // A rules workbook (Core Rules or an update) rather than faction data.
@@ -52,7 +60,7 @@ async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = nul
 
 /** Stores a rules document; the same document added again (same kind and title) replaces the earlier copy. */
 async function replaceRulesDoc(doc, label = doc.title) {
-  const same = state.docs.filter(d => d.kind === doc.kind && (isRulesDoc(d) || isCompanionDoc(d)) && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase());
+  const same = state.docs.filter(d => d.kind === doc.kind && (isRulesDoc(d) || isReferenceDoc(d)) && d.title.trim().toLowerCase() === doc.title.trim().toLowerCase());
   await DB.put("docs", doc);
   state.docs.push(doc);
   for (const old of same) { await DB.del("docs", old.id); state.docs = state.docs.filter(d => d !== old); }
@@ -130,7 +138,7 @@ function libraryHTML() {
 
   const newest = (a, b) => b.importedAt - a.importedAt;
   const facs = unbundled.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)) || newest(a, b));
-  const rest = ["core", "updates", "companion", "points"].flatMap(k => unbundled.filter(d => d.kind === k).sort(newest));
+  const rest = ["core", "updates", "companion", "collection", "points"].flatMap(k => unbundled.filter(d => d.kind === k).sort(newest));
   const packs = unbundled.filter(d => d.kind === "missions").sort(newest);
   const packCard = d => {
     const m = d.structured?.missionPack || {}, n = k => (m[k] || []).length;
@@ -179,7 +187,7 @@ const packMeta = d => d.pack?.version ? `Pack · v${d.pack.version}` : "";
 
 function docMeta(d) {
   const ed = editionLabel(d.edition);
-  if (isRulesDoc(d) || isCompanionDoc(d)) return [`${d.structured.sections.length} rule sections`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed, packMeta(d)].filter(Boolean);
+  if (isRulesDoc(d) || isReferenceDoc(d)) return [`${d.structured.sections.length} ${d.kind === "collection" ? "entries" : "rule sections"}`, d.structured.battleSizes?.length ? `${d.structured.battleSizes.length} battle sizes` : "", "Excel", ed, packMeta(d)].filter(Boolean);
   return [d.faction, d.source === "wahapedia" ? `${d.pageCount} datasheets · Wahapedia${d.updated ? " " + d.updated.slice(0, 10) : ""}`
     : d.structured?.datasheets ? `${d.structured.datasheets.length} datasheets · ${d.structured.detachments.length} detachments · ${d.structured.armyRules.filter(r => !r.partOf).length} army rules${d.source === "excel" ? " · Excel" : ""}`
     : `${d.pageCount} pages`, d.points?.length ? `${d.points.length} points entries` : "", ed, packMeta(d)].filter(Boolean);

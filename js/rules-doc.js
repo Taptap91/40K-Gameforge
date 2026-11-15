@@ -236,10 +236,34 @@ function rulesFromWorkbook(book) {
   return { kind, title: about.title || "", edition: { version: about.version || "", date: about.date ? parseDate(about.date) : null }, structured: { sections, battleSizes } };
 }
 
+/** A Collection workbook: any game's reference entries (monsters, spells, units, items, cards…) as rows.
+ *  Sheet "Entries": Category · Name · Tags · Stats (one "Name: value" per line) · Text. Sheet "About": Title, Section
+ *  (what the Game Pack calls this column, e.g. "Bestiary"). Each entry becomes a section of the Core Rules viewer. */
+function collectionFromWorkbook(book) {
+  const sheet = name => {
+    const key = Object.keys(book).find(k => k.trim().toLowerCase() === name.toLowerCase());
+    const rows = key ? book[key] : [];
+    const head = (rows[0] || []).map(h => String(h || "").trim().toLowerCase());
+    return rows.slice(1).filter(r => r && r.some(c => String(c ?? "").trim())).map(r => Object.fromEntries(head.map((h, i) => [h, String(r[i] ?? "").replace(/\r\n?/g, "\n").trim()])));
+  };
+  const rows = sheet("Entries").filter(r => r.name);
+  if (!rows.length) return null;
+  const about = Object.fromEntries(sheet("About").map(r => [String(r.field || "").toLowerCase(), r.value]));
+  const sections = rows.map(r => {
+    const stats = (r.stats || "").split("\n").map(l => l.trim()).filter(Boolean).map(l => { const i = l.indexOf(":"); return i > 0 ? [l.slice(0, i).trim(), l.slice(i + 1).trim()] : ["", l]; });
+    const plain = [r.tags, ...stats.map(([k, v]) => k ? `${k}: ${v}` : v), (r.text || "").replace(/^[-*]\s+/gm, "• ")].filter(Boolean).join("\n");
+    const text = (r.text || "").replace(/^[-*]\s+/gm, "• ");   // "- item" is a bullet too
+    const rich = [r.tags, ...stats.map(([k, v]) => k ? `**${k}:** ${v}` : v), text].filter(Boolean).join("\n");
+    return { num: "", title: r.name, chapter: r.category || "", part: "", text: plain, rich };
+  });
+  return { kind: "collection", title: about.title || "", section: about.section || "Reference", edition: { version: about.version || "", date: about.date ? parseDate(about.date) : null }, structured: { sections } };
+}
+
 /* ---------- The rules in force ---------- */
 
-/** An Event Companion (Doubles, Teams, …): laid out like the Core Rules, but its rules are its own — never merged into them. */
-const isCompanionDoc = d => d.kind === "companion" && !!d.structured?.sections;
+/** An Event Companion (Doubles, Teams, …) or a Collection (a bestiary, spell list, any game's reference tables): laid
+ *  out like the Core Rules, but its entries are its own — never merged into them. */
+const isReferenceDoc = d => (d.kind === "companion" || d.kind === "collection") && !!d.structured?.sections;
 const isRulesDoc = d => (d.kind === "core" || d.kind === "updates") && d.structured?.sections;
 let cache = { key: "", value: null };
 
@@ -283,4 +307,4 @@ function coreAbilityRule(name) {
     || list.find(s => s.title.split("/").map(x => normName(x)).includes(key)) || null;
 }
 
-export { battleSizes, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isCompanionDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };
+export { battleSizes, collectionFromWorkbook, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };

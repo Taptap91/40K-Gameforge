@@ -18,10 +18,10 @@
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
 import "../js/factions.js?v=8.67";
 import { readPdf } from "../js/pdf-reader.js?v=8.67";
-import { looksLikeMissionPack, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.67";
+import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.67";
 import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.67";
-import { detectEdition, parseRulesPdf, rulesToSheets } from "../js/rules-doc.js?v=8.67";
-import { buildXlsx, structuredToSheets } from "../js/excel.js?v=8.67";
+import { collectionFromWorkbook, detectEdition, parseRulesPdf, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.67";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.67";
 import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.67";
 
 const PACK_MIN_DATASHEETS = 5;
@@ -71,6 +71,21 @@ function bytesToBase64(bytes) {
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   return btoa(binary);
 }
+
+/** What a ready-made workbook is (a Collection, Core Rules/update/companion, mission pack or faction), so it can be
+ *  added to a Game Pack as it is, without converting anything. null when it isn't one of RulesForge's formats. */
+window.__inspectXlsx = async base64 => {
+  const book = await readXlsx(Uint8Array.from(atob(base64), c => c.charCodeAt(0)).buffer);
+  const collection = collectionFromWorkbook(book);
+  if (collection) return { kind: "collection", title: collection.title };
+  const pack = missionPackFromWorkbook(book);
+  if (pack) return { kind: "missions", title: pack.name };
+  const rules = rulesFromWorkbook(book);
+  if (rules) return { kind: rules.kind, title: rules.title };
+  const data = structuredFromWorkbook(book);
+  if (data?.datasheets?.length) return { kind: "faction", title: data.faction || "", faction: data.faction || "" };
+  return null;
+};
 
 window.__convertPdf = async (base64, fileName, opts) => {
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));

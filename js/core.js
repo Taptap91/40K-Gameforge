@@ -5,6 +5,7 @@ const KINDS = {
   core:    { label: "Core Rules", desc: "The main rulebook", icon: "book" },
   faction: { label: "Faction rules", desc: "Codex, Index or faction pack", icon: "shield" },
   missions: { label: "Mission Packs", desc: "Chapter Approved mission deck: missions, deployments and twists", icon: "flag" },
+  collection: { label: "Collection", desc: "A game's reference entries: monsters, spells, units, items", icon: "book" },
   companion: { label: "Event Companion", desc: "Doubles, Teams and other event rules", icon: "flag" },
   points:  { label: "Points", desc: "Munitorum Field Manual", icon: "hash" },
   updates: { label: "Updates", desc: "FAQ, Balance Dataslate, mission pack", icon: "clock" },
