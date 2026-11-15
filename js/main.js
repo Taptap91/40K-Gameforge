@@ -1,20 +1,20 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import "./map-crop.js?v=8.66";
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.66";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.66";
-import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.66";
-import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.66";
-import * as core from "./core.js?v=8.66";
-import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.66";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.66";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.66";
-import { buildIndex } from "./search.js?v=8.66";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.66";
-import { fixApostrophes } from "./text.js?v=8.66";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.66";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.66";
+import "./map-crop.js?v=8.67";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.67";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.67";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.67";
+import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.67";
+import * as core from "./core.js?v=8.67";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.67";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.67";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.67";
+import { buildIndex } from "./search.js?v=8.67";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.67";
+import { fixApostrophes } from "./text.js?v=8.67";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.67";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.67";
 
 function renderAll() {
   renderScope();
