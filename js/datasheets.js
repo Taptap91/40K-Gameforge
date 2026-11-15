@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.61";
-import { wargearOf } from "./loadout.js?v=8.61";
-import { factionMatches } from "./search.js?v=8.61";
-import { coreAbilityRule } from "./rules-doc.js?v=8.61";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.61";
+import { esc, state, uid } from "./core.js?v=8.62";
+import { wargearOf } from "./loadout.js?v=8.62";
+import { factionMatches } from "./search.js?v=8.62";
+import { coreAbilityRule } from "./rules-doc.js?v=8.62";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.62";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -443,8 +443,9 @@ function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
       const extra = mine.filter(b => b.keyword && !own.some(k => normName(k).startsWith(normName(b.keyword.split(" (")[0]))))
         .map(b => `<span class="lb-buffkw">${esc(b.keyword)} – ${esc(b.source)}</span>`);
       const statNotes = mine.filter(b => b.stat).map(b => `<span class="lb-buffkw">${b.delta > 0 ? "+" : ""}${b.delta} ${esc(b.stat)} – ${esc(b.source)}</span>`);
-      // Keywords as outlined tags under the weapon's name, lined up with it (no "Keywords" label).
-      const tags = [...own.map(k => `<span class="fv-kw">${esc(k)}</span>`), ...extra.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"')), ...statNotes.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"'))];
+      // Keywords as outlined tags under the weapon's name, lined up with it (no "Keywords" label). Each
+      // one is a button that opens its rules text from the Core Rules, the same popup Core Abilities use.
+      const tags = [...own.map(k => `<button type="button" class="fv-kw fv-kw-btn" data-core="${esc(k)}" aria-haspopup="dialog">${esc(k)}</button>`), ...extra.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"')), ...statNotes.map(e => e.replace('class="lb-buffkw"', 'class="fv-kw lb-buffkw"'))];
       // Under a weapon's own bar (list building) its name is already shown, so a profile is labelled by what differs:
       // "Standard" / "Supercharge", otherwise "Ranged" or "Melee".
       let label = capWords(w.name.replace(/\s+non-?\s*$/i, "")), dash = false;

@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.61";
-import { armyData } from "./army.js?v=8.61";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.61";
-import { factionMatches } from "./search.js?v=8.61";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.61";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.61";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.61";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.61";
-import { libraryHTML } from "./library.js?v=8.61";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.62";
+import { armyData } from "./army.js?v=8.62";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.62";
+import { factionMatches } from "./search.js?v=8.62";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.62";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.62";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.62";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.62";
+import { libraryHTML } from "./library.js?v=8.62";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -327,9 +327,8 @@ function missionLeftHTML(pack) {
       <span class="fp-iname">${esc(label)}</span><span class="fp-imeta">${sectionCount(pack, k)}</span></button>`).join("")}</div>`;
 }
 function missionRightHTML(pack) {
-  const back = `<button type="button" class="btn plain fp-back" data-fp-back>‹ Back</button>`;
   const label = (MISSION_TABS.find(([k]) => k === fUI.missionTab) || [])[1] || "";
-  return `${back}<div class="fp-head"><h2>${esc(label)}</h2></div>${missionTabHTML(pack, fUI.missionTab)}`;
+  return `<div class="fp-head"><h2>${esc(label)}</h2></div>${missionTabHTML(pack, fUI.missionTab)}`;
 }
 
 function renderFactionsPage() {
@@ -452,13 +451,12 @@ function detSubsHTML(d) {
 
 function rightHTML(c) {
   const s = fUI.sel;
-  const back = `<button type="button" class="btn plain fp-back" data-fp-back>‹ Back</button>`;
   if (!s) return `<div class="fp-empty">Choose an army rule, detachment or unit on the left.</div>`;
   if (s.t === "army") {
     const r = c.armyRules.find(x => normName(x.name) === s.k);
     if (!r) return "";
     const ps = armyRuleParts(r, c.armyRules);
-    return `${back}<div class="fp-head"><h2>${esc(softenCaps(r.name))}</h2><div class="fp-sub">Army Rule${r.special ? " · Special move" : ""}${ps.length ? ` · ${ps.length} ${esc(pluralKind(ps[0].kind, ps.length))}` : ""} · ${esc(fUI.faction)}</div></div>
+    return `<div class="fp-head"><h2>${esc(softenCaps(r.name))}</h2><div class="fp-sub">Army Rule${r.special ? " · Special move" : ""}${ps.length ? ` · ${ps.length} ${esc(pluralKind(ps[0].kind, ps.length))}` : ""} · ${esc(fUI.faction)}</div></div>
       ${panelHTML("", `<div class="fv-rich fv-army fp-text">${richHTML(r.rich || r.text)}</div>`)}
       ${ps.length ? panelHTML(esc(pluralKind(ps[0].kind, ps.length)), ps.map(p => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(p.name))}</div><div class="fv-rich">${richHTML(p.rich || p.text)}</div></div>`).join("")) : ""}`;
   }
@@ -474,7 +472,7 @@ function rightHTML(c) {
     const items = strat
       ? d.stratagems.map(st => ab(st.name, [String(st.cp || "").replace(/(\d+)\s*CP/i, "$1 CP"), st.category].filter(Boolean).join(" · "), fl(st) + richHTML(st.rich || st.text)))
       : d.enhancements.map(e => ab(e.name, [enhPts(e) != null ? `${enhPts(e)} pts` : "", isUp(e) ? "Upgrade" : ""].filter(Boolean).join(" · "), fl(e) + richHTML(e.rich || e.text)));
-    return `${back}<div class="fp-head"><h2>${strat ? "Stratagems" : "Enhancements"}</h2><div class="fp-sub">${esc(d.name)} · ${items.length}</div></div>
+    return `<div class="fp-head"><h2>${strat ? "Stratagems" : "Enhancements"}</h2><div class="fp-sub">${esc(d.name)} · ${items.length}</div></div>
       ${items.length ? panelHTML("", items.join("")) : `<div class="fp-empty">None in this detachment.</div>`}`;
   }
   if (s.t === "det") {
@@ -487,7 +485,7 @@ function rightHTML(c) {
     // Lore text (in italics) above the rules, when the faction pack prints any.
     const fl = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
     const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;
-    return `${back}<div class="fp-head"><h2>${esc(d.name)}</h2><div class="fp-sub">Detachment · ${esc(String(d.dp || "").replace(/(\d+)\s*DP/i, "$1 DP"))}</div></div>
+    return `<div class="fp-head"><h2>${esc(d.name)}</h2><div class="fp-sub">Detachment · ${esc(String(d.dp || "").replace(/(\d+)\s*DP/i, "$1 DP"))}</div></div>
       ${uq ? `<div class="fv-unique"><b>Unique: ${esc(uq)}</b><span>${rivals.length ? `Can't be taken in the same army as ${esc(rivals.join(", "))}.` : "No other detachment in your army may share this tag."}</span></div>` : ""}
       ${disp.length ? panelHTML("Force Disposition:", `<div class="fp-disp"><span class="fp-disp-sym" aria-hidden="true">◆</span><span class="fp-disp-name">${esc(disp.join(", "))}</span></div>`) : ""}
       ${d.description ? panelHTML("", `<div class="fv-rich fp-text">${richHTML(d.description)}</div>`) : ""}
@@ -500,7 +498,7 @@ function rightHTML(c) {
   const opts = u?.options || ds.points || [];
 
   if (unitMode()) return `${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
-  return `${back}<div class="fp-head"><h2>${esc(ds.name)}</h2>
+  return `<div class="fp-head"><h2>${esc(ds.name)}</h2>
       <div class="fp-sub">${opts.map(o => `${o.models} model${o.models === 1 ? "" : "s"} – ${o.points} pts`).join(" · ") || "No points listed"}${u?.pointsFrom ? ` · points from ${esc(u.pointsFrom)}` : ""}</div></div>
     ${statsHTML(ds)}${weaponPanelsHTML(ds)}${wargearOptionsHTML(ds)}${datasheetDetailsHTML(ds, c.armyRules, { siblings: c.datasheets, link: true })}`;
 }

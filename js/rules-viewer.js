@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.61";
-import { richHTML, softenCaps } from "./text.js?v=8.61";
+import { esc } from "./core.js?v=8.62";
+import { richHTML, softenCaps } from "./text.js?v=8.62";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -57,9 +57,8 @@ function rulesLeftHTML(doc, selKey) {
 }
 
 function rulesRightHTML(section) {
-  const back = `<button type="button" class="btn plain fp-back" data-fp-back>‹ Back</button>`;
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
-  return `${back}<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
+  return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
     <div class="fv-rich fp-text">${richHTML(section.rich || section.text)}</div>`;
 }
 

@@ -651,14 +651,12 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-rulenum { font-weight: 400; }
 .fp-ruledash { margin: 0 4px; }
 .fp-text { font-size: 13px; }
-.fp-back { display: none; align-self: flex-start; padding-left: 0; }
 .fp-empty, .fp-none { color: var(--text-2); text-align: center; padding: 40px 16px; }
 @media (max-width: 760px) {
   .fp-shell { grid-template-columns: minmax(0, 1fr); }
   .fp-shell .fp-right { display: none; }
   .fp-shell.show-detail .fp-left { display: none; }
   .fp-shell.show-detail .fp-right { display: flex; padding: 12px 16px 40px; }
-  .fp-back { display: inline-flex; }
   .fp-left { border-right: 0; }
 }
 
@@ -881,8 +879,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-grp > summary { padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--panel); min-height: 46px; }
   .fp-grp[open] > summary { margin-bottom: 8px; }
   .fp-grp { margin-top: 8px; }
-  /* Back: a bordered button in white. */
-  .btn.plain.fp-back { align-items: center; gap: 4px; padding: 8px 14px; border: 1px solid var(--border-strong) !important; border-radius: 10px; color: var(--text) !important; background: var(--panel) !important; margin-bottom: 12px; }
 }
 @media (max-width: 1279px), (pointer: coarse) and (max-width: 1400px) {
   /* Leader / Led By / Support lists: bordered buttons instead of bullet-point links. */
