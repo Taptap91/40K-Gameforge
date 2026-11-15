@@ -11,9 +11,18 @@ computer only; nothing is uploaded anywhere.
    Reorder with ↑ ↓. Type a page range like `1-5, 8, 12-` to keep only some pages of a piece.
 2. **Name it**: Game, Edition, Type (Rules, Factions, Companions, Collections) and Title. A Factions file also
    takes the faction name; a Rules file can be marked as an update/FAQ.
-3. **Save to Game Pack folder** writes `packs/incoming/<Game>/<Edition>/<Type>/<Title>.pdf` plus a
+3. **Remove headers and footers** (optional): enter how much of the top and bottom of every page to clear, as a
+   percentage, or press *Find them automatically* to detect lines repeated on most pages (website address, date,
+   page numbers). The text in those bands is deleted from the saved PDF, not merely covered. Set it before saving.
+4. **Save to Game Pack folder** writes `packs/incoming/<Game>/<Edition>/<Type>/<Title>.pdf` plus a
    `<Title>.json` beside it (title, faction, version, note). Commit and push it; the pack converter reads the
    JSON, so the app shows exactly the title you typed. **Download PDF** just gives you the merged file.
+
+**Upload to GitHub** (optional): open that section, tick the box, and enter the repository and branch (the
+workflow reads `game-packs`) plus a fine-grained token limited to that repository with *Contents: Read and write*.
+Saving then also uploads the `.json` and the PDF straight to `packs/incoming/…`, replacing an older file of the same
+name, and the pack converter runs from there. Tick *Remember* to keep the token in `~/.rulesforge-pdfstudio.json`
+on this computer only. Without it, the token is used once and not stored.
 
 Set `RF_OUT` to save somewhere other than the repo's `packs/incoming`.
 Web capture prints the page as text-based PDF without browser headers or footers, which the app reads well.

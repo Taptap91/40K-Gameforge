@@ -7,13 +7,15 @@ Web capture uses Chrome, Edge or Chromium already installed on your computer.
 The merged PDF is saved to packs/incoming/<Game>/<Edition>/<Type>/<Title>.pdf with a <Title>.json beside it
 holding the title, faction, version and description, which is exactly what RulesForge's pack converter reads.
 """
-import json, os, re, shutil, subprocess, sys, tempfile, threading, uuid, webbrowser
+import base64, json, os, re, shutil, subprocess, sys, tempfile, threading, urllib.request, urllib.error, uuid, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 try:
     from pypdf import PdfReader, PdfWriter
+    from pypdf.generic import ArrayObject, NameObject, TextStringObject, FloatObject
+    from pypdf.generic import ContentStream
 except ImportError:
     sys.exit("PDF Studio needs the pypdf package. Run:  pip install pypdf   then start it again.")
 
@@ -31,6 +33,16 @@ def default_out():
 
 
 OUT = Path(os.environ.get("RF_OUT") or default_out())
+CONFIG = Path.home() / ".rulesforge-pdfstudio.json"   # remembers the GitHub details (and token, if you tick "remember")
+GITHUB_API = os.environ.get("GITHUB_API", "https://api.github.com")
+
+
+def load_config():
+    try:
+        return json.loads(CONFIG.read_text("utf-8"))
+    except Exception:
+        return {}
+
 
 
 def safe(name):
@@ -95,7 +107,83 @@ def capture(url):
     return register(dest, f"{host} (web page)")
 
 
-def build(items, title):
+def _mul(a, b):
+    """Multiply two PDF matrices given as (a, b, c, d, e, f)."""
+    return (a[0]*b[0]+a[1]*b[2], a[0]*b[1]+a[1]*b[3], a[2]*b[0]+a[3]*b[2], a[2]*b[1]+a[3]*b[3], a[4]*b[0]+a[5]*b[2]+b[4], a[4]*b[1]+a[5]*b[3]+b[5])
+
+
+def text_runs(page):
+    """Every text-showing step on the page as (operation index, y position in page units, plain text)."""
+    cs = page.get_contents()
+    ops = list(cs.operations) if cs is not None else []
+    I = (1, 0, 0, 1, 0, 0)
+    ctm, stack, tm, tlm, lead, runs = I, [], I, I, 0.0, []
+    for n, (operands, op) in enumerate(ops):
+        o = op.decode() if isinstance(op, bytes) else op
+        if o == "q": stack.append(ctm)
+        elif o == "Q": ctm = stack.pop() if stack else I
+        elif o == "cm": ctm = _mul(tuple(float(x) for x in operands), ctm)
+        elif o == "BT": tm = tlm = I
+        elif o == "Tm": tm = tlm = tuple(float(x) for x in operands)
+        elif o in ("Td", "TD"):
+            tlm = _mul((1, 0, 0, 1, float(operands[0]), float(operands[1])), tlm); tm = tlm
+            if o == "TD": lead = -float(operands[1])
+        elif o == "TL": lead = float(operands[0])
+        elif o in ("T*", "'", '"'):
+            tlm = _mul((1, 0, 0, 1, 0, -lead), tlm); tm = tlm
+        if o in ("Tj", "TJ", "'", '"'):
+            val = operands[-1]
+            txt = "".join(str(x) for x in val if not isinstance(x, (int, float, FloatObject))) if o == "TJ" else str(val)
+            runs.append((n, _mul(tm, ctm)[5], txt))
+    return ops, runs
+
+
+def clear_bands(page, top_pct, bottom_pct):
+    """Really removes the text in the top/bottom share of the page (not just covers it)."""
+    if not (top_pct or bottom_pct):
+        return
+    h = float(page.mediabox.height); base = float(page.mediabox.bottom)
+    lo, hi = base + h * bottom_pct / 100, base + h * (1 - top_pct / 100)
+    ops, runs = text_runs(page)
+    kill = {n for n, y, _ in runs if (bottom_pct and y < lo) or (top_pct and y > hi)}
+    if not kill:
+        return
+    for n in kill:
+        operands, op = ops[n]
+        o = op.decode() if isinstance(op, bytes) else op
+        ops[n] = ([ArrayObject()] if o == "TJ" else [TextStringObject("")] if o == "Tj" else [*operands[:-1], TextStringObject("")], op)
+    cs = ContentStream(None, page.pdf); cs.operations = ops
+    page.replace_contents(cs)
+
+
+def detect_bands(paths_pages):
+    """Finds lines that repeat at the top or bottom of many pages (site name, date, address, page numbers) and
+    returns the suggested band sizes in percent plus the repeated text found."""
+    seen = {}; total = 0; heights = []
+    for path, idxs in paths_pages:
+        r = PdfReader(path)
+        for i in idxs:
+            pg = r.pages[i]; total += 1
+            h = float(pg.mediabox.height); base = float(pg.mediabox.bottom); heights.append(h)
+            lines = {}
+            def visit(text, cm, tm, fd, fs):
+                if text.strip():
+                    m = _mul(tuple(tm), tuple(cm)); lines.setdefault(round(m[5]), []).append(text)
+            pg.extract_text(visitor_text=visit)
+            for y, parts in lines.items():
+                txt = " ".join("".join(parts).split()); rel = (y - base) / h; key = re.sub(r"\d+", "#", txt)
+                if key and (rel > 0.93 or rel < 0.07):
+                    seen.setdefault(("top" if rel > 0.5 else "bottom", key), []).append((rel, txt))
+    need = max(2, int(total * 0.4)); top = bot = 0.0; found = []
+    for (where, key), hits in seen.items():
+        if len(hits) >= need:
+            found.append(f"{where}: {hits[0][1][:60]}")
+            if where == "top": top = max(top, (1 - min(r for r, _ in hits)) * 100 + 1.5)
+            else: bot = max(bot, max(r for r, _ in hits) * 100 + 1.5)
+    return {"top": round(top, 1), "bottom": round(bot, 1), "found": sorted(set(found)), "pages": total}
+
+
+def build(items, title, top=0.0, bottom=0.0):
     w = PdfWriter()
     for it in items:
         f = FILES.get(it["id"])
@@ -106,6 +194,7 @@ def build(items, title):
         first = len(w.pages)
         for i in idx:
             w.add_page(r.pages[i])
+            clear_bands(w.pages[-1], top, bottom)
         if len(items) > 1 and idx:
             w.add_outline_item(Path(f["name"]).stem, first)
     if not len(w.pages):
@@ -114,18 +203,57 @@ def build(items, title):
     return w
 
 
+def bands(d):
+    return (max(0.0, min(40.0, float(d.get("top") or 0))), max(0.0, min(40.0, float(d.get("bottom") or 0))))
+
+
+def detect(d):
+    pp = []
+    for it in d["items"]:
+        f = FILES[it["id"]]
+        pp.append((f["path"], parse_range(it.get("range", ""), f["pages"])))
+    return detect_bands(pp)
+
+
+def github_put(cfg, repo_path, data, message):
+    """Create or replace one file in the repository through GitHub's contents API."""
+    url = f"{GITHUB_API}/repos/{cfg['repo']}/contents/" + "/".join(urllib.request.quote(p) for p in repo_path.split("/"))
+    head = {"Authorization": f"Bearer {cfg['token']}", "Accept": "application/vnd.github+json", "User-Agent": "rulesforge-pdfstudio"}
+    sha = None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(f"{url}?ref={cfg['branch']}", headers=head)) as r:
+            sha = json.load(r).get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404: raise RuntimeError(gh_error(e))
+    body = {"message": message, "content": base64.b64encode(data).decode(), "branch": cfg["branch"]}
+    if sha: body["sha"] = sha
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, json.dumps(body).encode(), {**head, "Content-Type": "application/json"}, method="PUT")) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(gh_error(e))
+
+
+def gh_error(e):
+    try: msg = json.load(e).get("message", "")
+    except Exception: msg = ""
+    hint = {401: "GitHub didn't accept the token (wrong, expired, or revoked).", 403: "The token isn't allowed to write to this repository (it needs Contents: Read and write).",
+            404: "GitHub can't find that repository or branch with this token."}.get(e.code, "")
+    return f"GitHub said {e.code}: {msg} {hint}".strip()
+
+
 def save(d):
     title, game, edition, typ = (d.get(k, "").strip() for k in ("title", "game", "edition", "type"))
     if not title:
         raise ValueError("Give the file a title: it's what the app will call it.")
     if d.get("mode") == "download":
         dest = WORK / f"{safe(title)}.pdf"
-        build(d["items"], title).write(str(dest))
+        build(d["items"], title, *bands(d)).write(str(dest))
         return {"download": f"/api/pdf?path={dest.name}", "name": dest.name}
     if not game or not edition or typ not in TYPES:
         raise ValueError("Pick the Game, Edition and Type so it lands in the right Game Pack.")
     folder = OUT / safe(game) / safe(edition) / typ
-    writer = build(d["items"], title)   # build first, so a bad page range leaves no empty folders behind
+    writer = build(d["items"], title, *bands(d))   # build first, so a bad page range leaves no empty folders behind
     folder.mkdir(parents=True, exist_ok=True)
     dest = folder / f"{safe(title)}.pdf"
     writer.write(str(dest))
@@ -138,7 +266,23 @@ def save(d):
         if d.get(k, "").strip():
             meta[k] = d[k].strip()
     dest.with_suffix(".json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
-    return {"saved": str(dest), "pages": len(PdfReader(str(dest)).pages)}
+    out = {"saved": str(dest), "pages": len(PdfReader(str(dest)).pages)}
+    gh = d.get("github")
+    if gh:
+        cfg = {"repo": gh["repo"].strip(), "branch": gh["branch"].strip() or "game-packs", "token": gh["token"].strip() or load_config().get("token", "")}
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", cfg["repo"]) or not cfg["token"]:
+            raise ValueError("To upload, fill in the repository (owner/name) and a GitHub token.")
+        if gh.get("remember"):
+            CONFIG.write_text(json.dumps(cfg), "utf-8")
+            try: CONFIG.chmod(0o600)
+            except OSError: pass
+        rel = dest.relative_to(OUT.parent.parent).as_posix() if OUT.name == "incoming" else f"packs/incoming/{dest.relative_to(OUT).as_posix()}"
+        msg = f"Add {title} ({typ})"
+        # The details file first, so it is already there when the PDF triggers the converter.
+        github_put(cfg, rel[:-4] + ".json", dest.with_suffix(".json").read_bytes(), msg)
+        github_put(cfg, rel, dest.read_bytes(), msg)
+        out["uploaded"] = f"{cfg['repo']}@{cfg['branch']}:{rel}"
+    return out
 
 
 def existing():
@@ -165,7 +309,8 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/":
             return self.send(200, PAGE.replace("__TYPES__", json.dumps(TYPES)).encode(), "text/html; charset=utf-8")
         if u.path == "/api/info":
-            return self.send(200, {"out": str(OUT), "games": existing(), "browser": bool(find_browser())})
+            c = load_config()
+            return self.send(200, {"out": str(OUT), "games": existing(), "browser": bool(find_browser()), "repo": c.get("repo", "Taptap91/40k-gameforge"), "branch": c.get("branch", "game-packs"), "hasToken": bool(c.get("token"))})
         if u.path == "/api/pdf":
             p = WORK / Path(parse_qs(u.query).get("path", [""])[0]).name
             if p.exists(): return self.send(200, p.read_bytes(), "application/pdf")
@@ -183,6 +328,7 @@ class H(BaseHTTPRequestHandler):
             d = json.loads(raw or b"{}")
             if u.path == "/api/capture": return self.send(200, capture(d.get("url", "").strip()))
             if u.path == "/api/save": return self.send(200, save(d))
+            if u.path == "/api/detect": return self.send(200, detect(d))
         except Exception as e:
             return self.send(400, {"error": str(e) or e.__class__.__name__})
         self.send(404, {"error": "not found"})
@@ -215,7 +361,17 @@ label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display
 <label>Title: what the app calls it</label><input id="title" placeholder="Codex: Space Marines">
 <div id="facw"><label>Faction (for an army)</label><input id="fac" placeholder="Space Marines"></div>
 <div id="kw" hidden><label>Rules kind</label><select id="rk"><option value="core">Core Rules</option><option value="updates">Update / FAQ / errata</option></select></div>
+<label>Remove headers and footers (website address, date, page numbers…)</label>
+<div class="two"><div><input id="top" type="number" min="0" max="40" step="0.5" placeholder="Top % of page"></div><div><input id="bot" type="number" min="0" max="40" step="0.5" placeholder="Bottom % of page"></div></div>
+<div style="margin-top:6px"><button id="det">Find them automatically</button> <span class="hint" id="detout"></span></div>
+<div class="hint">The text inside these bands is deleted from the saved PDF, not just covered. Detect looks in the outer 7% of each page for lines repeated on most pages and fills the sizes in. Check the result, then adjust the numbers if real text is too close to the edge.</div>
 <div class="two"><div><label>Version (optional)</label><input id="ver" placeholder="2026-11"></div><div><label>Note (optional)</label><input id="desc"></div></div>
+<details style="margin-top:14px"><summary>Upload to GitHub</summary>
+<label><input type="checkbox" id="up" style="width:auto"> Also upload the saved files to GitHub</label>
+<div class="two"><div><label>Repository</label><input id="repo" value="Taptap91/40k-gameforge"></div><div><label>Branch</label><input id="br" value="game-packs"></div></div>
+<label>Token <span id="tkn"></span></label><input id="tok" type="password" autocomplete="off" placeholder="GitHub token with Contents: read and write">
+<label><input type="checkbox" id="rem" style="width:auto"> Remember on this computer</label>
+<div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div></details>
 <div style="display:flex;gap:8px;margin-top:16px"><button class="p" id="save" style="flex:1">Save to Game Pack folder</button><button id="dl">Download PDF</button></div>
 <div class="hint" id="out"></div></section><div id="msg"></div></main>
 <script>
@@ -233,10 +389,11 @@ $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.d
 $("grab").onclick=async()=>{const u=$("url").value.trim();if(!u)return;$("grab").disabled=true;msg("Capturing the page… this can take up to a minute.");try{items.push(await api("/api/capture",JSON.stringify({url:u})));$("url").value="";draw();msg("Captured.","ok")}catch(e){msg(e.message,"err")}$("grab").disabled=false};
 function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
 $("type").onchange=$("game").oninput=sync;
-const form=m=>({mode:m,items:items.map(i=>({id:i.id,range:i.range||""})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
-$("save").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify(form("folder")));msg(`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}};
+const form=m=>({top:$("top").value,bottom:$("bot").value,github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||""})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
+$("save").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify(form("folder")));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}};
+$("det").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");msg("Looking for repeated lines…");try{const r=await api("/api/detect",JSON.stringify(form("download")));$("top").value=r.top||"";$("bot").value=r.bottom||"";$("detout").textContent=r.found.length?"Found: "+r.found.join(" · "):"Nothing repeated found.";msg("")}catch(e){msg(e.message,"err")}};
 $("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify(form("download")));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
-fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Web capture needs Chrome or Edge installed; none was found.";sync()});sync();
+fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Web capture needs Chrome or Edge installed; none was found.";sync()});sync();
 </script></html>"""
 
 if __name__ == "__main__":
