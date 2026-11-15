@@ -234,6 +234,29 @@ def github_put(cfg, repo_path, data, message):
         raise RuntimeError(gh_error(e))
 
 
+def gh_get(cfg, path):
+    head = {"Authorization": f"Bearer {cfg['token']}", "Accept": "application/vnd.github+json", "User-Agent": "rulesforge-pdfstudio"}
+    url = f"{GITHUB_API}/repos/{cfg['repo']}/contents/{path}?ref={cfg['branch']}"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=head)) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 404: return None
+        raise RuntimeError(gh_error(e))
+
+
+def remote_games(d):
+    """The Game / Edition folders that already exist under packs/incoming in the repository."""
+    cfg = {"repo": d.get("repo", "").strip(), "branch": d.get("branch", "").strip() or "game-packs", "token": d.get("token", "").strip() or load_config().get("token", "")}
+    if not re.fullmatch(r"[\w.-]+/[\w.-]+", cfg["repo"]) or not cfg["token"]:
+        raise ValueError("Fill in the repository (owner/name) and a GitHub token first.")
+    games = {}
+    for g in gh_get(cfg, "packs/incoming") or []:
+        if g.get("type") == "dir":
+            games[g["name"]] = sorted(e["name"] for e in (gh_get(cfg, f"packs/incoming/{urllib.request.quote(g['name'])}") or []) if e.get("type") == "dir")
+    return {"games": games}
+
+
 def gh_error(e):
     try: msg = json.load(e).get("message", "")
     except Exception: msg = ""
@@ -328,6 +351,7 @@ class H(BaseHTTPRequestHandler):
             d = json.loads(raw or b"{}")
             if u.path == "/api/capture": return self.send(200, capture(d.get("url", "").strip()))
             if u.path == "/api/save": return self.send(200, save(d))
+            if u.path == "/api/remote": return self.send(200, remote_games(d))
             if u.path == "/api/detect": return self.send(200, detect(d))
         except Exception as e:
             return self.send(400, {"error": str(e) or e.__class__.__name__})
@@ -371,6 +395,9 @@ label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display
 <div class="two"><div><label>Repository</label><input id="repo" value="Taptap91/40k-gameforge"></div><div><label>Branch</label><input id="br" value="game-packs"></div></div>
 <label>Token <span id="tkn"></span></label><input id="tok" type="password" autocomplete="off" placeholder="GitHub token with Contents: read and write">
 <label><input type="checkbox" id="rem" style="width:auto"> Remember on this computer</label>
+<div style="margin-top:8px"><button id="load">Load folders from GitHub</button></div>
+<label>Destination <small>(only folders that exist under packs/incoming)</small></label><select id="dest" disabled><option>Load the folders first</option></select>
+<div class="hint" id="path"></div>
 <div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div></details>
 <div style="display:flex;gap:8px;margin-top:16px"><button class="p" id="save" style="flex:1">Save to Game Pack folder</button><button id="dl">Download PDF</button></div>
 <div class="hint" id="out"></div></section><div id="msg"></div></main>
@@ -387,6 +414,14 @@ $("drop").onclick=()=>$("pick").click();$("pick").onchange=e=>add(e.target.files
 $("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("on")};$("drop").ondragleave=()=>$("drop").classList.remove("on");
 $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.dataTransfer.files)};
 $("grab").onclick=async()=>{const u=$("url").value.trim();if(!u)return;$("grab").disabled=true;msg("Capturing the page… this can take up to a minute.");try{items.push(await api("/api/capture",JSON.stringify({url:u})));$("url").value="";draw();msg("Captured.","ok")}catch(e){msg(e.message,"err")}$("grab").disabled=false};
+let remote=null;
+function dests(){const o=[];for(const[g,es]of Object.entries(remote.games)){if(!es.length)o.push([g,""]);es.forEach(e=>o.push([g,e]))}return o}
+$("load").onclick=async()=>{msg("Reading the repository…");try{remote=await api("/api/remote",JSON.stringify({repo:$("repo").value,branch:$("br").value,token:$("tok").value}));const o=dests();
+$("dest").innerHTML=o.map(([g,e],i)=>`<option value="${i}">${g}${e?" / "+e:" (no edition yet)"}</option>`).join("")+`<option value="new">＋ New Game Pack…</option>`;$("dest").disabled=false;$("up").checked=true;pick();msg("Folders loaded.","ok")}catch(e){msg(e.message,"err")}};
+function paint(){$("path").textContent=$("dest").value==="new"?"A new Game Pack: type its Game and Edition on the left. The folders are created when you upload.":"Uploads to packs/incoming/"+$("game").value+"/"+($("ed").value||"…")+"/"+$("type").value+"/"}
+function pick(){const v=$("dest").value,fresh=v==="new";$("game").readOnly=!fresh;$("ed").readOnly=!fresh;
+if(!fresh){const[g,e]=dests()[+v];$("game").value=g;$("ed").value=e;$("ed").readOnly=!!e}else{$("game").value=$("ed").value="";$("game").focus()}paint()}
+$("dest").onchange=pick;for(const id of["type","game","ed"])$(id).addEventListener("input",()=>{if(remote)paint()});$("type").addEventListener("change",()=>{if(remote)paint()});
 function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
 $("type").onchange=$("game").oninput=sync;
 const form=m=>({top:$("top").value,bottom:$("bot").value,github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||""})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});

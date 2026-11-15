@@ -24,6 +24,14 @@ Saving then also uploads the `.json` and the PDF straight to `packs/incoming/…
 name, and the pack converter runs from there. Tick *Remember* to keep the token in `~/.rulesforge-pdfstudio.json`
 on this computer only. Without it, the token is used once and not stored.
 
+**Choosing the folder:** press *Load folders from GitHub*. The Destination list then shows only the Game /
+Edition folders that already exist under `packs/incoming`, so a file can't land somewhere that isn't a Game Pack.
+Choose **＋ New Game Pack…** to start one: type its Game and Edition names and the folders are created by the
+first upload (Git keeps no empty folders, so there is nothing to make beforehand).
+
+**Using it on its own:** this folder works without the rest of the repository. Outside the repository it saves
+local copies to `RulesForge-PDFs` in your home folder, and GitHub upload works the same.
+
 Set `RF_OUT` to save somewhere other than the repo's `packs/incoming`.
 Web capture prints the page as text-based PDF without browser headers or footers, which the app reads well.
 Pages that need a login or that load content as you scroll may capture only what's visible at load.
