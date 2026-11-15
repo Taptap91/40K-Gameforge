@@ -1,10 +1,10 @@
 /* RulesForge · search.js
  * Rules search: finds the passages that answer a question, and works out which units and factions it's about.
  */
-import { KNOWN_FACTIONS, state } from "./core.js?v=8.64";
-import { scopeLabel } from "./rules-chat.js?v=8.64";
-import { normName, tokens } from "./text.js?v=8.64";
-import { editionLabel, effectiveRules, isRulesDoc, sectionChunks } from "./rules-doc.js?v=8.64";
+import { KNOWN_FACTIONS, state } from "./core.js?v=8.65";
+import { scopeLabel } from "./rules-chat.js?v=8.65";
+import { normName, tokens } from "./text.js?v=8.65";
+import { editionLabel, effectiveRules, isRulesDoc, sectionChunks } from "./rules-doc.js?v=8.65";
 
 const SHORTHAND = {
   fnp: "feel no pain", ds: "deep strike", oc: "objective control", mw: "mortal wounds", mws: "mortal wounds",
@@ -145,6 +145,8 @@ function stripNames(question, units, factions) {
 
 function factionMatches(tag, wanted) {
   const a = normName(tag || ""), b = normName(wanted || "");
+  // "Chaos Space Marines" contains "Space Marines" but is a different faction: without this, adding one replaced the other.
+  if (a.startsWith("chaos ") !== b.startsWith("chaos ") && (a.includes(b) || b.includes(a))) return false;
   return !!a && !!b && (a === b || a.includes(b) || b.includes(a));
 }
 const isCoreOrUpdate = c => c.kind === "core" || c.kind === "updates";
