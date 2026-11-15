@@ -71,12 +71,12 @@
         },
         {
           "kind": "faction",
-          "title": "Astra Militarum Codex",
+          "title": "Genestealer Cults Codex",
           "faction": "Astra Militarum",
-          "version": "2026-11-14",
+          "version": "2026-11-15",
           "description": "",
           "file": "warhammer-40k-11th-edition/astra-militarum.xlsx",
-          "sizeKB": 115
+          "sizeKB": 120
         },
         {
           "kind": "faction",
@@ -202,6 +202,51 @@
           "description": "",
           "file": "warhammer-40k-11th-edition/world-eaters.xlsx",
           "sizeKB": 55
+        },
+        {
+          "kind": "faction",
+          "title": "Aeldari Codex",
+          "faction": "Aeldari",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/aeldari.xlsx",
+          "sizeKB": 117
+        },
+        {
+          "kind": "faction",
+          "title": "Drukhari Codex",
+          "faction": "Drukhari",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/drukhari.xlsx",
+          "sizeKB": 75
+        },
+        {
+          "kind": "faction",
+          "title": "Leagues of Votann Codex",
+          "faction": "Leagues of Votann",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/leagues-of-votann.xlsx",
+          "sizeKB": 63
+        },
+        {
+          "kind": "faction",
+          "title": "Necrons Codex",
+          "faction": "Necrons",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/necrons.xlsx",
+          "sizeKB": 86
+        },
+        {
+          "kind": "faction",
+          "title": "T'au Empire Codex",
+          "faction": "T'au Empire",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/t-au-empire.xlsx",
+          "sizeKB": 68
         }
       ]
     }
