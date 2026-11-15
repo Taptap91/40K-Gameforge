@@ -129,6 +129,11 @@ if (typeof document !== "undefined") {
   document.addEventListener("scroll", e => { if (popMenu && !popMenu.contains(e.target)) closePopMenu(); }, true);
 }
 
+/** A phone-width screen (the layouts that fold to one column). */
+const isPhone = () => matchMedia("(max-width: 760px)").matches;
+/** The newest mission pack's data in the Library, if there is one. */
+const missionPack = () => state.docs.filter(d => d.kind === "missions").sort((a, b) => b.importedAt - a.importedAt)[0]?.structured?.missionPack;
+
 const formatGB = bytes => bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 
 function askText(title, label, value) {
@@ -150,4 +155,4 @@ function askText(title, label, value) {
 /** Must match <meta name="rf-version"> in index.html; a mismatch means some files on the site are out of date. */
 const APP_VERSION = "8.67";
 
-export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, KINDS, KNOWN_FACTIONS, openSheet, openPopMenu, closePopMenu, settingsTabsHTML, state, store, toast, uid };
+export { $, $$, APP_VERSION, askText, confirmSheet, DB, esc, formatGB, icon, isPhone, KINDS, KNOWN_FACTIONS, missionPack, openSheet, openPopMenu, closePopMenu, settingsTabsHTML, state, store, toast, uid };

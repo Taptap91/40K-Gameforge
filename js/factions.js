@@ -1,7 +1,7 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.67";
+import { $, DB, esc, icon, isPhone, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.67";
 import { armyData } from "./army.js?v=8.67";
 import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.67";
 import { factionMatches } from "./search.js?v=8.67";
@@ -57,7 +57,6 @@ function applyCurrentSearch() {
 const fUI = { faction: store.get("rf.faction", ""), sel: null, search: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All", back: null };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
-const isPhone = () => matchMedia("(max-width: 760px)").matches;
 /** Phones and tablets: the bottom menu bar, closed categories, swipe to go back. */
 const TOUCH_LAYOUT = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
 const isTouchLayout = () => matchMedia(TOUCH_LAYOUT).matches;

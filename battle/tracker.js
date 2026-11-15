@@ -6,7 +6,7 @@
  * The app's menu bar is hidden here; instead two buttons along the bottom open each player's army (yours to the left,
  * your opponent's to the right; swipe to move between them). Tapping a unit shows its datasheet as it's equipped.
  */
-import { $, esc, openSheet, state, store } from "../js/core.js?v=8.67";
+import { $, esc, missionPack, openSheet, state, store } from "../js/core.js?v=8.67";
 import { factionStyle } from "../js/factions.js?v=8.67";
 import { armyData, evaluateList } from "../js/army.js?v=8.67";
 import { armyRuleParts, datasheetDetailsHTML, factionArmyRules, modStat, panelHTML } from "../js/datasheets.js?v=8.67";
@@ -82,7 +82,6 @@ function recalc(b) {
     p.secondary = p.secs.reduce((a, s) => a + (+s.vp || 0), 0);
   }
 }
-const missionPack = () => state.docs.filter(d => d.kind === "missions").sort((a, b) => b.importedAt - a.importedAt)[0]?.structured?.missionPack;
 /* The pack's limit per battle round for Primary and for Secondary Missions (15VP in the printed pack). */
 const capPerRound = () => +String(missionPack()?.limits?.[0]?.perRound || "").match(/\d+/)?.[0] || 15;
 const primaryCard = name => (name ? missionPack()?.primaries?.find(m => m.name === name) || null : null);

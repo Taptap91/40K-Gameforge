@@ -1,7 +1,7 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.67";
+import { esc, isPhone, state, uid } from "./core.js?v=8.67";
 import { wargearOf } from "./loadout.js?v=8.67";
 import { factionMatches } from "./search.js?v=8.67";
 import { coreAbilityRule } from "./rules-doc.js?v=8.67";
@@ -276,7 +276,7 @@ function openAbilityPopup(btn) {
   abilityPop = pop; popFrom = btn; btn.setAttribute("aria-expanded", "true");
   pop.querySelector(".ab-pop-x").onclick = () => closeAbilityPopup(true);
   // Phones: a sheet from the bottom of the screen. Elsewhere: just below the tag (above it if there's no room below).
-  if (matchMedia("(max-width: 760px)").matches) pop.classList.add("ab-pop-sheet");
+  if (isPhone()) pop.classList.add("ab-pop-sheet");
   else {
     const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 8;
     const left = Math.min(Math.max(12, r.left), innerWidth - w - 12);

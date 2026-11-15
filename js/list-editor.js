@@ -2,14 +2,13 @@
  * Army Lists pages: the lists home, the generate form and the three-column list editor.
  */
 import { armyData, attachedGroup, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, enhLimit, evaluateList, generateList, listToText, pointSizes, saveList, sizeRules, unitMax } from "./army.js?v=8.67";
-import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.67";
+import { $, $$, askText, closePopMenu, confirmSheet, DB, esc, isPhone, openPopMenu, openSheet, state, store, toast, uid } from "./core.js?v=8.67";
 import { DATASHEET_GROUPS, datasheetDetailsHTML, factionArmyRules, panelHTML, statsHTML, wargearOptionsHTML, weaponGridHTML } from "./datasheets.js?v=8.67";
 import { buffsFor, reconcileModels, setWeapon, weaponBase } from "./loadout.js?v=8.67";
 import { applyAccent, factionStyle, onSwipeRight } from "./factions.js?v=8.67";
 import { capWords, keywordList, normName, richHTML } from "./text.js?v=8.67";
 
 function renderSaved() { renderListsPage(); }const listUI = { mode: "home", id: null, gen: null, sel: null, pane: "unit", filter: "", openWeapons: new Set(), collapsed: new Set() };
-const isPhone = () => matchMedia("(max-width: 760px)").matches;
 const structuredFactions = () => [...new Set(state.docs.filter(d => d.structured?.datasheets && d.faction).map(d => d.faction))].sort();
 
 function renderListsPage() {
