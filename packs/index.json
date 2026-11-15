@@ -148,6 +148,60 @@
           "description": "",
           "file": "warhammer-40k-11th-edition/mission-deck-2026-27.xlsx",
           "sizeKB": 815
+        },
+        {
+          "kind": "faction",
+          "title": "Chaos Daemons Codex",
+          "faction": "Chaos Daemons",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/chaos-daemons.xlsx",
+          "sizeKB": 91
+        },
+        {
+          "kind": "faction",
+          "title": "Chaos Knights Codex",
+          "faction": "Chaos Knights",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/chaos-knights.xlsx",
+          "sizeKB": 60
+        },
+        {
+          "kind": "faction",
+          "title": "Chaos Space Marines Codex",
+          "faction": "Chaos Space Marines",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/chaos-space-marines.xlsx",
+          "sizeKB": 121
+        },
+        {
+          "kind": "faction",
+          "title": "Emperor's Children Codex",
+          "faction": "Emperor's Children",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/emperor-s-children.xlsx",
+          "sizeKB": 57
+        },
+        {
+          "kind": "faction",
+          "title": "Thousand Sons Codex",
+          "faction": "Thousand Sons",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/thousand-sons.xlsx",
+          "sizeKB": 70
+        },
+        {
+          "kind": "faction",
+          "title": "World Eaters Codex",
+          "faction": "World Eaters",
+          "version": "2026-11-15",
+          "description": "",
+          "file": "warhammer-40k-11th-edition/world-eaters.xlsx",
+          "sizeKB": 55
         }
       ]
     }
