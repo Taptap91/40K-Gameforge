@@ -164,6 +164,11 @@ function bundleSectionsHTML(bundleId) {
   const core = docs.find(d => d.kind === "core");
   const updates = docs.filter(d => d.kind === "updates").sort((a, b) => a.title.localeCompare(b.title));
   const missions = docs.filter(d => d.kind === "missions").sort((a, b) => a.title.localeCompare(b.title));
+  // Event Companions: Dominatus sits beside the Mission Packs; the rest read Event Companion, Doubles, Teams from the top.
+  const comps = docs.filter(d => d.kind === "companion");
+  const rank = d => [/event companion/i, /doubles/i, /teams/i].findIndex(r => r.test(d.title)) + 1 || 9;
+  const dominatus = comps.filter(d => /dominatus/i.test(d.title)).sort((a, b) => a.title.localeCompare(b.title));
+  const events = comps.filter(d => !dominatus.includes(d)).sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
   const allFacs = docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)));
   const facGroup = allFacs.some(d => groupOf(d.faction || d.title) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
   const facs = facGroup === "All" ? allFacs : allFacs.filter(d => groupOf(d.faction || d.title) === facGroup);
@@ -179,6 +184,9 @@ function bundleSectionsHTML(bundleId) {
   const missionCard = d => `<div class="lib-card lib-pack" role="button" tabindex="0" data-mission-open="${esc(d.id)}" data-search="${esc(searchBlob(d.title, d.structured))}">
       <div class="lib-icon">${icon("flag")}</div>
       <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
+  const companionCard = (d, ic = "users") => `<div class="lib-card${ic === "flag" ? " lib-pack" : ""}" role="button" tabindex="0" data-rules-open="${esc(d.id)}" data-search="${esc(searchBlob(d.title, d.structured))}">
+      <div class="lib-icon">${icon(ic)}</div>
+      <div class="lib-text"><div class="lib-name">${esc(d.title)}</div></div></div>`;
   const facCard = d => {
     const st = factionStyle(d.faction || "");
     const c = factionContent(d.faction);
@@ -186,16 +194,20 @@ function bundleSectionsHTML(bundleId) {
       ${st.img ? `<img class="lib-mark" src="${esc(st.img)}" alt="">` : ""}
       <div class="lib-text"><div class="lib-name">${esc(d.faction)}</div></div></div>`;
   };
-  const group = (label, items, card) => items.length ? `<div class="fp-sgrp"><div class="group-title">${esc(label)}</div><div class="lib-cards">${items.map(card).join("")}</div></div>` : "";
+  // One titled column of boxes. Wide screens lay the columns side by side (see .bs-cols in styles.css).
+  const column = (cls, label, cards) => cards ? `<div class="fp-sgrp bs-col ${cls}"><div class="group-title">${esc(label)}</div><div class="lib-cards">${cards}</div></div>` : "";
   const facToggle = `<div class="set-tabs fp-facgroup-tabs" role="tablist" aria-label="Faction group">
       ${["All", ...FACTION_GROUPS.map(([g]) => g)].map(g => `<button type="button" role="tab" class="set-tab${facGroup === g ? " on" : ""}" aria-selected="${facGroup === g}" data-fp-facgroup="${esc(g)}">${esc(g)}</button>`).join("")}
     </div>`;
 
   return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>${searchBarHTML("this Game Pack")}
     <div class="fp-bundle-sections">
-      ${core || updates.length ? `<div class="fp-sgrp"><div class="group-title">Core Rules</div><div class="lib-cards">${core ? coreCard(core) : ""}${updates.map(updateCard).join("")}</div></div>` : ""}
-      ${group("Mission Packs", missions, missionCard)}
-      ${allFacs.length ? `<div class="fp-sgrp"><div class="group-title">Factions</div>${facToggle}<div class="lib-cards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div></div>` : ""}
+      <div class="bs-cols">
+        ${column("bs-core", "Core Rules", (core ? coreCard(core) : "") + updates.map(updateCard).join(""))}
+        ${column("bs-mis", "Mission Packs", missions.map(missionCard).join("") + dominatus.map(d => companionCard(d, "flag")).join(""))}
+        ${column("bs-comp", "Event Companions", events.map(d => companionCard(d)).join(""))}
+      </div>
+      ${allFacs.length ? `<div class="fp-sgrp"><div class="group-title">Factions</div>${facToggle}<div class="lib-cards fp-faccards">${facs.length ? facs.map(facCard).join("") : `<p class="fp-empty">No factions in ${esc(facGroup)}.</p>`}</div></div>` : ""}
       <p class="fp-empty fp-search-none" hidden>Nothing in this Game Pack matches your search.</p>
     </div>`;
 }
@@ -337,7 +349,7 @@ function renderFactionsPage() {
   const missions = missionDocs();
   if (fUI.mission && !missions.some(d => d.id === fUI.mission)) fUI.mission = null;
   if (fUI.bundle && !bundleDocs(fUI.bundle).length) fUI.bundle = null;
-  if (fUI.rulesDoc && !state.docs.some(d => d.id === fUI.rulesDoc && (d.kind === "core" || d.kind === "updates"))) fUI.rulesDoc = null;
+  if (fUI.rulesDoc && !state.docs.some(d => d.id === fUI.rulesDoc && (d.kind === "core" || d.kind === "updates" || d.kind === "companion"))) fUI.rulesDoc = null;
   if (fUI.faction && !names.includes(fUI.faction)) fUI.faction = "";
   // Nothing in particular selected (or it just got deleted out from under us): the Game Packs home screen.
   if (!fUI.bundle && !fUI.rulesDoc && !fUI.mission && !fUI.faction) fUI.home = true;
@@ -365,7 +377,7 @@ function renderFactionsPage() {
     const flat = sectionsGrouped(doc).flatMap(g => g.items);
     if (!fUI.ruleSel || !flat.some(s => ruleKey(s) === fUI.ruleSel)) fUI.ruleSel = flat[0] ? ruleKey(flat[0]) : null;
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
-    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML("Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel)}</div>
         <div class="fp-right" id="fpRight">${rulesRightHTML(sel)}</div>
       </div>`;

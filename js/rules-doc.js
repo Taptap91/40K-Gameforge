@@ -199,7 +199,7 @@ function sectionChunks(sections) {
 
 /* ---------- Excel ---------- */
 
-const KIND_NAMES = { core: "Core Rules", updates: "Rules update" };
+const KIND_NAMES = { core: "Core Rules", updates: "Rules update", companion: "Event Companion" };
 function rulesToSheets(doc) {
   const d = doc.structured, W = (header, width) => ({ header, width });
   const ed = doc.edition || {};
@@ -232,12 +232,14 @@ function rulesFromWorkbook(book) {
     return { num: r.number || "", title: r.rule || "", chapter: r.chapter || "", part: r.part || "", ...(r.cp ? { cp: r.cp } : {}), text: r.rules || "", rich };
   });
   const battleSizes = sheet("Battle sizes").filter(b => b["battle size"]).map(b => ({ name: b["battle size"], points: num(b.points), dp: num(b["detachment points"]), enh: num(b["enhancement limit"]), units: num(b["unit limit"]) }));
-  const kind = /update|faq|errata|dataslate/i.test(about.kind || "") ? "updates" : "core";
+  const kind = /companion/i.test(about.kind || "") ? "companion" : /update|faq|errata|dataslate/i.test(about.kind || "") ? "updates" : "core";
   return { kind, title: about.title || "", edition: { version: about.version || "", date: about.date ? parseDate(about.date) : null }, structured: { sections, battleSizes } };
 }
 
 /* ---------- The rules in force ---------- */
 
+/** An Event Companion (Doubles, Teams, …): laid out like the Core Rules, but its rules are its own — never merged into them. */
+const isCompanionDoc = d => d.kind === "companion" && !!d.structured?.sections;
 const isRulesDoc = d => (d.kind === "core" || d.kind === "updates") && d.structured?.sections;
 let cache = { key: "", value: null };
 
@@ -281,4 +283,4 @@ function coreAbilityRule(name) {
     || list.find(s => s.title.split("/").map(x => normName(x)).includes(key)) || null;
 }
 
-export { battleSizes, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };
+export { battleSizes, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isCompanionDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };

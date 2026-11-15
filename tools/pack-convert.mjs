@@ -14,6 +14,8 @@
  *                                                             pack (auto-detected) in the "<Game> - <Edition>"
  *                                                             bundle
  *   packs/incoming/<Game>/<Edition>/Factions/<name>.pdf    → a faction in the "<Game> - <Edition>" bundle
+ *   packs/incoming/<Game>/<Edition>/Companions/<name>.pdf  → an Event Companion (Doubles, Teams, Dominatus, …)
+ *                                                             in the "<Game> - <Edition>" bundle
  *
  * A PDF that isn't nested exactly like that (missing the Game, Edition, or Rules/Factions folder) is
  * skipped with a warning rather than guessed at.
@@ -67,8 +69,8 @@ function parseLocation(pdfPath) {
   if (rel.length !== 4) return null;
   const [game, edition, bucket] = rel;
   const b = bucket.trim().toLowerCase();
-  if (b !== "rules" && b !== "factions") return null;
-  return { game, edition, bucket: b === "rules" ? "Rules" : "Factions" };
+  if (b !== "rules" && b !== "factions" && b !== "companions" && b !== "event companions") return null;
+  return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : "Companions" };
 }
 
 function serveRoot(root, port) {
@@ -128,8 +130,8 @@ async function main() {
     const pdfName = path.relative(INCOMING, pdfPath);
     const loc = parseLocation(pdfPath);
     if (!loc) {
-      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions/${path.basename(pdfPath)}`);
-      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions/" });
+      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions|Companions/${path.basename(pdfPath)}`);
+      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions|Companions/" });
       continue;
     }
     const metaPath = pdfPath.replace(/\.pdf$/i, ".json");
@@ -142,7 +144,7 @@ async function main() {
     try {
       const bytes = await readFile(pdfPath);
       const base64 = bytes.toString("base64");
-      const opts = { kind: loc.bucket === "Factions" ? "faction" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "" };
+      const opts = { kind: loc.bucket === "Factions" ? "faction" : loc.bucket === "Companions" ? "companion" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "" };
       const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, path.basename(pdfPath), opts]);
 
       const title = meta.title || result.title;

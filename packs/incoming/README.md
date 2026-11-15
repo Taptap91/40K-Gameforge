@@ -11,6 +11,7 @@ downloading the pack in the app ever fetches your original PDF, only the small c
 packs/incoming/<Game>/<Edition>/Rules/<file>.pdf       Core Rules, an FAQ/balance dataslate, or a mission
                                                         pack (auto-detected) — anything that isn't a faction
 packs/incoming/<Game>/<Edition>/Factions/<file>.pdf    A codex/battletome for one faction
+packs/incoming/<Game>/<Edition>/Companions/<file>.pdf  An Event Companion: Doubles, Teams, Dominatus…
 ```
 
 For example, a Space Marines codex for 40K 11th Edition goes in

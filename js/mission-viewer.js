@@ -46,7 +46,7 @@ function tabHTML(pack, tab) {
   }
   if (tab === "primaries") return pack.primaries.map(m => missionCard(m, "primary")).join("");
   if (tab === "secondaries") return pack.secondaries.map(m => missionCard(m, "secondary")).join("");
-  if (tab === "deployments") return `<div class="mc-maps">${pack.deployments.map(d => `<figure class="mc-map"><figcaption>${esc(d.name)}</figcaption>${d.image ? `<img src="${d.image}" alt="${esc(d.name)} deployment map">` : `<p class="lb-subtle">No map picture was read.</p>`}</figure>`).join("")}</div>`;
+  if (tab === "deployments") return `<div class="mc-maps">${pack.deployments.map(d => `<figure class="mc-map"><figcaption>${esc(d.name)}</figcaption>${d.image ? `<div class="map-frame map-dep"><img src="${d.image}" alt="${esc(d.name)} deployment map"></div>` : `<p class="lb-subtle">No map picture was read.</p>`}</figure>`).join("")}</div>`;
   if (tab === "twists") return pack.twists.map(t => `<article class="mc mc-twist"><header><h3>${esc(t.name)}</h3><span>Twist</span></header>${t.flavour ? `<p class="mc-flavour">${esc(t.flavour)}</p>` : ""}${t.text.split("\n").map(p => `<p>${rich(p)}</p>`).join("")}${t.note ? `<p class="mc-note"><b>Designer’s note:</b> ${esc(t.note)}</p>` : ""}</article>`).join("");
   if (tab === "faq") return pack.faq.map(f => `<div class="mc-faq"><p><b>Q:</b> ${esc(f.q)}</p><p><b>A:</b> ${esc(f.a)}</p></div>`).join("") || `<p class="lb-subtle">No FAQ was found.</p>`;
   return "";

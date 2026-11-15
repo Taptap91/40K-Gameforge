@@ -32,7 +32,7 @@ const PACK_MIN_DATASHEETS = 5;
 async function convertPdf(file, { kind = "core", faction = "" } = {}) {
   const { title, pages } = await readPdf(file, () => {});
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
-  if (looksLikeMissionPack(pages)) {
+  if (kind !== "companion" && looksLikeMissionPack(pages)) {
     const pack = await parseMissionPack(pages, title);
     const blob = await buildXlsx(missionPackToSheets(pack));
     return { kind: "missions", title: pack.name, edition: null, faction: "", blob };
@@ -46,12 +46,12 @@ async function convertPdf(file, { kind = "core", faction = "" } = {}) {
   sortDatasheetAbilities(data);
   let structured = null;
   if (data.datasheets.length >= 2 || data.detachments.length >= 1) structured = data;
-  if (data.datasheets.length >= PACK_MIN_DATASHEETS) kind = "faction";
-  else if (kind === "core") structured = null;
+  if (data.datasheets.length >= PACK_MIN_DATASHEETS && kind !== "companion") kind = "faction";
+  else if (kind === "core" || kind === "companion") structured = null;
 
-  if (kind === "core" || kind === "updates") {
+  if (kind === "core" || kind === "updates" || kind === "companion") {
     const parsed = parseRulesPdf(pages.flatMap(p => p.items));
-    if (parsed.sections.length >= 3) {
+    if (parsed.sections.length >= (kind === "companion" ? 1 : 3)) {
       const blob = await buildXlsx(rulesToSheets({ kind, title, edition, structured: parsed }));
       return { kind, title, edition, faction: "", blob };
     }

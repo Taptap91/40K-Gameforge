@@ -5,6 +5,7 @@ const KINDS = {
   core:    { label: "Core Rules", desc: "The main rulebook", icon: "book" },
   faction: { label: "Faction rules", desc: "Codex, Index or faction pack", icon: "shield" },
   missions: { label: "Mission Packs", desc: "Chapter Approved mission deck: missions, deployments and twists", icon: "flag" },
+  companion: { label: "Event Companion", desc: "Doubles, Teams and other event rules", icon: "flag" },
   points:  { label: "Points", desc: "Munitorum Field Manual", icon: "hash" },
   updates: { label: "Updates", desc: "FAQ, Balance Dataslate, mission pack", icon: "clock" },
 };
@@ -13,6 +14,7 @@ const ICONS = {
   shield: '<path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/>',
   hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.8 0 4.5 1.8 4.5 5"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
 };
