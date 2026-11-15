@@ -764,7 +764,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-banner:has(> .fp-banner-mark) { padding-right: calc(30px + var(--mark-w) + 20px); }
 .fp-banner-mark { position: absolute; right: 30px; top: var(--mark-gap); bottom: calc(var(--mark-gap) + 2px); height: calc(100% - 2 * var(--mark-gap) - 2px); width: var(--mark-w); object-fit: contain; object-position: center; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c1) 60%, transparent)); }
 .fp-banner-text { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.fp-banner-kicker { font: 700 11px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--c1) 55%, var(--text)); }
+.fp-banner-kicker { font: 700 11px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 .fp-banner-name { font: 700 30px/1.05 Georgia, "Iowan Old Style", "Palatino Linotype", serif; letter-spacing: .01em; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.55); overflow-wrap: anywhere; }
 .fp-banner-counts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: rgba(255,255,255,.78); text-shadow: 0 1px 6px rgba(0,0,0,.5); }
 .fp-banner-counts b { color: #fff; }

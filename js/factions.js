@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.59";
-import { armyData } from "./army.js?v=8.59";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.59";
-import { factionMatches } from "./search.js?v=8.59";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.59";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.59";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.59";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.59";
-import { libraryHTML } from "./library.js?v=8.59";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.60";
+import { armyData } from "./army.js?v=8.60";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.60";
+import { factionMatches } from "./search.js?v=8.60";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.60";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.60";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.60";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.60";
+import { libraryHTML } from "./library.js?v=8.60";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -54,7 +54,7 @@ function applyCurrentSearch() {
 }
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
-const fUI = { faction: store.get("rf.faction", ""), sel: null, search: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All" };
+const fUI = { faction: store.get("rf.faction", ""), sel: null, search: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)), mission: null, missionTab: "battle", bundle: null, rulesDoc: null, ruleSel: null, facGroup: "All", back: null };
 // On phones and tablets every category starts closed, Army Rules and Detachments too.
 if (matchMedia("(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)").matches) { fUI.collapsed.add("army"); fUI.collapsed.add("det"); }
 const isPhone = () => matchMedia("(max-width: 760px)").matches;
@@ -115,27 +115,31 @@ function factionButton(f, on) {
 }
 const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 /** Goes to the Game Packs home screen (the Library) — the page's default view. */
-function goHome() { fUI.home = true; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null; fUI.open = false; fUI.search = ""; renderFactionsPage(); }
+function goHome() { fUI.home = true; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null; fUI.open = false; fUI.search = ""; fUI.back = null; renderFactionsPage(); }
+/** Goes back exactly one level, rather than always to the Library home: a faction, mission pack or
+ *  rules document opened from inside a Game Pack's own sections screen goes back to that Game Pack;
+ *  anything else (opened from the Library itself, or the Game Pack's sections screen) goes Home. */
+function goBack() { if (fUI.back && bundleDocs(fUI.back).length) openBundleFromLibrary(fUI.back); else goHome(); }
 function openFactionFromLibrary(f) {
-  fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.search = ""; fUI.home = false; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null;
+  fUI.back = fUI.bundle; fUI.faction = f; store.set("rf.faction", f); fUI.sel = null; fUI.open = false; fUI.search = ""; fUI.home = false; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null;
   renderFactionsPage();
 }
 const missionDocs = () => state.docs.filter(d => d.kind === "missions" && d.structured?.missionPack).sort((a, b) => a.title.localeCompare(b.title));
 function openMissionFromLibrary(docId) {
-  fUI.mission = docId; fUI.missionTab = "battle"; fUI.open = false; fUI.home = false; fUI.bundle = null; fUI.rulesDoc = null; fUI.search = "";
+  fUI.back = fUI.bundle; fUI.mission = docId; fUI.missionTab = "battle"; fUI.open = false; fUI.home = false; fUI.bundle = null; fUI.rulesDoc = null; fUI.search = "";
   renderFactionsPage();
 }
 /** A Game Pack's box in the Library opens this: its contents split into Rules, Mission Packs and
  *  Factions (A–Z), each shown as a box laid out like the Library's own, so picking one opens it the
  *  same way picking it from the Library would. */
 function openBundleFromLibrary(bundleId) {
-  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false; fUI.facGroup = "All"; fUI.search = "";
+  fUI.bundle = bundleId; fUI.mission = null; fUI.rulesDoc = null; fUI.open = false; fUI.home = false; fUI.facGroup = "All"; fUI.search = ""; fUI.back = null;
   renderFactionsPage();
 }
 /** A Rules box (Core Rules or an Update) inside a Game Pack's sections opens its own full-page view:
  *  numbered rules on the left, the selected one's text on the right. */
 function openRulesFromLibrary(docId) {
-  fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false; fUI.search = "";
+  fUI.back = fUI.bundle; fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false; fUI.search = "";
   renderFactionsPage();
 }
 const bundleDocs = bundleId => state.docs.filter(d => d.pack?.bundleId === bundleId);
@@ -307,11 +311,13 @@ function shrinkImage(file, maxW = 96, maxH = 96, type = "image/png") {
   });
 }
 
-/** A mission pack's own banner: same shell as a faction's, no symbol/colours of its own. */
-function missionBannerHTML(pack) {
-  const counts = [[sectionCount(pack, "primaries"), "Primary Mission"], [sectionCount(pack, "secondaries"), "Secondary Mission"], [sectionCount(pack, "deployments"), "Deployment"]]
-    .filter(([n]) => n).map(([n, w]) => `<span><b>${n}</b> ${w}${n === 1 ? "" : "s"}</span>`).join("");
-  return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Mission Pack</div><div class="fp-banner-name">${esc(pack.name)}</div><div class="fp-banner-counts">${counts}</div></div></div>`;
+/** A mission pack's own banner: the same kicker/name/kicker shell as Core Rules' banner (rulesBannerHTML
+ *  in rules-viewer.js), driven by the doc's own Game Pack metadata — so every mission pack gets this
+ *  layout automatically, including any future PDF upload, with nothing to set up per upload. The
+ *  section counts this banner used to show are still visible as badges on each tab in missionLeftHTML. */
+function missionBannerHTML(doc, pack) {
+  const edition = doc.pack?.game ? doc.pack.editionTag : "";
+  return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Mission Pack</div><div class="fp-banner-name">${esc(pack.name)}</div>${edition ? `<div class="fp-banner-kicker">${esc(edition)}</div>` : ""}</div></div>`;
 }
 /** Left list: one item per section that has anything in it (Battle, Force Dispositions, Primary/Secondary
  *  Missions, Deployments, Twists, FAQ) — the same left-list/right-detail shell a faction uses. */
@@ -370,9 +376,9 @@ function renderFactionsPage() {
     return;
   }
   if (fUI.mission) {
-    const pack = missions.find(d => d.id === fUI.mission).structured.missionPack;
+    const missionDoc = missions.find(d => d.id === fUI.mission), pack = missionDoc.structured.missionPack;
     if (!MISSION_TABS.some(([k]) => k === fUI.missionTab && sectionCount(pack, k))) fUI.missionTab = MISSION_TABS.find(([k]) => sectionCount(pack, k))?.[0] || "battle";
-    host.innerHTML = `${missionBannerHTML(pack)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+    host.innerHTML = `${missionBannerHTML(missionDoc, pack)}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${missionLeftHTML(pack)}</div>
         <div class="fp-right" id="fpRight">${missionRightHTML(pack)}</div>
       </div>`;
@@ -586,8 +592,8 @@ function wireFactionsPage() {
   // Phones and tablets: swipe right (finger or trackpad) on the datasheet to go back to the list.
   onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) animateBack(() => { fUI.open = false; renderFactionsPage(); }); });
   // Anywhere else in a faction, mission pack, rules document or Game Pack's own sections screen:
-  // swipe right (finger or trackpad) to go back to the Game Packs home screen.
-  onSwipeRight(view, e => !fUI.home && !fUI.open && !!e.target.closest(".fp-left, .fp-right, .fp-bundle-sections"), () => animateBack(goHome));
+  // swipe right (finger or trackpad) to go back one level (to the Game Pack it came from, or Home).
+  onSwipeRight(view, e => !fUI.home && !fUI.open && !!e.target.closest(".fp-left, .fp-right, .fp-bundle-sections"), () => animateBack(goBack));
   // Keyboard: Enter or Space on a faction's, mission pack's, Game Pack's or rules box in the library opens it.
   view.addEventListener("keydown", e => {
     if (e.key !== "Enter" && e.key !== " ") return;
