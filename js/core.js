@@ -14,6 +14,7 @@ const ICONS = {
   hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 
@@ -90,16 +91,17 @@ function confirmSheet(title, message, actionLabel) {
   });
 }
 
-function openSheet(html, wide = false) {
+/** extraClass lets a caller mark its own pop-ups (e.g. the battle tracker's "bt-pop") for CSS that should
+ *  apply only there, without touching every other pop-up that shares this same dialog. */
+function openSheet(html, wide = false, extraClass = "") {
   const d = $("#sheet");
-  d.className = wide ? "wide" : "";
+  d.className = [wide ? "wide" : "", extraClass].filter(Boolean).join(" ");
   d.innerHTML = `<div class="sheet">${html}</div>`;
   if (!d.open) d.showModal();
   return d;
 }
 
 /** Phones and tablets: the settings pop-up has two screens (faction colours and the AI model), switched with this toggle. */
-const TOUCH_MQ = "(max-width: 1279px), (pointer: coarse) and (max-width: 1400px)";
 const settingsTabsHTML = active => `<div class="set-tabs" role="tablist" aria-label="Settings">${[["colours", "Colours"], ["ai", "AI model"], ["account", "Account"]].map(([k, l]) => `<button type="button" role="tab" class="set-tab${k === active ? " on" : ""}" aria-selected="${k === active}" data-set-tab="${k}">${l}</button>`).join("")}</div>`;
 
 /* A small pop-up menu beside a ⋮ button (army lists, units, library). Tapping the same button again, or anywhere else, closes it. */

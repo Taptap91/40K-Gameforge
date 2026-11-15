@@ -1,12 +1,12 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.30";
-import { armyData } from "./army.js?v=8.30";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.30";
-import { factionMatches } from "./search.js?v=8.30";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.30";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.30";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.44";
+import { armyData } from "./army.js?v=8.44";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.44";
+import { factionMatches } from "./search.js?v=8.44";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.44";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.44";
 
 // Army Rules and Detachments start open; the unit groups below them start collapsed.
 const fUI = { faction: store.get("rf.faction", ""), sel: null, filter: "", open: false, home: true, collapsed: new Set(DATASHEET_GROUPS.map(([t]) => t)) };
@@ -98,6 +98,7 @@ function renderFactionBar(names) {
     ${names.length ? `<div class="fp-facs" role="group" aria-label="Faction">${names.map(n => factionButton(n, n === fUI.faction)).join("")}</div>
     <div class="fp-groups" role="group" aria-label="Faction group">${groups.map(([g, l]) => `<button type="button" class="fp-groupbtn${groupOf(fUI.faction) === g ? " on" : ""}" data-fp-group="${esc(g)}">${esc(g)}<span class="fp-groupn">${l.length}</span></button>`).join("")}</div>` : `<div class="fp-facs"></div>`}
     <button type="button" class="btn fp-libbtn" data-lib-show>${BOOK_SVG}Library</button>
+    <button type="button" class="btn fp-packs" data-lib-packs title="Game Packs" aria-label="Game Packs">${icon("download")}<span>Game Packs</span></button>
     <button type="button" class="btn primary fp-addpdf" data-lib-add title="Add PDF" aria-label="Add PDF">${ADDPDF_SVG}<span>Add PDF</span></button>
     ${names.length ? `<button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>` : ""}`;
   // Same factions and looks: only the selection moves, so the name slides and the symbol fades instead of jumping.
@@ -287,7 +288,6 @@ function leftHTML(c) {
     <div class="fp-none" hidden>Nothing matches that name.</div>`;
 }
 
-const flavourHTML = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
 /** Under a selected detachment in the list: two boxes, Stratagems then Enhancements. Choosing one shows its entries in the right column. */
 function detSubsHTML(d) {
   const k = normName(d.name);
@@ -329,9 +329,6 @@ function rightHTML(c) {
     const disp = d.dispositions?.length ? d.dispositions : uq ? [uq] : [];
     const rivals = uq ? c.detachments.filter(o => o !== d && normName(detUnique(o)) === normName(uq)).map(o => o.name) : [];
     const rules = d.rules.filter(r => !/^unique\b/i.test(r.name));
-    const priced = armyData(fUI.faction).detachments.find(x => x.name === d.name);
-    const enhPts = e => priced?.enhancements.find(x => x.name === e.name)?.points ?? e.points;
-    const isUp = e => priced?.enhancements.find(x => x.name === e.name)?.upgrade;
     // Lore text (in italics) above the rules, when the faction pack prints any.
     const fl = x => x.flavour ? `<p class="fv-flavour">${esc(x.flavour)}</p>` : "";
     const ab = (name, meta, body) => `<div class="fv-ab"><div class="fv-ab-name">${esc(softenCaps(name))}${meta ? `<span class="fv-ab-ref">${esc(meta)}</span>` : ""}</div><div class="fv-rich">${body}</div></div>`;

@@ -1,0 +1,17 @@
+{
+  "_readme": "The Game Packs catalog. Each entry's \"file\" is a RulesForge workbook (.xlsx) — the exact same file the app's own 'Download Excel' button produces. To contribute a real pack: add your own legally-owned rules PDF in the app's Library, use its ⋮ menu → Download Excel, add the file under this folder, and add an entry below. Keep entry ids stable once published — the app uses them to detect updates.",
+  "packs": [
+    {
+      "id": "demo-sample-faction",
+      "title": "Sample Legion (Demo)",
+      "faction": "Sample Legion",
+      "kind": "faction",
+      "game": "Demo",
+      "editionTag": "Sample",
+      "version": "1.0.0",
+      "author": "RulesForge",
+      "description": "An entirely original, placeholder faction used only to prove the download works end to end. Not a real faction — download it to see how a pack lands in your Library.",
+      "file": "demo/sample-faction.xlsx"
+    }
+  ]
+}
