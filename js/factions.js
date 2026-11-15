@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.60";
-import { armyData } from "./army.js?v=8.60";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.60";
-import { factionMatches } from "./search.js?v=8.60";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.60";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.60";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.60";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.60";
-import { libraryHTML } from "./library.js?v=8.60";
+import { $, DB, esc, icon, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.61";
+import { armyData } from "./army.js?v=8.61";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.61";
+import { factionMatches } from "./search.js?v=8.61";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.61";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.61";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.61";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.61";
+import { libraryHTML } from "./library.js?v=8.61";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -113,7 +113,7 @@ function factionButton(f, on) {
     <span class="fp-fac-name">${esc(f)}</span>
     ${st.img ? `<span class="fp-fac-sym" aria-hidden="true"><img src="${esc(st.img)}" alt=""></span>` : ""}</button>`;
 }
-const GEAR_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+const KEBAB_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
 /** Goes to the Game Packs home screen (the Library) — the page's default view. */
 function goHome() { fUI.home = true; fUI.mission = null; fUI.bundle = null; fUI.rulesDoc = null; fUI.open = false; fUI.search = ""; fUI.back = null; renderFactionsPage(); }
 /** Goes back exactly one level, rather than always to the Library home: a faction, mission pack or
@@ -227,7 +227,7 @@ function bannerHTML(f, c) {
   return `<div class="fp-banner${art ? " has-art" : ""}" style="--c1:${st.c1};--c2:${st.c2}${art ? `;--art:url('${art}')` : ""}">
     ${!art && st.img ? `<img class="fp-banner-mark" src="${esc(st.img)}" alt="">` : ""}
     <div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Faction</div><div class="fp-banner-name">${esc(f)}</div></div>
-    <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${GEAR_SVG}</button>
+    <button type="button" class="fp-style" data-fp-style title="Symbol, banner &amp; colours" aria-label="Symbol, banner and colours">${KEBAB_SVG}</button>
   </div>`;
 }
 
@@ -555,7 +555,7 @@ function wireFactionsPage() {
       view.querySelector(".fp-right").scrollTop = 0;
       return;
     }
-    if (e.target.closest("[data-fp-home]")) { animateBack(goHome); return; }
+    if (e.target.closest("[data-fp-home]")) { animateBack(goBack); return; }
     const libFac = !e.target.closest(".lib-kebab") && e.target.closest("[data-lib-open]");
     if (libFac) return openFactionFromLibrary(libFac.dataset.libOpen);
     const missionOpen = !e.target.closest(".lib-kebab") && e.target.closest("[data-mission-open]");

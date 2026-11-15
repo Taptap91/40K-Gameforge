@@ -690,12 +690,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   box-shadow: -4px 0 12px -3px color-mix(in srgb, var(--c1) 70%, transparent), 4px 0 12px -3px color-mix(in srgb, var(--c2) 70%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .fp-fac, .fp-fac-sym { transition: none; } }
-/* The gear for "Symbol, banner & colours", floated in the corner of a faction's own banner (it's the only
-   place it appears now that the header holds just the title and the download button). */
-.fp-style { position: absolute; top: 14px; right: max(14px, env(safe-area-inset-right, 0px)); z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: rgba(0,0,0,.22); color: #fff; cursor: pointer; opacity: .92; transition: background .15s, opacity .15s, transform .25s; }
+/* The kebab menu for "Symbol, banner & colours", floated in the corner of a faction's own banner (it's
+   the only place it appears now that the header holds just the title and the download button). */
+.fp-style { position: absolute; top: 14px; right: max(14px, env(safe-area-inset-right, 0px)); z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: rgba(0,0,0,.22); color: #fff; cursor: pointer; opacity: .92; transition: background .15s, opacity .15s; }
 .fp-style:hover { background: rgba(0,0,0,.34); opacity: 1; }
-.fp-style:hover svg { transform: rotate(30deg); }
-.fp-style svg { transition: transform .3s; }
 .fp-style:focus-visible { outline: 2px solid var(--accent, #0a84ff); outline-offset: 2px; }
 /* The back button inside every banner (a faction's, a mission pack's, a rules document's, and a Game
    Pack's own sections screen), to the home screen — same bordered-box look as the app's other back
