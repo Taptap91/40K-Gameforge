@@ -1,11 +1,12 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.63";
-import { wargearOf } from "./loadout.js?v=8.63";
-import { factionMatches } from "./search.js?v=8.63";
-import { coreAbilityRule } from "./rules-doc.js?v=8.63";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.63";
+import { esc, state, uid } from "./core.js?v=8.64";
+import { wargearOf } from "./loadout.js?v=8.64";
+import { factionMatches } from "./search.js?v=8.64";
+import { coreAbilityRule } from "./rules-doc.js?v=8.64";
+import { simpleKeywordHTML } from "./keyword-glossary.js?v=8.64";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.64";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -255,7 +256,12 @@ function openAbilityPopup(btn) {
   const same = popFrom === btn;
   closeAbilityPopup();
   if (same) return;                                   // clicking the open tag again closes it
-  const name = btn.dataset.core, rule = coreAbilityRule(name);
+  const name = btn.dataset.core, rule = coreAbilityRule(name), simple = simpleKeywordHTML(name);
+  // The plain-English summary leads; the official Core Rules text stays one tap away underneath it.
+  const full = rule ? richHTML(rule.rich || rule.text) : "";
+  const body = simple
+    ? `<p class="ab-pop-simple">${simple}</p>${full ? `<details class="ab-pop-full"><summary>Full rules text</summary>${full}</details>` : ""}`
+    : full || `<p class="lb-subtle">Add the Core Rules in Library to see this ability's rules here.</p>`;
   const pop = document.createElement("div");
   pop.className = "ab-pop";
   pop.setAttribute("role", "dialog");
@@ -265,7 +271,7 @@ function openAbilityPopup(btn) {
   pop.innerHTML = `<div class="ab-pop-head"><div class="ab-pop-titles"><div class="ab-pop-name">${esc(softenCaps(name))}</div>
       <div class="ab-pop-ref">${rule ? `Core Rules ${esc(rule.num)}${normName(rule.title) !== normName(name) ? ` · ${esc(rule.title)}` : ""}` : "Core ability"}</div></div>
       <button type="button" class="ab-pop-x" aria-label="Close">×</button></div>
-    <div class="ab-pop-body fv-rich">${rule ? richHTML(rule.rich || rule.text) : `<p class="lb-subtle">Add the Core Rules in Library to see this ability's rules here.</p>`}</div>`;
+    <div class="ab-pop-body fv-rich">${body}</div>`;
   document.body.append(pop);
   abilityPop = pop; popFrom = btn; btn.setAttribute("aria-expanded", "true");
   pop.querySelector(".ab-pop-x").onclick = () => closeAbilityPopup(true);
