@@ -7,9 +7,9 @@
  * workflow converts it into the .xlsx this module downloads and slots into the right bundle. This module
  * only handles the browsing/downloading side, once a bundle is already published in packs/index.json.
  */
-import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.65";
-import { importWorkbookBuffer } from "./library.js?v=8.65";
-import { renderAll } from "./main.js?v=8.65";
+import { $, esc, icon, openSheet, state, toast } from "./core.js?v=8.66";
+import { importWorkbookBuffer } from "./library.js?v=8.66";
+import { renderAll } from "./main.js?v=8.66";
 
 /** Where the catalog and its files live. A plain folder in the app's own repo for now — a volunteer packs
  *  this up and opens a pull request; nothing here needs a server. Point this at "main" once the game-packs
@@ -134,14 +134,14 @@ async function openPacksSheet() {
  *  only fetches components that are missing or whose catalog version differs from what's installed —
  *  anything already matching the catalog is left alone (and not even fetched). */
 async function downloadPack(bundle, row, body, mode = "update") {
-  row.classList.add("busy");
-  const chip = row.querySelector(".pk-get");
+  row?.classList.add("busy");
+  const chip = row?.querySelector(".pk-get") || { textContent: "" };   // opened from a Game Pack's menu there's no row to show progress on
   const { haveMap } = bundleStatus(bundle);
   const toFetch = mode === "redownload" ? bundle.components
     : bundle.components.filter(c => haveMap.get(componentKey(c)) !== (c.version || ""));
   const skipped = bundle.components.length - toFetch.length;
   if (!toFetch.length) {
-    row.classList.remove("busy");
+    row?.classList.remove("busy");
     toast(`${bundle.title} is already up to date`);
     return;
   }
@@ -170,8 +170,24 @@ async function downloadPack(bundle, row, body, mode = "update") {
   toast(failures.length ? `${bundle.title}: installed ${installedCount} of ${total}${skippedNote} (${failures.length} couldn't be installed)`
     : mode === "update" ? `${bundle.title}: updated ${installedCount} file${installedCount === 1 ? "" : "s"}${skippedNote}`
     : `${bundle.title} added to your Library`);
-  const freshRow = body.querySelector(`[data-pk-id="${CSS.escape(bundle.id)}"]`);
+  const freshRow = body?.querySelector(`[data-pk-id="${CSS.escape(bundle.id)}"]`);
   if (freshRow) freshRow.outerHTML = packRow(bundle);
 }
 
-export { openPacksSheet };
+/** For a Game Pack's menu: looks the bundle up in the live catalog and says whether it has files the
+ *  user doesn't have yet (or newer versions of ones they do). null when the catalog can't be reached. */
+async function checkBundle(bundleId) {
+  const bundles = await loadCatalog(true);
+  const bundle = bundles?.find(b => b.id === bundleId);
+  return bundle ? { bundle, update: bundleStatus(bundle).update } : null;
+}
+
+/** Menu action: "Update" fetches only what's new or changed, "Re-download" replaces every file. */
+async function refreshBundle(bundleId) {
+  toast("Checking for the latest files…");
+  const found = await checkBundle(bundleId);
+  if (!found) { toast(`Couldn't reach the Game Pack catalog${loadError ? ` (${loadError})` : ""}. Check your connection and try again.`); return; }
+  await downloadPack(found.bundle, null, null, found.update ? "update" : "redownload");
+}
+
+export { checkBundle, openPacksSheet, refreshBundle };

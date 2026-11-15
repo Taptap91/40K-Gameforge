@@ -1,19 +1,19 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.65";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.65";
-import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.65";
-import { openPacksSheet } from "./packs.js?v=8.65";
-import * as core from "./core.js?v=8.65";
-import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.65";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.65";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.65";
-import { buildIndex } from "./search.js?v=8.65";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.65";
-import { fixApostrophes } from "./text.js?v=8.65";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.65";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.65";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.66";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.66";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.66";
+import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.66";
+import * as core from "./core.js?v=8.66";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.66";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.66";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.66";
+import { buildIndex } from "./search.js?v=8.66";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.66";
+import { fixApostrophes } from "./text.js?v=8.66";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.66";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.66";
 
 function renderAll() {
   renderScope();
@@ -94,7 +94,14 @@ function showView(name) {
   document.addEventListener("click", async e => {
     if (!e.target.closest(".lib-body, .lb-menu")) return;
     const menu = e.target.closest("[data-lib-menu]");
-    if (menu) return openLibraryMenu(menu);
+    if (menu) {
+      const m = openLibraryMenu(menu), item = m?.querySelector("[data-pack-refresh]");
+      // The menu opens at once as "Re-download"; once the live catalog answers it says "Update" if there is anything new.
+      if (item) checkBundle(item.dataset.packRefresh).then(r => { if (r?.update && item.isConnected) item.textContent = "Update"; });
+      return;
+    }
+    const refresh = e.target.closest("[data-pack-refresh]");
+    if (refresh) return refreshBundle(refresh.dataset.packRefresh);
     const delBundle = e.target.closest("[data-delete-bundle]");
     if (delBundle) {
       const bundleId = delBundle.dataset.deleteBundle;

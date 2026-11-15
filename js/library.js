@@ -1,14 +1,14 @@
 /* RulesForge · library.js
  * Library page: the document list — everything in it comes from a downloaded Game Pack (packs.js).
  */
-import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.65";
-import { factionStyle } from "./factions.js?v=8.65";
-import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.65";
-import { structuredToLibrary } from "./datasheets.js?v=8.65";
-import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.65";
-import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.65";
-import { factionMatches } from "./search.js?v=8.65";
-import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.65";
+import { DB, esc, icon, KINDS, KNOWN_FACTIONS, openPopMenu, state, toast, uid } from "./core.js?v=8.66";
+import { factionStyle } from "./factions.js?v=8.66";
+import { missionChunks, missionPackFromWorkbook } from "./mission-parser.js?v=8.66";
+import { structuredToLibrary } from "./datasheets.js?v=8.66";
+import { readXlsx, structuredFromWorkbook } from "./excel.js?v=8.66";
+import { editionLabel, effectiveRules, isRulesDoc, rulesFromWorkbook, sectionChunks } from "./rules-doc.js?v=8.66";
+import { factionMatches } from "./search.js?v=8.66";
+import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.66";
 
 /** The shared half of importing a RulesForge workbook — every Game Pack download (packs.js) goes through
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
@@ -159,14 +159,15 @@ function libraryHTML() {
     + (rest.length ? `<div class="group-title">Rules</div><div class="lib-cards">${rest.map(docCard).join("")}</div>` : "");
   return `<div class="lib-body"><div id="docList" class="stack">${docList}</div>${addTileHTML}<p class="hint">Everything in your Library comes from a Game Pack you've downloaded.</p></div>`;
 }
-/** The ⋮ menu for a box in the library: a Game Pack bundle gets just Delete (removes everything it
- *  installed); any other document gets Remove. */
+/** The ⋮ menu for a box in the library: a Game Pack bundle gets Re-download / Update (main.js relabels it
+ *  "Update" when the catalog has newer files) and Delete (removes everything it installed); any other
+ *  document gets Remove. */
 function openLibraryMenu(btn) {
   const key = btn.dataset.libMenu;
   if (key.startsWith("bundle:")) {
     const bundleId = key.slice("bundle:".length);
     if (!state.docs.some(d => d.pack?.bundleId === bundleId)) return;
-    return openPopMenu(btn, "d:" + key, `<button type="button" role="menuitem" class="danger" data-delete-bundle="${esc(bundleId)}">Delete</button>`);
+    return openPopMenu(btn, "d:" + key, `<button type="button" role="menuitem" data-pack-refresh="${esc(bundleId)}">Re-download</button><button type="button" role="menuitem" class="danger" data-delete-bundle="${esc(bundleId)}">Delete</button>`);
   }
   const d = state.docs.find(x => x.id === key);
   if (!d) return;
