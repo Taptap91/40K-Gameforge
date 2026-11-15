@@ -1271,9 +1271,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .bs-cols, .fp-faccards { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ---------- Battle maps: every map, deployment or terrain, in the same cropped frame ---------- */
-.map-frame { width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 8px; background: #fff; }
+/* ---------- Battle maps: every map, deployment or terrain, in the same frame, cropped to the board (js/map-crop.js) ---------- */
+.map-frame { width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 8px; background: #fff; }
 .map-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
-/* A deployment card picture carries its own name banner on top and a wide margin round the board: crop both
-   (margins in % are of the frame's width, so the crop is the same whatever the picture's height). */
-.map-dep img { width: 156.25%; max-width: none; height: auto; margin: -13.3% 0 0 -28.125%; }
+.map-frame img[data-board-crop]:not([data-cropped]) { visibility: hidden; }

@@ -1,6 +1,7 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
+import "./map-crop.js?v=8.66";
 import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.66";
 import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.66";
 import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.66";
