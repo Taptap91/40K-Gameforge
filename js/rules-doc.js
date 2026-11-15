@@ -2,10 +2,10 @@
  * Core Rules and rules updates (FAQs, errata, Balance Dataslates) as numbered rule sections,
  * their Excel workbook, which version is newest, and the rules currently in force.
  */
-import { state } from "./core.js?v=8.58";
-import { dropPageFurniture } from "./faction-parser.js?v=8.58";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.58";
-import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.58";
+import { state } from "./core.js?v=8.59";
+import { dropPageFurniture } from "./faction-parser.js?v=8.59";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.59";
+import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.59";
 
 const SECTION_NUM = /^\d{2}\.\d{2}(?:\.\d{2})?$/;
 /** Used until a Core Rules file says otherwise (Core Rules 25.03). */
@@ -281,4 +281,4 @@ function coreAbilityRule(name) {
     || list.find(s => s.title.split("/").map(x => normName(x)).includes(key)) || null;
 }
 
-export { battleSizes, compareEditions, coreAbilityRule, DEFAULT_BATTLE_SIZES, detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };
+export { battleSizes, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };

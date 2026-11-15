@@ -1,12 +1,12 @@
 /* RulesForge · army.js
  * Army rules and list legality (battle sizes, detachments, enhancements, attachments), and the list generator.
  */
-import { DB, state, toast, uid } from "./core.js?v=8.58";
-import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.58";
-import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.58";
-import { factionMatches } from "./search.js?v=8.58";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.58";
-import { battleSizes, compareEditions } from "./rules-doc.js?v=8.58";
+import { DB, state, toast, uid } from "./core.js?v=8.59";
+import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.59";
+import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.59";
+import { factionMatches } from "./search.js?v=8.59";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.59";
+import { battleSizes, compareEditions } from "./rules-doc.js?v=8.59";
 
 /* Lists are built from the structured faction data (converted faction PDFs).
    Battle sizes (points, detachment points, enhancement and unit limits) come from the Core Rules in the Library,
@@ -538,4 +538,4 @@ function saveList(list, now = false) {
 /** Copies of one datasheet allowed: doubled for Battleline and Dedicated Transports, one for an Epic Hero (Core Rules 25.03). */
 const unitMax = (u, rules) => (u.epic ? 1 : u.battleline || u.transport ? rules.dup * 2 : rules.dup);
 
-export { attachedGroup, enhancementsCounted, enhLimit, pointSizes, armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, saveList, sizeRules, unitMax };
+export { attachedGroup, enhLimit, pointSizes, armyData, canAttach, canTakeEnhancement, charSlot, detachmentsBudgetOK, evaluateList, generateList, listToText, saveList, sizeRules, unitMax };

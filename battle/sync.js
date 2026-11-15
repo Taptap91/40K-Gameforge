@@ -90,4 +90,4 @@ function openSync({ code = newCode(), peerCode = "", getPayload, onPeer, onUpdat
   return api;
 }
 
-export { newCode, openSync };
+export { openSync };

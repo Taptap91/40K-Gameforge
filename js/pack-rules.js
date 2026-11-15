@@ -37,8 +37,8 @@
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=8.58";
-import { normName } from "./text.js?v=8.58";
+import { KNOWN_FACTIONS } from "./core.js?v=8.59";
+import { normName } from "./text.js?v=8.59";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";
@@ -233,12 +233,6 @@ function packFaction({ datasheets = [], title = "", fileName = "", typed = "" })
   return canonicalFaction(title) || canonicalFaction(fileName) || canonicalFaction(typed) || tidyName(typed || title || fileName);
 }
 
-/** Rule 3: the icon beside the faction's own name in the Books table (exact faction first). */
-function packIcon(bookIcons, faction) {
-  const list = bookIcons || [];
-  return (list.find(b => canonicalFaction(b.name) === faction) || list.find(b => normName(b.name) === normName(faction)))?.image || "";
-}
-
 /* Rule 4: colours. */
 const hslHex = (h, s, l) => { s /= 100; l /= 100; const f = n => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, "0"); }; return `#${f(0)}${f(8)}${f(4)}`; };
 function nameColours(f) { let h = 0; for (const ch of f) h = (h * 31 + ch.charCodeAt(0)) % 360; return [hslHex(h, 60, 52), hslHex((h + 45) % 360, 55, 60)]; }
@@ -283,13 +277,4 @@ function defaultColours(faction, theme) {
   return FACTION_THEMES[faction] || FACTION_THEMES[canonicalFaction(faction)] || (theme?.c1 ? [theme.c1, theme.c2] : nameColours(faction));
 }
 
-/** Rules 1–4 for a converted pack: fills in doc.faction, doc.icon and doc.theme. */
-async function applyPackRules(doc, { bookIcons, fileName = "", typed = "" } = {}) {
-  doc.faction = packFaction({ datasheets: doc.structured?.datasheets || [], title: doc.title, fileName, typed: typed || doc.faction });
-  const icon = packIcon(bookIcons, doc.faction);
-  if (icon) doc.icon = icon;
-  doc.theme = { rules: PACK_RULES_VERSION, ...(await packTheme(doc.faction, doc.icon)) };
-  return doc;
-}
-
-export { sortDatasheetAbilities, loadFactionKit, kitPending, kitSymbol, kitSlug, PACK_RULES_VERSION, FACTION_THEMES, canonicalFaction, packFaction, packIcon, packTheme, defaultColours, applyPackRules };
+export { sortDatasheetAbilities, loadFactionKit, kitPending, kitSymbol, PACK_RULES_VERSION, packFaction, packTheme, defaultColours };

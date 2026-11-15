@@ -1,11 +1,11 @@
 /* RulesForge · datasheets.js
  * Datasheet data helpers and the display pieces shared by the Library viewer and the list builder.
  */
-import { esc, state, uid } from "./core.js?v=8.58";
-import { wargearOf } from "./loadout.js?v=8.58";
-import { factionMatches } from "./search.js?v=8.58";
-import { coreAbilityRule } from "./rules-doc.js?v=8.58";
-import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.58";
+import { esc, state, uid } from "./core.js?v=8.59";
+import { wargearOf } from "./loadout.js?v=8.59";
+import { factionMatches } from "./search.js?v=8.59";
+import { coreAbilityRule } from "./rules-doc.js?v=8.59";
+import { capWords, itemize, joinParagraphs, keywordList, letterCount, niceKeywords, normName, richHTML, softenCaps, stripRich, titleCase } from "./text.js?v=8.59";
 
 /** Stat lines exactly as the datasheet shows them: one line, or one per model type (exact repeats dropped). */
 function distinctProfiles(ds) {
@@ -189,7 +189,6 @@ const DATASHEET_GROUPS = [
 ];
 /** "Grenade Launcher - Frag": one weapon with several profiles. */
 const isProfileName = name => /\S\s+[-–—]\s+\S/.test(String(name || ""));
-const lowestPoints = ds => ds.points?.length ? Math.min(...ds.points.map(p => p.points)) : null;
 
 /** Keywords a detachment rule hands out: "Friendly HELBRUTE / MYPHITIC BLIGHT-HAULER have CONTAGION ENGINE." */
 function keywordGrants(det) {
@@ -459,4 +458,4 @@ function weaponGridHTML(ws, type, buffs, withHead = true, baseName = "") {
   </div>`;
 }
 
-export { weaponPanelsHTML, armyRuleParts, pluralKind, attachLists, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, lowestPoints, modStat, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };
+export { weaponPanelsHTML, armyRuleParts, pluralKind, DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, factionArmyRules, keywordGrants, modStat, panelHTML, statsHTML, structuredToLibrary, tidyDatasheet, viewerDatasheet, wargearOptionsHTML, weaponGridHTML };

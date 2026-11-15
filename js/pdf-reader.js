@@ -1,29 +1,11 @@
 /* RulesForge · pdf-reader.js
  * Reads a PDF's text with positions, using pdf.js (loaded only when a PDF is added).
  */
-import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.58";
+import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.59";
 
 const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
 
-function chunkPages(pages, target = 900, overlap = 160) {
-  const out = [];
-  for (const page of pages) {
-    let buffer = "";
-    for (const line of page.text.split("\n")) {
-      if (buffer && buffer.length + line.length + 1 > target) {
-        out.push({ page: page.number, text: buffer });
-        let tail = buffer.slice(-overlap);
-        const sp = tail.indexOf(" ");
-        if (sp >= 0) tail = tail.slice(sp + 1);
-        buffer = tail;
-      }
-      buffer += buffer ? "\n" + line : line;
-    }
-    if (buffer.trim().length > 40) out.push({ page: page.number, text: buffer });
-  }
-  return out;
-}
 const mostCommonSize = items => {
   const c = new Map();
   for (const i of items) { const k = Math.round(i.s * 2) / 2; c.set(k, (c.get(k) || 0) + 1); }
@@ -253,4 +235,4 @@ function iconToPng(img) {
   return out.toDataURL("image/png");
 }
 
-export { chunkPages, mostCommonSize, readingLines, readPdf };
+export { mostCommonSize, readingLines, readPdf };

@@ -4,8 +4,8 @@
  *   Twists and the FAQ.
  * The pack's "Mission Generator" and "Player's Hand" (the web page's interactive tools) are skipped entirely.
  */
-import { readingLines } from "./pdf-reader.js?v=8.58";
-import { cleanGlyphs, normName } from "./text.js?v=8.58";
+import { readingLines } from "./pdf-reader.js?v=8.59";
+import { cleanGlyphs, normName } from "./text.js?v=8.59";
 
 const TYPES = { "PRIMARY MISSION": "primary", "SECONDARY MISSION": "secondary", "TWIST": "twist", "DEPLOYMENT CARD": "deployment", "FORCE DISPOSITION CARDS": "disposition" };
 /* Section headings of the deck itself (never card names). */
@@ -350,4 +350,4 @@ function missionPackFromWorkbook(book) {
   } catch { return null; }
 }
 
-export { DISPOSITION_ORDER, looksLikeMissionPack, missionChunks, missionPackFromWorkbook, missionPackToSheets, parseMissionPack };
+export { looksLikeMissionPack, missionChunks, missionPackFromWorkbook, missionPackToSheets, parseMissionPack };

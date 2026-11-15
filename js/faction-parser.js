@@ -1,58 +1,8 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { KNOWN_FACTIONS, uid } from "./core.js?v=8.58";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.58";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.58";
-
-/** Reads Munitorum Field Manual–style tables: "5 models ..... 80 pts", "Enhancement ..... 25 pts". */
-function parsePoints(pages) {
-  const RX = {
-    modelsPts: /^(\d+)\s*models?\b.*?(\d+)\s*(?:pts|points)\b/i,
-    modelsOnly: /^(\d+)\s*models?[\s.…]*$/i,
-    ptsOnly: /^[\s.…]*\+?(\d+)\s*(?:pts|points)\s*$/i,
-    namedPts: /^([A-Za-z'][A-Za-z'\-\s,:&]{2,60}?)[\s.…]+\+?(\d+)\s*(?:pts|points)\b/i,
-  };
-  const factionByKey = new Map(KNOWN_FACTIONS.map(f => [normName(f), f]));
-  const tidy = s => {
-    const t = s.replace(/^[\s.…:]+|[\s.…:]+$/g, "");
-    return t === t.toUpperCase() ? t.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : t;
-  };
-  const results = [];
-  const seen = new Set();
-  const add = e => {
-    const key = [e.name, e.models, e.points, e.enh, e.section].join("|");
-    if (!seen.has(key)) { seen.add(key); results.push({ id: uid(), ...e }); }
-  };
-  let faction = null, candidate = null, pendingModels = null;
-
-  for (const page of pages) {
-    const lines = page.text.split("\n").map(l => l.trim()).filter(Boolean);
-    const heading = (lines[0] || "").slice(0, 80);
-    for (const line of lines) {
-      const section = faction || heading;
-      const f = factionByKey.get(normName(line));
-      if (f) { faction = f; candidate = null; continue; }
-      let m;
-      if ((m = line.match(RX.modelsPts)) && candidate) {
-        add({ name: candidate, models: +m[1], points: +m[2], enh: false, section, page: page.number });
-        pendingModels = null; continue;
-      }
-      if ((m = line.match(RX.modelsOnly))) { pendingModels = +m[1]; continue; }
-      if ((m = line.match(RX.ptsOnly))) {
-        if (pendingModels && candidate) add({ name: candidate, models: pendingModels, points: +m[1], enh: false, section, page: page.number });
-        pendingModels = null; continue;
-      }
-      if ((m = line.match(RX.namedPts))) {
-        const name = tidy(m[1]);
-        if (!/^models?\b/i.test(name)) add({ name, models: 0, points: +m[2], enh: true, section, page: page.number });
-        continue;
-      }
-      if (line.length >= 3 && line.length <= 60 && !/\d/.test(line)) { candidate = tidy(line); pendingModels = null; }
-    }
-  }
-  return results;
-}
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.59";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.59";
 
 /**
  * Reads points by position on the page, for datasheet-style PDFs (e.g. Wahapedia exports) where
@@ -169,19 +119,6 @@ function mergeCostTiers(results) {
     if (e.later === undefined || e.later === e.points) { const { later, ...rest } = e; return rest; }
     return e;
   });
-}
-
-/** Combines the position-based and text-based readers, dropping duplicates. */
-function extractPoints(pages) {
-  const positional = parsePositionedPoints(pages);
-  const named = new Set(positional.map(p => normName(p.name)));
-  const textual = parsePoints(pages).filter(p => !named.has(normName(p.name)));
-  const seen = new Set(), out = [];
-  for (const p of [...positional, ...textual]) {
-    const key = [normName(p.name), p.models, p.points, p.enh].join("|");
-    if (!seen.has(key)) { seen.add(key); out.push({ id: uid(), ...p }); }
-  }
-  return out;
 }
 
 /* Game modes left out of the converted data. */
@@ -1116,4 +1053,4 @@ function mergeDuplicateDetachments(data) {
 const parseFactionPdf = items => mergeDuplicateDetachments(parseFactionPdfRaw(items));
 const parsePrintedFactionPdf = items => mergeDuplicateDetachments(parsePrintedFactionPdfRaw(items));
 
-export { tidyApostrophes, armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, extractPoints, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
+export { tidyApostrophes, armyRulesFromLayout, dropPageFurniture, groupArmyRules, mergeArmyRules, factionRichness, parseFactionPdf, parsePrintedFactionPdf };
