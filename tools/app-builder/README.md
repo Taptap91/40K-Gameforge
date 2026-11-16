@@ -3,7 +3,7 @@
 Visually change RulesForge, and add to it, for **desktop, tablet and phone**, with no code. (PDF Studio, in
 `tools/pdf-studio`, is a separate tool for preparing PDFs; this one is for the app's own design and content.)
 
-**Start it:** you need Python 3 (nothing else to install) and your RulesForge folder (the one with `index.html`).
+**Start it:** the first time, a window asks you to choose your RulesForge folder (the one with `index.html`); it remembers it afterwards. You need Python 3 (nothing else to install) and your RulesForge folder (the one with `index.html`).
 Double-click `Start App Builder.bat` (Windows), or run `python3 app_builder.py` (Mac/Linux). If it isn't inside your
 RulesForge folder, pass the folder: `python3 app_builder.py "C:\path\to\RulesForge"`. The real app runs inside the
 editor; the first time, download your Game Packs in it as you normally would.

@@ -15,12 +15,44 @@ GITHUB_API = os.environ.get("GITHUB_API", "https://api.github.com")
 CONFIG = Path.home() / ".rulesforge-appbuilder.json"
 
 
+def alert(text):
+    """Windowless launches have no console, so problems are shown in a dialog and saved next to the program."""
+    try: (HERE / "app-builder-error.txt").write_text(text, "utf-8")
+    except Exception: pass
+    try:
+        import tkinter, tkinter.messagebox
+        r = tkinter.Tk(); r.withdraw(); r.attributes("-topmost", True); tkinter.messagebox.showerror("RulesForge App Builder", text); r.destroy()
+    except Exception:
+        try:
+            import ctypes; ctypes.windll.user32.MessageBoxW(0, text, "RulesForge App Builder", 0x10)
+        except Exception: print(text)
+
+
+def valid_app(c):
+    return bool(c) and (Path(c) / "index.html").is_file() and (Path(c) / "js" / "main.js").is_file()
+
+
 def find_app():
+    saved = Path.home() / ".rulesforge-appfolder.txt"
     cands = [sys.argv[1] if len(sys.argv) > 1 else None, os.environ.get("RF_APP"), *[str(p) for p in [HERE, *HERE.parents]]]
+    try: cands.append(saved.read_text("utf-8").strip())
+    except Exception: pass
     for c in cands:
-        if c and (Path(c) / "index.html").is_file() and (Path(c) / "js" / "main.js").is_file():
-            return Path(c).resolve()
-    sys.exit("App Builder needs your RulesForge folder (the one containing index.html and js/).\nRun:  python app_builder.py \"C:\\path\\to\\RulesForge\"")
+        if valid_app(c): return Path(c).resolve()
+    try:   # first run: ask where the RulesForge folder is
+        import tkinter, tkinter.filedialog, tkinter.messagebox
+        r = tkinter.Tk(); r.withdraw(); r.attributes("-topmost", True)
+        tkinter.messagebox.showinfo("RulesForge App Builder", "First, choose your RulesForge folder: the one that contains index.html and a js folder.\n(Download the app from GitHub as a ZIP and unzip it if you don't have it yet.)")
+        while True:
+            c = tkinter.filedialog.askdirectory(title="Choose your RulesForge folder")
+            if not c: r.destroy(); sys.exit(0)
+            if valid_app(c):
+                saved.write_text(c, "utf-8"); r.destroy(); return Path(c).resolve()
+            tkinter.messagebox.showwarning("RulesForge App Builder", "That folder doesn't contain index.html and a js folder. Pick the main RulesForge folder.")
+    except SystemExit: raise
+    except Exception: pass
+    alert("App Builder needs your RulesForge folder (the one containing index.html and js/).\nRun:  python app_builder.py \"C:\\path\\to\\RulesForge\"")
+    sys.exit(1)
 
 
 APP = find_app()

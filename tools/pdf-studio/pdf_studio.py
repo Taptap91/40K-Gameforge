@@ -17,7 +17,15 @@ try:
     from pypdf.generic import ArrayObject, NameObject, TextStringObject, FloatObject
     from pypdf.generic import ContentStream
 except ImportError:
-    sys.exit("PDF Studio needs the pypdf package. Run:  pip install pypdf   then start it again.")
+    _m = "PDF Studio needs the pypdf package.\nOpen a Command Prompt and run:  pip install pypdf\nthen start PDF Studio again."
+    try:
+        import tkinter, tkinter.messagebox
+        _r = tkinter.Tk(); _r.withdraw(); _r.attributes("-topmost", True); tkinter.messagebox.showerror("RulesForge PDF Studio", _m); _r.destroy()
+    except Exception:
+        try:
+            import ctypes; ctypes.windll.user32.MessageBoxW(0, _m, "RulesForge PDF Studio", 0x10)
+        except Exception: pass
+    sys.exit(_m)
 
 HERE = Path(__file__).resolve().parent
 WORK = Path(tempfile.mkdtemp(prefix="rf-pdfstudio-"))
@@ -688,7 +696,19 @@ $("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify({...f
 fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Web capture needs Chrome or Edge installed; none was found.";sync()});sync();
 </script></html>"""
 
-if __name__ == "__main__":
+def _alert(text):
+    try: (Path(__file__).resolve().parent / "pdf-studio-error.txt").write_text(text, "utf-8")
+    except Exception: pass
+    try:
+        import tkinter, tkinter.messagebox
+        r = tkinter.Tk(); r.withdraw(); r.attributes("-topmost", True); tkinter.messagebox.showerror("RulesForge PDF Studio", text); r.destroy()
+    except Exception:
+        try:
+            import ctypes; ctypes.windll.user32.MessageBoxW(0, text, "RulesForge PDF Studio", 0x10)
+        except Exception: print(text)
+
+
+def main():
     port = int(os.environ.get("PORT", 8940))
     for attempt in range(25):   # an older copy may still be running on the same port; use the next free one
         try:
@@ -709,3 +729,12 @@ if __name__ == "__main__":
         pass
     finally:
         shutil.rmtree(WORK, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as e:
+        import traceback; _alert("PDF Studio couldn't start:\n\n" + traceback.format_exc()[-900:]); sys.exit(1)
