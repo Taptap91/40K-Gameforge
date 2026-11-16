@@ -52,3 +52,6 @@ Controls are on the left quarter; the right three quarters is a PDF viewer.
 1. **Add** a PDF, or paste a web address and press **Open**. The page's checkboxes and sections are listed on the left; the viewer shows a live preview you can scroll, and it refreshes after each change. **Save this page as a PDF** keeps exactly what you see.
 2. Click any file in the list to view it. Header/footer sizes belong to the selected file: press **Find them automatically** and the viewer shows it with those bands removed. **Use for all files** copies the sizes to every file.
 3. Repeat for the next address or PDF. When done, **Merge**, check the merged PDF in the viewer, then **Download** or **Upload to GitHub**.
+
+## Clicking the page itself (v8)
+After **Open**, the right side shows the live page as a picture you can click: press any show/hide button or checkbox right on it and the picture updates. Scroll it normally. The **PDF preview** tab shows what will be saved. Links are blocked so a stray click can't leave the page. The list on the left still works too.

@@ -240,6 +240,7 @@ def open_page(d, progress):
         while not ws.wait_event("Page.loadEventFired", 1) and time.time() < end:
             progress(30 + int(45 * (1 - (end - time.time()) / 45)), 100, "Loading the page…")
         progress(80, 100, "Letting the page settle…"); time.sleep(1.5)
+        ws.call("Runtime.evaluate", {"expression": "document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(a){const h=a.getAttribute('href')||'';if(!/^(#|javascript:)/i.test(h))e.preventDefault()}},true)"})
         progress(90, 100, "Finding checkboxes and sections…")
         controls = ws.call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])
         SESSIONS[sid]["t"] = time.time()
@@ -265,6 +266,37 @@ def live_preview(d):
         s["n"] += 1; dest = WORK / f"live-{d['sid']}-{s['n']}.pdf"; dest.write_bytes(_pdf_bytes(s["ws"], s["n"] == 1))
         if s["n"] > 3: (WORK / f"live-{d['sid']}-{s['n'] - 3}.pdf").unlink(missing_ok=True)
     return {"url": f"/api/pdf?path={dest.name}"}
+
+
+def page_shot(d):
+    """The live page as stacked pictures, so it can be shown in the viewer and clicked."""
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    with s["lock"]:
+        ws = s["ws"]
+        h = int(ws.call("Runtime.evaluate", {"expression": "Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0)", "returnByValue": True})["result"].get("value", 1600))
+        h = max(400, min(h, 48000)); chunks = []; y = 0
+        while y < h:
+            ch = min(4000, h - y)
+            r = ws.call("Page.captureScreenshot", {"format": "jpeg", "quality": 72, "captureBeyondViewport": True, "clip": {"x": 0, "y": y, "width": 1280, "height": ch, "scale": 1}}, timeout=120)
+            chunks.append({"y": y, "h": ch, "src": "data:image/jpeg;base64," + r["data"]}); y += ch
+    return {"width": 1280, "height": h, "chunks": chunks}
+
+
+def page_click(d):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    x, y = float(d.get("x", 0)), float(d.get("y", 0))
+    with s["lock"]:
+        ws = s["ws"]
+        ws.call("Runtime.evaluate", {"expression": f"window.scrollTo(0,{max(0, y - 300)})"}); time.sleep(0.15)
+        sy = float(ws.call("Runtime.evaluate", {"expression": "window.scrollY", "returnByValue": True})["result"].get("value", 0))
+        vy = y - sy
+        for t, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
+            ws.call("Input.dispatchMouseEvent", {"type": t, "x": x, "y": vy, **extra})
+        time.sleep(0.5)
+        controls = ws.call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])
+    return {"controls": controls}
 
 
 def page_set(d):
@@ -627,6 +659,8 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/page/open": return self.send(200, start_job(lambda p: open_page(d, p)))
             if u.path == "/api/page/set": return self.send(200, page_set(d))
             if u.path == "/api/page/preview": return self.send(200, live_preview(d))
+            if u.path == "/api/page/shot": return self.send(200, page_shot(d))
+            if u.path == "/api/page/click": return self.send(200, page_click(d))
             if u.path == "/api/preview": return self.send(200, start_job(lambda p: preview(d, p)))
             if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
             if u.path == "/api/page/cancel": close_session(d.get("sid", "")); return self.send(200, {"ok": True})
@@ -661,10 +695,10 @@ label{display:block;margin:8px 0 2px;color:var(--m);font-size:12px}.two{display:
 #ctl{max-height:220px;overflow:auto;margin:4px 0}#ctl label{display:flex;gap:6px;align-items:center;padding:2px;font-size:12px;margin:0;color:var(--t)}#ctl input{width:auto}#ctl small{color:var(--m)}
 #pdl,#pup{margin-top:10px}[hidden]{display:none!important}
 main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0e10}#vh{display:flex;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--b);background:var(--c);font-size:13px}#vt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
+#vtabs button{padding:3px 10px;font-size:12px}#vtabs button.on{background:var(--a);border-color:var(--a)}#liveview{flex:1;overflow:auto;background:#fff}#liveview img{display:block;width:100%;cursor:pointer}#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
 </style>
 <aside>
-<h1>PDF Studio <small>v7 · live page preview, per-file headers/footers</small></h1>
+<h1>PDF Studio <small>v8 · click the live page, per-file headers/footers</small></h1>
 <div id="stat"><div id="msg"></div><div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div></div>
 
 <details class="sec" open><summary>1 · Add a page or PDF</summary>
@@ -717,8 +751,8 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <div class="hint" id="out"></div>
 </details>
 </aside>
-<main><div id="vh"><span id="vt">Nothing to show yet</span><span id="busy" hidden>Updating the preview…</span></div>
-<div id="empty">Add a PDF, or paste a web page address.<br>It will appear here so you can check it.</div><iframe id="view" hidden></iframe></main>
+<main><div id="vh"><span id="vt">Nothing to show yet</span><span id="vtabs" hidden><button data-vt="live" class="on">Interactive page</button><button data-vt="pdf">PDF preview</button></span><span id="busy" hidden>Updating…</span></div>
+<div id="empty">Add a PDF, or paste a web page address.<br>It will appear here so you can check it.</div><div id="liveview" hidden></div><iframe id="view" hidden></iframe></main>
 <script>
 setInterval(()=>fetch("/api/ping").catch(()=>{}),3000);fetch("/api/ping").catch(()=>{});addEventListener("pagehide",()=>navigator.sendBeacon&&navigator.sendBeacon("/api/bye"));
 const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],sel=-1,info={games:{}},pg=null,merged=null,sig="",remote=null;
@@ -728,8 +762,8 @@ const msg=(t,c)=>{$("msg").innerHTML=`<span class="${c||""}">${t}</span>`};
 const api=async(p,b)=>{const r=await fetch(p,{method:"POST",body:b});const j=await r.json();if(!r.ok)throw Error(j.error);return j};
 const prog=(on,pct,label)=>{$("bar").hidden=!on;$("barf").style.width=pct+"%";$("barl").textContent=on?`${pct}%  ${label||""}`:""};
 async function job(path,body){const {job:id}=await api(path,body);for(;;){const j=await (await fetch("/api/job?id="+id)).json();prog(true,j.pct,j.label);if(j.done){if(j.error)throw Error(j.error);return j.result}await new Promise(r=>setTimeout(r,250))}}
-function show(url,label){$("empty").hidden=true;$("view").hidden=false;$("view").src=url+"#toolbar=1&navpanes=0&view=FitH";$("vt").textContent=label}
-function blank(t){$("view").hidden=true;$("view").removeAttribute("src");$("empty").hidden=false;$("empty").innerHTML=t;$("vt").textContent="Nothing to show yet"}
+function show(url,label){$("empty").hidden=true;$("liveview").hidden=true;$("view").hidden=false;$("view").src=url+"#toolbar=1&navpanes=0&view=FitH";$("vt").textContent=label}
+function blank(t){$("liveview").hidden=true;$("vtabs").hidden=true;$("view").hidden=true;$("view").removeAttribute("src");$("empty").hidden=false;$("empty").innerHTML=t;$("vt").textContent="Nothing to show yet"}
 
 /* ---- files list and per-file headers/footers ---- */
 function draw(){$("list").innerHTML=items.map((f,i)=>`<div class="row ${i===sel?"on":""}" data-s="${i}"><span class="n" data-s="${i}">${esc(f.name)} <small>${f.pages}p${f.top||f.bottom?` · −${f.top||0}%/−${f.bottom||0}%`:""}</small></span><input data-r="${i}" value="${esc(f.range||"")}" placeholder="all pages"><button data-u="${i}">↑</button><button data-d="${i}">↓</button><button data-x="${i}">✕</button></div>`).join("");
@@ -753,17 +787,20 @@ $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.d
 
 /* ---- opening a web page: live preview, tick/untick, then save as a PDF ---- */
 function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${esc(c.label)}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${esc(c.label)} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
-let rf=false,again=false;
-async function refresh(){if(!pg)return;if(rf){again=true;return}rf=true;$("busy").hidden=false;try{do{again=false;const r=await api("/api/page/preview",JSON.stringify({sid:pg.sid}));if(pg)show(r.url,"Live preview of "+(pg.title||pg.url))}while(again&&pg)}catch(e){msg(e.message,"err")}rf=false;$("busy").hidden=true}
+let rf=false,again=false,vmode="live",chunks=[];
+async function shot(){const r=await api("/api/page/shot",JSON.stringify({sid:pg.sid}));chunks=r.chunks;const st=$("liveview").scrollTop;$("liveview").innerHTML=r.chunks.map((c,i)=>`<img data-ci="${i}" draggable="false" src="${c.src}">`).join("");$("liveview").scrollTop=st;$("empty").hidden=true;$("view").hidden=true;$("liveview").hidden=false;$("vt").textContent="Click things on the page to show or hide them: "+(pg.title||pg.url)}
+async function refresh(){if(!pg)return;if(rf){again=true;return}rf=true;$("busy").hidden=false;try{do{again=false;if(vmode==="live")await shot();else{const r=await api("/api/page/preview",JSON.stringify({sid:pg.sid}));if(pg)show(r.url,"PDF preview of "+(pg.title||pg.url)+" (this is what will be saved)")}}while(again&&pg)}catch(e){msg(e.message,"err")}rf=false;$("busy").hidden=true}
+$("vtabs").onclick=e=>{const v=e.target.dataset.vt;if(!v||!pg)return;vmode=v;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt===v));refresh()};
+$("liveview").onclick=async e=>{const im=e.target.closest("img");if(!im||!pg||rf)return;const c=chunks[+im.dataset.ci],r=im.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1280,y=c.y+(e.clientY-r.top)/r.height*c.h;rf=true;$("busy").hidden=false;try{const j=await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));pg.controls=j.controls;drawCtl();await shot()}catch(err){msg(err.message,"err")}rf=false;$("busy").hidden=true};
 async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
-async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Tick boxes and open or close sections below; scroll the preview on the right to check.`;drawCtl();$("pgp").hidden=false;show(pg.preview,"Live preview of "+(pg.title||u));msg("Page ready. Choose what should show, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
+async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
 $("ctl").onclick=e=>{const i=e.target.dataset.click;if(i!=null){const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:"button",v:/^(show|expand)/i.test(c.label)}])}};
 $("pgp").onclick=e=>{const a=e.target.dataset.all;if(!a||!pg)return;const on=a==="tick"||a==="open",sec=a==="open"||a==="close";setOps(pg.controls.filter(c=>sec?(c.type!=="checkbox"):c.type==="checkbox").map(c=>({i:c.i,kind:c.type,v:on})))};
-async function cancelPage(){const s=pg&&pg.sid;pg=null;$("pgp").hidden=true;if(s)await api("/api/page/cancel",JSON.stringify({sid:s})).catch(()=>{});msg("");items.length?preview():blank("Add a PDF, or paste a web page address.")}
+async function cancelPage(){const s=pg&&pg.sid;pg=null;$("vtabs").hidden=true;$("pgp").hidden=true;if(s)await api("/api/page/cancel",JSON.stringify({sid:s})).catch(()=>{});msg("");items.length?preview():blank("Add a PDF, or paste a web page address.")}
 $("pcan").onclick=cancelPage;
-$("psave").onclick=async()=>{$("psave").disabled=true;msg("Saving the page as a PDF…");try{const f=await job("/api/page/print",JSON.stringify({sid:pg.sid}));pg=null;$("pgp").hidden=true;$("url").value="";items.push({...f,top:0,bottom:0});sel=items.length-1;draw();msg("Saved. Now press “Find them automatically” to remove its header and footer, then check the preview. Paste another address for the next page.","ok");prog(false);await preview()}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
+$("psave").onclick=async()=>{$("psave").disabled=true;msg("Saving the page as a PDF…");try{const f=await job("/api/page/print",JSON.stringify({sid:pg.sid}));pg=null;$("vtabs").hidden=true;$("pgp").hidden=true;$("url").value="";items.push({...f,top:0,bottom:0});sel=items.length-1;draw();msg("Saved. Now press “Find them automatically” to remove its header and footer, then check the preview. Paste another address for the next page.","ok");prog(false);await preview()}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
 
 /* ---- naming and the Game Pack destination ---- */
 function dests(){const o=[];for(const[g,es]of Object.entries(remote.games)){if(!es.length)o.push([g,""]);es.forEach(e=>o.push([g,e]))}return o}
