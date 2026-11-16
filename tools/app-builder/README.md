@@ -44,6 +44,15 @@ Divider, Space, **Row** or **Column** (to lay several items out). *＋ New page*
 or do nothing (this one button only). Also: remove or hide anything, rename text, reorder by dragging or ◀ ▶,
 **Undo** (Ctrl+Z), **All my changes** (✕ to remove any), **Reset everything**.
 
+## Test on any screen size and organise layers
+* **Device bar** above the preview: Desktop / Tablet / Phone, a list of common devices (iPhone, iPad, Galaxy, Pixel,
+  laptops, 1080p/1440p), exact width and height, rotate, a **width slider** to watch the layout respond at every size,
+  and zoom. Edits go to the size range the width falls in (shown beside the bar).
+* **Layers tab:** every element on the current screen as a tree. Click or Shift-click to select; ● hides; 🔓 locks
+  (locked layers can't be picked or moved on the canvas); double-click to rename; **Group selected** to style, hide or lock
+  several together; **drag a layer** onto another to reorder it on the canvas (top edge before, bottom edge after,
+  middle inside a box you added).
+
 ## Saving and publishing
 **Save** writes `custom/custom.json` (and any pictures in `custom/assets/`) in your RulesForge folder; the previous
 version is kept as `custom.json.bak`. Upload those to GitHub, or use **Publish to GitHub** (repository, branch,

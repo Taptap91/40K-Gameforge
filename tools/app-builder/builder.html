@@ -14,25 +14,25 @@ h3{margin:16px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercas
 .c{display:flex;gap:4px}.c input[type=color]{width:34px;padding:1px;flex:none}.c input[type=text]{flex:1}.row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
 .sel{background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px;font:12px ui-monospace,monospace;word-break:break-all;color:#9fd0ff}
 .hint{color:var(--m);font-size:12px;margin:4px 0}label.r{display:flex;gap:6px;align-items:flex-start;margin:4px 0;color:var(--t)}label.r input{width:auto;margin-top:2px}
-main{display:flex;justify-content:center;align-items:flex-start;overflow:auto;padding:14px;background:#0e0e10}
-#wrap{transform-origin:top center;background:#000;box-shadow:0 0 0 1px var(--b);flex:none}iframe{border:0;display:block;width:100%;height:100%;background:#1c1c1e}
+main{display:flex;flex-direction:column;overflow:hidden;background:#0e0e10;min-height:0}#dbar{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--b);background:var(--c);flex-wrap:wrap}#dbar input[type=number]{width:70px}#dbar select{max-width:210px}#dbar span{color:var(--m)}#wsl{width:150px;padding:0}#cv{flex:1;overflow:auto;padding:14px;min-height:0}#sizer{margin:0 auto;position:relative}
+#wrap{transform-origin:top left;background:#000;box-shadow:0 0 0 1px var(--b);position:absolute;left:0;top:0}iframe{border:0;display:block;width:100%;height:100%;background:#1c1c1e}
 .ch{display:flex;gap:6px;align-items:center;font:11px ui-monospace,monospace;margin:3px 0}.ch span{flex:1;word-break:break-all}.ch button{padding:1px 6px}
-.bx{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.bx label{display:flex;gap:2px;align-items:center;color:var(--m);font-size:11px}.bx input{padding:4px;width:100%;min-width:0}.pg{display:grid;grid-template-columns:1fr auto auto;gap:4px;margin:6px 0;padding:6px;border:1px solid var(--b);border-radius:8px}.pg label.r{margin:0}textarea{width:100%;font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:7px;padding:6px}details{margin:8px 0}details.grp{border-top:1px solid var(--b);margin:0;padding:6px 0}details.grp>summary{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--m);padding:4px 0}.cm{border:1px solid var(--b);border-radius:8px;padding:6px;margin:6px 0}.cm .f{grid-template-columns:70px 1fr;margin:3px 0}.mini{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}.mini label{display:flex;gap:4px;align-items:center;color:var(--m);font-size:11px}.mini input,.mini select{width:100%;min-width:0;padding:4px}.st{margin:8px 0;padding:6px;border:1px solid var(--b);border-radius:8px}summary{cursor:pointer;color:var(--m)}
+.bx{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.bx label{display:flex;gap:2px;align-items:center;color:var(--m);font-size:11px}.bx input{padding:4px;width:100%;min-width:0}.pg{display:grid;grid-template-columns:1fr auto auto;gap:4px;margin:6px 0;padding:6px;border:1px solid var(--b);border-radius:8px}.pg label.r{margin:0}textarea{width:100%;font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:7px;padding:6px}.lr{display:flex;align-items:center;gap:2px;padding:2px 4px;border-radius:6px;cursor:pointer;white-space:nowrap}.lr:hover{background:rgba(255,255,255,.06)}.lr.on{background:rgba(10,132,255,.28)}.lr.many{background:rgba(10,132,255,.16)}.lr .tg{width:14px;text-align:center;color:var(--m);flex:none}.lr .nm{flex:1;overflow:hidden;text-overflow:ellipsis}.lr button{border:0;background:transparent;padding:0 3px;font-size:12px;opacity:.8}.lr.off .nm{opacity:.4}.lr.dt-before{box-shadow:0 -2px 0 #ff9f0a}.lr.dt-after{box-shadow:0 2px 0 #ff9f0a}.lr.dt-in{outline:2px solid #ff9f0a}.lr.gp{font-weight:600}details{margin:8px 0}details.grp{border-top:1px solid var(--b);margin:0;padding:6px 0}details.grp>summary{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--m);padding:4px 0}.cm{border:1px solid var(--b);border-radius:8px;padding:6px;margin:6px 0}.cm .f{grid-template-columns:70px 1fr;margin:3px 0}.mini{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}.mini label{display:flex;gap:4px;align-items:center;color:var(--m);font-size:11px}.mini input,.mini select{width:100%;min-width:0;padding:4px}.st{margin:8px 0;padding:6px;border:1px solid var(--b);border-radius:8px}summary{cursor:pointer;color:var(--m)}
 </style>
 <header><b>App Builder</b>
-<div class="seg" id="devs"><button data-d="desktop" class="on">Desktop</button><button data-d="tablet">Tablet</button><button data-d="phone">Phone</button></div>
 <div class="seg" id="modes"><button data-m="interact" class="on" title="Use the app normally to get to the screen you want to edit">Use the app</button><button data-m="edit" title="Click any part of the app to change it">Edit</button></div>
 <span class="sp"></span><span id="status">Loading…</span>
 <button id="undo" disabled>Undo</button><button id="save" class="p">Save</button></header>
 
 <aside id="side"></aside>
-<main id="stage"><div id="wrap"><iframe id="frame"></iframe></div></main>
+<main id="stage"><div id="dbar"><div class="seg" id="devs"><button data-d="desktop" class="on">Desktop</button><button data-d="tablet">Tablet</button><button data-d="phone">Phone</button></div><select id="dsel" title="Test on a particular device"></select><input id="dw" type="number" min="280" max="3840" title="Width"><span>×</span><input id="dh" type="number" min="280" max="3840" title="Height"><button id="drot" title="Rotate (swap width and height)">⟳</button><input id="wsl" type="range" min="280" max="2000" title="Drag to test every width"><select id="dz" title="Zoom"><option value="fit">Fit</option><option value="100">100%</option><option value="75">75%</option><option value="50">50%</option></select><span id="dlab"></span></div><div id="cv"><div id="sizer"><div id="wrap"><iframe id="frame"></iframe></div></div></div></main>
 
 <script>
 const $=id=>document.getElementById(id);
 const DEV={desktop:{w:1400,bp:"@media (min-width:1280px)"},tablet:{w:820,bp:"@media (min-width:761px) and (max-width:1279px)"},phone:{w:402,bp:"@media (max-width:760px)"}};
 const STATE=/^(active|open|on|sel|selected|hidden|disabled|focus|hover|current|is-|has-|dragging|show|visible|loading|collapsed|compact)/;
-const EMPTY=()=>({css:"",labels:[],pages:[],elements:[],actions:[],styles:[],applied:[],rules:{all:{},desktop:{},tablet:{},phone:{}}});
+const EMPTY=()=>({css:"",labels:[],pages:[],elements:[],actions:[],styles:[],applied:[],locks:[],names:[],groups:[],rules:{all:{},desktop:{},tablet:{},phone:{}}});
+let selUid=null,fw=1440,fh=900,zoom="fit",tab="design",multi=[],layerEls=[],openEls=new WeakSet(),dragFrom=-1;
 let data=EMPTY(),dev="desktop",mode="interact",scope="device",selMode="like",sel=null,doc=null,win=null,pstate="",editStyle=null,freeMove=false;
 let committed="",undoStack=[],dirty=false,placeWhere="";const openG=new Set(["add","act","Fill and border","Size and space"]);
 const SUF={"":"",hover:":hover",active:":active",focus:":focus-visible"};
@@ -52,6 +52,8 @@ const SECTIONS=[
  {n:"Animation",r:[{k:"animation-name",l:"Effect",t:"sel",o:ANIMS},{k:"animation-duration",l:"Length (ms)",t:"text",u:"ms",ph:"600"},{k:"animation-delay",l:"Delay (ms)",t:"text",u:"ms",ph:"0"},{k:"animation-timing-function",l:"Feel",t:"sel",o:EASE},{k:"animation-iteration-count",l:"Repeats",t:"sel",o:O(["1","Once"],["2","Twice"],["3","3 times"],["infinite","Forever"])},{t:"preview"},{k:"transition-duration",l:"Smooth changes (ms)",t:"text",u:"ms",ph:"0"},{k:"transition-timing-function",l:"Smooth feel",t:"sel",o:EASE}]}];
 const OK=v=>!/[{};<>]|@import|expression/i.test(v)&&!/url\((?!\s*["']?(https?:|custom\/assets\/))/i.test(v);
 const bucket=()=>scope==="all"?"all":dev;
+const bucketOf=w=>w<=760?"phone":w<=1279?"tablet":"desktop";
+const RANGE={desktop:"1280 px and wider",tablet:"761–1279 px",phone:"760 px and narrower"};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- css + persistence ---------- */
@@ -61,7 +63,7 @@ function genCSS(){const out=[],sr={};for(const st of data.styles)for(const a of 
  for(const d of["desktop","tablet","phone"]){const b=blk(data.rules[d]);if(b.trim())out.push(`${DEV[d].bp}{\n${b}\n}`)}return out.filter(x=>x.trim()).join("\n")}
 const payload=()=>({css:data.css,labels:data.labels,pages:data.pages,elements:data.elements,actions:data.actions});
 function live(){data.css=genCSS();win?.__rfCustomApply?.(payload());reselect();mark(true)}
-function reselect(){if(sel&&sel.dataset?.rfEl){const n=doc.querySelector(`[data-rf-el="${sel.dataset.rfEl}"]`);if(n){sel=n;n.setAttribute("data-rf-s","")}else sel=null}}
+function reselect(){if(sel&&!sel.dataset?.rfEl&&!sel.isConnected&&selUid){const n=doc.querySelector(selUid);if(n){sel=n;n.setAttribute("data-rf-s","")}else sel=null}if(sel&&sel.dataset?.rfEl){const n=doc.querySelector(`[data-rf-el="${sel.dataset.rfEl}"]`);if(n){sel=n;n.setAttribute("data-rf-s","")}else sel=null}}
 function mark(d,msg,cls){dirty=d;const s=$("status");s.textContent=msg||(d?"Unsaved changes":"Saved");s.className=cls||(d?"dirty":"ok")}
 function commit(){const now=JSON.stringify(data);if(now!==committed){undoStack.push(committed);committed=now}$("undo").disabled=!undoStack.length}
 $("undo").onclick=()=>{if(!undoStack.length)return;committed=undoStack.pop();data=Object.assign(EMPTY(),JSON.parse(committed));live();$("undo").disabled=!undoStack.length;render()};
@@ -73,7 +75,7 @@ addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="
 function pathSel(el){const parts=[];let e=el;while(e&&e!==doc.body&&e.nodeType===1&&parts.length<16){if(e.id&&/^[A-Za-z][\w-]*$/.test(e.id)&&doc.querySelectorAll("#"+e.id).length===1){parts.unshift("#"+e.id);return parts.join(" > ")}
  parts.unshift(e.tagName.toLowerCase()+":nth-child("+([...e.parentNode.children].indexOf(e)+1)+")");e=e.parentElement}return"body > "+parts.join(" > ")}
 function likeSel(el){const cl=[...el.classList].filter(c=>!STATE.test(c)&&/^[\w-]+$/.test(c));if(!cl.length)return null;const s=el.tagName.toLowerCase()+"."+cl.join(".");try{return doc.querySelectorAll(s).length?s:null}catch{return null}}
-const curSel=()=>sel?(sel.dataset?.rfEl?`[data-rf-el="${sel.dataset.rfEl}"]`:selMode==="like"&&likeSel(sel)?likeSel(sel):pathSel(sel)):null;
+const curSel=()=>multi.length>1?multi.map(e=>uid(e)).join(", "):sel?(sel.dataset?.rfEl?`[data-rf-el="${sel.dataset.rfEl}"]`:selMode==="like"&&likeSel(sel)?likeSel(sel):pathSel(sel)):null;
 const uid=el=>el.dataset?.rfEl?`[data-rf-el="${el.dataset.rfEl}"]`:pathSel(el);
 const count=s=>{try{return doc.querySelectorAll(s).length}catch{return 0}};
 const ruleSel=()=>curSel()+SUF[pstate];
@@ -90,7 +92,7 @@ function setLabel(v){const el=sel,info=labelFor(el);if(!info)return;data.labels=
 function seqOf(parent){return[...parent.children].filter(c=>!/^(SCRIPT|STYLE)$/.test(c.tagName)&&c.id!=="rf-box"&&getComputedStyle(c).display!=="none").map((c,i)=>({c,i,o:+getComputedStyle(c).order||0})).sort((a,b)=>a.o-b.o||a.i-b.i).map(x=>x.c)}
 const arrangeable=el=>el&&el.parentElement&&/flex|grid/.test(getComputedStyle(el.parentElement).display);
 function moveTo(el,target,after){const p=el.parentElement,seq=seqOf(p).filter(c=>c!==el);let i=seq.indexOf(target);if(i<0)return;seq.splice(after?i+1:i,0,el);const b=bucket();
- seq.forEach((c,n)=>{const s=uid(c);(data.rules[b][s]=data.rules[b][s]||{}).order=String((n+1)*10)});live();commit();render()}
+ seq.forEach((c,n)=>{const s=uid(c),o=(data.rules[b][s]=data.rules[b][s]||{});o.order=String((n+1)*10);if(getComputedStyle(c).position!=="static")o["z-index"]=String(n+1)});live();commit();render()}
 function nudge(dir){const seq=seqOf(sel.parentElement),i=seq.indexOf(sel),j=i+dir;if(j<0||j>=seq.length)return;moveTo(sel,seq[j],dir>0)}
 
 /* ---------- adding things, pages, actions, styles ---------- */
@@ -126,9 +128,9 @@ function install(){doc=$("frame").contentDocument;win=$("frame").contentWindow;
  for(const t of["mousedown","mouseup","touchstart","touchend","dblclick","contextmenu","submit"])doc.addEventListener(t,e=>{if(edit())stop(e)},true);
  doc.addEventListener("mouseover",e=>{if(!edit())return;doc.querySelectorAll("[data-rf-h]").forEach(x=>x.removeAttribute("data-rf-h"));if(e.target!==sel&&!e.target.closest("#rf-box"))e.target.setAttribute("data-rf-h","")},true);
  doc.addEventListener("pointerdown",e=>{if(!edit())return;stop(e);const h=e.target.dataset?.h;
-  if(h&&sel){const r=sel.getBoundingClientRect();rs={h,x:e.clientX,y:e.clientY,w:r.width,hh:r.height};return}
+  if(h&&sel&&!lockedEl(sel)){const r=sel.getBoundingClientRect();rs={h,x:e.clientX,y:e.clientY,w:r.width,hh:r.height};return}
   down={x:e.clientX,y:e.clientY,t:e.target};dragging=false;
-  if(freeMove&&sel&&(e.target===sel||sel.contains(e.target))){startMove(e)}},true);
+  if(freeMove&&sel&&!lockedEl(sel)&&(e.target===sel||sel.contains(e.target))){startMove(e)}},true);
  function startMove(e){const cs=win.getComputedStyle(sel),cur=bag(false);if(cs.position==="static"&&!cur.position)setRule(null,"position","relative");
   const r0=sel.getBoundingClientRect(),p=sel.parentElement,pr=p.getBoundingClientRect(),tx=[pr.left,pr.left+pr.width/2,pr.right],ty=[pr.top,pr.top+pr.height/2,pr.bottom];
   for(const c of p.children)if(c!==sel&&c.id!=="rf-box"&&!c.classList.contains("rf-guide")&&c.id!=="rf-drop"){const r=c.getBoundingClientRect();if(r.width||r.height){tx.push(r.left,r.left+r.width/2,r.right);ty.push(r.top,r.top+r.height/2,r.bottom)}}
@@ -141,16 +143,21 @@ function install(){doc=$("frame").contentDocument;win=$("frame").contentWindow;
   if(mv&&sel){const s=snap(e.clientX-mv.x,e.clientY-mv.y);setMany({left:Math.round(mv.l0+s.dx)+"px",top:Math.round(mv.t0+s.dy)+"px"});
    gx.hidden=s.lx==null;if(s.lx!=null)Object.assign(gx.style,{left:s.lx+"px",top:"0",width:"1px",height:"100vh"});gy.hidden=s.ly==null;if(s.ly!=null)Object.assign(gy.style,{top:s.ly+"px",left:"0",height:"1px",width:"100vw"});return}
   if(!down||!sel)return;
-  if(!dragging&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>8&&(down.t===sel||sel.contains(down.t))&&arrangeable(sel))dragging=true;
+  if(!dragging&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>8&&(down.t===sel||sel.contains(down.t))&&arrangeable(sel)&&!lockedEl(sel))dragging=true;
   if(!dragging)return;const seq=seqOf(sel.parentElement).filter(c=>c!==sel);dropEl=null;
   for(const c of seq){const r=c.getBoundingClientRect();if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){dropEl=c;const mine=sel.getBoundingClientRect();const sameRow=Math.abs(mine.top-r.top)<Math.min(mine.height,r.height)/2;dropAfter=sameRow?e.clientX>r.left+r.width/2:e.clientY>r.top+r.height/2;
    drop.hidden=false;Object.assign(drop.style,sameRow?{left:(dropAfter?r.right-2:r.left-1)+"px",top:r.top+"px",width:"3px",height:r.height+"px"}:{left:r.left+"px",top:(dropAfter?r.bottom-2:r.top-1)+"px",width:r.width+"px",height:"3px"});break}}
   if(!dropEl)drop.hidden=true},true);
  doc.addEventListener("pointerup",e=>{if(!edit())return;stop(e);drop.hidden=true;gx.hidden=gy.hidden=true;
   if(rs){rs=null;commit();render()}else if(mv){mv=null;commit();render()}else if(dragging&&dropEl)moveTo(sel,dropEl,dropAfter);down=null;setTimeout(()=>dragging=false,0)},true);
- doc.addEventListener("click",e=>{if(!edit())return;stop(e);if(dragging||e.target.dataset?.h)return;pick(e.target)},true);
- data.css=genCSS();win.__rfCustomApply?.(payload());win.__rfNoActions=mode==="edit"}
-function pick(el){el=el&&el.closest?el.closest("[data-rf-el]")||el:el;if(!el||el===doc.documentElement||el===doc.body||el.id==="rf-drop"||el.id==="rf-box")return;doc.querySelectorAll("[data-rf-s],[data-rf-h]").forEach(x=>{x.removeAttribute("data-rf-s");x.removeAttribute("data-rf-h")});sel=el;el.setAttribute("data-rf-s","");render()}
+ doc.addEventListener("click",e=>{if(!edit())return;stop(e);if(dragging||e.target.dataset?.h)return;if(lockedEl(e.target)){mark(dirty,"That layer is locked. Unlock it in the Layers tab to select it here.",dirty?"dirty":"ok");return}pick(e.target,e.shiftKey)},true);
+ data.css=genCSS();win.__rfCustomApply?.(payload());win.__rfNoActions=mode==="edit";watchLayers()}
+const lockedEl=el=>data.locks.some(s=>{try{return !!el.closest(s)}catch{return false}});
+function mark2(){doc.querySelectorAll("[data-rf-s],[data-rf-h]").forEach(x=>{x.removeAttribute("data-rf-s");x.removeAttribute("data-rf-h")});(multi.length>1?multi:sel?[sel]:[]).forEach(e=>e.setAttribute("data-rf-s",""))}
+function pick(el,add,quiet){el=el&&el.closest?el.closest("[data-rf-el]")||el:el;if(!el||el===doc.documentElement||el===doc.body||el.id==="rf-drop"||el.id==="rf-box")return;
+ if(add&&sel){if(!multi.length)multi=[sel];multi=multi.includes(el)?multi.filter(x=>x!==el):[...multi,el];sel=multi[multi.length-1]||null;if(multi.length<2)multi=[]}else{multi=[];sel=el}
+ selUid=sel?uid(sel):null;mark2();if(!quiet)render()}
+function pickMany(els){els=els.filter(Boolean);multi=els.length>1?els:[];sel=els[0]||null;mark2();render()}
 $("frame").onload=install;
 
 /* ---------- side panel ---------- */
@@ -212,14 +219,15 @@ function rowHTML(p,cur,cs){
  if(p.t==="color")return`<div class="f"><label>${p.l}</label><div class="c"><input type="color" data-k="${p.k}" value="${hex(v||ph)}"><input type="text" data-k="${p.k}" value="${esc(v)}" placeholder="${esc(ph)}"></div></div>`;
  if(p.t==="sel")return`<div class="f"><label>${p.l}</label><select data-k="${p.k}">${p.o.map(([val,lab])=>`<option value="${esc(val)}" ${v===val?"selected":""}>${lab}</option>`).join("")}</select></div>`;
  return`<div class="f"><label>${p.l}</label><input type="text" data-k="${p.k}" ${p.u?`data-u="${p.u}"`:""} value="${esc(v)}" placeholder="${esc(ph)}"></div>`}
-function render(){const a=$("side");let h="";
+function render(){if(!doc){$("side").innerHTML="";return}if(tab==="layers"&&!editStyle){renderLayers();return}const a=$("side");let h=tabsHTML();
  if(editStyle){const st=styleObj();h+=`<div class="sel">Editing style “${esc(st?.name||"")}”: changes apply everywhere it's used.</div><div class="row"><button id="sdone" class="p">Done</button></div>`}
- else h+=`<h3>Apply changes to</h3><label class="r"><input type="radio" name="sc" value="device" ${scope==="device"?"checked":""}><span>This screen size only (${dev})</span></label><label class="r"><input type="radio" name="sc" value="all" ${scope==="all"?"checked":""}><span>Every screen size</span></label>`;
- const subject=editStyle?(sel&&sel.isConnected?sel:doc?.body):(mode==="edit"&&sel&&sel.isConnected?sel:null);
+ else h+=`<h3>Apply changes to</h3><label class="r"><input type="radio" name="sc" value="device" ${scope==="device"?"checked":""}><span>This screen size range only (${dev}: ${RANGE[dev]})</span></label><label class="r"><input type="radio" name="sc" value="all" ${scope==="all"?"checked":""}><span>Every screen size</span></label>`;
+ const subject=editStyle?(sel&&sel.isConnected?sel:doc?.body):(mode==="edit"&&sel&&sel.isConnected?sel:null),many=multi.length>1;
  if(mode!=="edit"&&!editStyle){h+=`<p class="hint">You're using the app normally (buttons do what they're set to do). Go to the screen you want to change, then press <b>Edit</b> at the top and click anything.</p>`+pgHTML()}
  else if(!subject){sel=null;h+=`<p class="hint">Click any part of the app on the right. Dashed blue is what you're pointing at.</p>`+pgHTML()}
- else{const custom=!!sel?.dataset?.rfEl,like=sel&&!custom?likeSel(sel):null,cs=win.getComputedStyle(subject),cur=editStyle?(styleObj()?.props||{}):(data.rules[bucket()][ruleSel()]||{});
-  if(sel&&!editStyle){h+=`<h3>Selected</h3><div class="sel">${esc(curSel())}</div><div class="row"><button id="up">↑ Select the block around it</button></div>`;
+ else{const custom=!!sel?.dataset?.rfEl&&!many,like=sel&&!custom&&!many?likeSel(sel):null,cs=win.getComputedStyle(subject),cur=editStyle?(styleObj()?.props||{}):(data.rules[bucket()][ruleSel()]||{});
+  if(many&&!editStyle)h+=`<h3>${multi.length} layers selected</h3><div class="hint">Changes below apply to all of them. Shift-click items on the canvas, or use the Layers tab to select several or group them.</div>`;
+  if(sel&&!editStyle&&!many){h+=`<h3>Selected</h3><div class="sel">${esc(curSel())}</div><div class="row"><button id="up">↑ Select the block around it</button></div>`;
    if(!custom)h+=`<label class="r"><input type="radio" name="sm" value="like" ${selMode==="like"&&like?"checked":""} ${like?"":"disabled"}><span>All like this${like?` (${count(like)} on this screen)`:""}</span></label><label class="r"><input type="radio" name="sm" value="one" ${selMode==="one"||!like?"checked":""}><span>Only this one</span></label>`;
    if(custom)h+=elHTML();
    const li=labelFor(sel);if(li)h+=`<h3>Text</h3><div class="f"><label>Wording</label><input id="txt" value="${esc(li.to)}"></div><div class="hint">Changes this wording everywhere it appears in the same spot.</div>`;
@@ -228,7 +236,7 @@ function render(){const a=$("side");let h="";
    h+=`<details class="grp" ${openG.has("move")?"open":""} data-g="move"><summary>Order</summary>${arrangeable(sel)?`<div class="row"><button id="bk">◀ Earlier</button><button id="fw">Later ▶</button></div><div class="hint">Or drag the selected block onto another one in the app.</div>`:`<div class="hint">This block's container isn't a row, column or grid, so its order can't be changed. Select the block around it, or put the items in a Row or Column box. You can still use Free move under Position.</div>`}</details>`;
    h+=`<div class="seg" id="pst" style="margin:10px 0">${[["","Normal"],["hover","Hover"],["active","Pressed"],["focus","Focused"]].map(([v,l])=>`<button data-ps="${v}" class="${pstate===v?"on":""}">${l}</button>`).join("")}</div><div class="hint">${pstate?"These changes only apply while it is "+(pstate==="active"?"pressed":pstate==="hover"?"hovered":"focused")+". Set Smooth changes under Animation for a gentle transition.":"Switch to Hover or Pressed to design how it reacts."}</div>`}
   for(const sec of SECTIONS)h+=`<details class="grp" ${openG.has(sec.n)?"open":""} data-g="${sec.n}"><summary>${sec.n}</summary>${sec.r.map(p=>rowHTML(p,cur,cs)).join("")}</details>`;
-  if(sel&&!editStyle&&!custom)h+=`<div class="f"><label>Remove / hide</label><input type="checkbox" id="hide" ${(data.rules[bucket()][ruleSel()]||{}).display==="none"?"checked":""} style="width:auto"></div>`;
+  if(sel&&!editStyle&&!custom&&!many)h+=`<div class="f"><label>Remove / hide</label><input type="checkbox" id="hide" ${(data.rules[bucket()][ruleSel()]||{}).display==="none"?"checked":""} style="width:auto"></div>`;
   if(sel&&!editStyle)h+=`<div class="row"><button id="clr">Clear my styling here</button></div>`;
   if(!editStyle)h+=pgHTML()}
  if(!editStyle){h+=stylesHTML()+appwideHTML()}
@@ -241,6 +249,7 @@ function render(){const a=$("side");let h="";
  h+=`<div class="row"><button id="rst">Reset everything to the original app</button></div>`;
  const keep=["repo","br","tok"].map(i=>$(i)?.value),sc=a.scrollTop;a.innerHTML=h;["repo","br","tok"].forEach((i,n)=>{if(keep[n]!=null&&keep[n]!=="")$(i).value=keep[n]});a.scrollTop=sc;wire()}
 function wire(){const a=$("side");
+ a.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
  a.querySelectorAll("details[data-g]").forEach(d=>d.addEventListener("toggle",()=>{d.open?openG.add(d.dataset.g):openG.delete(d.dataset.g)}));
  a.querySelectorAll('[name="sc"]').forEach(r=>r.onchange=()=>{scope=r.value;render()});a.querySelectorAll('[name="sm"]').forEach(r=>r.onchange=()=>{selMode=r.value;render()});
  a.querySelectorAll("[data-ps]").forEach(b=>b.onclick=()=>{pstate=b.dataset.ps;render()});
@@ -292,10 +301,66 @@ function wire(){const a=$("side");
  if($("rst"))$("rst").onclick=()=>{if(!confirm("Remove every change, page, added item and style, and go back to the original app?"))return;data=EMPTY();win.__rfCustomHidePages?.();sel=null;editStyle=null;live();commit();render()};
  if($("pub"))$("pub").onclick=async()=>{try{data.css=genCSS();mark(true,"Publishing…");const r=await post("/api/publish",{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked,data});mark(false,"Published to "+r.published,"ok")}catch(e){mark(true,e.message,"err")}}}
 
+/* ---------- layers ---------- */
+const tabsHTML=()=>`<div class="seg" id="tabs" style="margin-bottom:10px"><button data-t="design" class="${tab==="design"?"on":""}">Design</button><button data-t="layers" class="${tab==="layers"?"on":""}">Layers</button></div>`;
+const skipEl=el=>/^(SCRIPT|STYLE|LINK|META|TEMPLATE|NOSCRIPT)$/.test(el.tagName)||el.id==="rf-box"||el.id==="rf-drop"||el.classList.contains("rf-guide");
+const kidsOf=el=>el.tagName==="svg"||el.closest("svg")?[]:[...el.children].filter(c=>!skipEl(c));
+function nameOf(el){const u=uid(el),n=data.names.find(x=>x.sel===u);if(n)return n.name;const d=el.dataset?.rfEl&&data.elements.find(e=>e.id===el.dataset.rfEl);if(d)return`${TYPES[d.type]?.[0].split(" (")[0]||d.type}${d.text?": "+d.text.slice(0,20):""}`;
+ if(el.classList.contains("rf-page-body"))return"Page area";const t=textNode(el);if(t)return`“${t.nodeValue.trim().slice(0,24)}”`;const c=[...el.classList].filter(x=>!STATE.test(x))[0];return el.tagName.toLowerCase()+(el.id?"#"+el.id:c?"."+c:"")}
+const isHidden=el=>(data.rules[bucket()][uid(el)]||{}).display==="none";
+function toggleHide(el){const u=uid(el),r=data.rules[bucket()];if(isHidden(el)){delete r[u].display;if(!Object.keys(r[u]).length)delete r[u]}else(r[u]=r[u]||{}).display="none";live();commit();render()}
+function toggleLock(els){const us=els.map(uid),on=us.every(u=>data.locks.includes(u));data.locks=on?data.locks.filter(u=>!us.includes(u)):[...new Set([...data.locks,...us])];commit();render()}
+function layersHTML(){const root=doc.querySelector(".app")||doc.body,vis=doc.querySelector(".view:not(.hidden)");layerEls=[];let rows="";openEls.add(root);if(vis)for(let e=vis;e&&e!==root;e=e.parentElement)openEls.add(e);
+ if(sel)openEls.add(sel);for(let e=sel;e&&e!==root&&e.parentElement;e=e.parentElement)openEls.add(e.parentElement);
+ const walk=(el,d)=>{if(d>14)return;const i=layerEls.push(el)-1,kids=kidsOf(el),open=openEls.has(el),on=sel===el||multi.includes(el);
+  rows+=`<div class="lr ${sel===el&&!multi.length?"on":multi.includes(el)?"many":""} ${isHidden(el)?"off":""}" data-li="${i}" draggable="true" style="padding-left:${d*12+2}px"><span class="tg" data-lt="${i}">${kids.length?(open?"▾":"▸"):"·"}</span><span class="nm" data-ln="${i}">${esc(nameOf(el))}</span><button data-lv="${i}" title="Hide or show">${isHidden(el)?"◌":"●"}</button><button data-lk="${i}" title="Lock or unlock">${lockedEl(el)?"🔒":"🔓"}</button></div>`;
+  if(open){for(const k of kids.slice(0,80))walk(k,d+1);if(kids.length>80)rows+=`<div class="hint" style="padding-left:${d*12+30}px">… ${kids.length-80} more</div>`}};
+ walk(root,0);
+ const grp=data.groups.map(g=>{const els=g.sels.flatMap(s=>{try{return[...doc.querySelectorAll(s)]}catch{return[]}});const lk=g.sels.length&&g.sels.every(s=>data.locks.includes(s));return`<div class="lr gp" data-gs="${g.id}"><span class="tg">▦</span><span class="nm">${esc(g.name)} <span class="hint">(${g.sels.length})</span></span><button data-gv="${g.id}" title="Hide or show the group">●</button><button data-gl="${g.id}" title="Lock or unlock the group">${lk?"🔒":"🔓"}</button><button data-gu="${g.id}" title="Ungroup">✕</button></div>`}).join("");
+ return`<div class="row"><button id="lgrp" ${multi.length>1?"":"disabled"}>Group selected</button><button id="ldel" ${sel?.dataset?.rfEl?"":"disabled"}>Delete</button><button id="lcol">Collapse</button></div><div class="hint">Click to select; Shift-click to add more. ● hides, 🔓 locks. Drag a layer onto another to move it: top edge = before, bottom edge = after, middle = inside (boxes you added). Items lower in the list sit in front. Double-click a name to rename.</div>`+(grp?`<h3>Groups</h3>${grp}`:"")+`<h3>Layers</h3>`+rows}
+function renderLayers(){const a=$("side"),sc=a.scrollTop;a.innerHTML=tabsHTML()+layersHTML();a.scrollTop=sc;wireLayers()}
+function wireLayers(){const a=$("side");
+ a.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+ a.querySelectorAll(".lr[data-li]").forEach(r=>{const i=+r.dataset.li,el=layerEls[i];
+  r.onclick=e=>{if(e.target.closest("button")||e.target.dataset.lt)return;if(mode!=="edit")document.querySelector('#modes [data-m="edit"]').click();pick(el,e.shiftKey||e.ctrlKey||e.metaKey)};
+  r.ondblclick=()=>{const n=prompt("Name this layer",nameOf(el));if(n==null)return;const u=uid(el);data.names=data.names.filter(x=>x.sel!==u);if(n.trim())data.names.push({sel:u,name:n.trim()});commit();render()};
+  r.ondragstart=e=>{dragFrom=i;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i))};
+  r.ondragover=e=>{if(dragFrom<0)return;e.preventDefault();const b=r.getBoundingClientRect(),y=(e.clientY-b.top)/b.height;a.querySelectorAll(".lr").forEach(x=>x.classList.remove("dt-before","dt-after","dt-in"));r.classList.add(y<.28?"dt-before":y>.72?"dt-after":"dt-in")};
+  r.ondragleave=()=>r.classList.remove("dt-before","dt-after","dt-in");
+  r.ondrop=e=>{e.preventDefault();const b=r.getBoundingClientRect(),y=(e.clientY-b.top)/b.height;const from=dragFrom;dragFrom=-1;layerDrop(layerEls[from],el,y<.28?"before":y>.72?"after":"in")}});
+ a.addEventListener("dragend",()=>{dragFrom=-1;a.querySelectorAll(".lr").forEach(x=>x.classList.remove("dt-before","dt-after","dt-in"))},{once:true});
+ a.querySelectorAll("[data-lt]").forEach(t=>t.onclick=()=>{const el=layerEls[+t.dataset.lt];openEls.has(el)?openEls.delete(el):openEls.add(el);renderLayers()});
+ a.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>toggleHide(layerEls[+b.dataset.lv]));
+ a.querySelectorAll("[data-lk]").forEach(b=>b.onclick=()=>toggleLock([layerEls[+b.dataset.lk]]));
+ a.querySelectorAll("[data-gs]").forEach(r=>r.onclick=e=>{if(e.target.closest("button"))return;const g=data.groups.find(x=>x.id===r.dataset.gs);if(mode!=="edit")document.querySelector('#modes [data-m="edit"]').click();pickMany(g.sels.flatMap(s=>{try{return[...doc.querySelectorAll(s)]}catch{return[]}}))});
+ a.querySelectorAll("[data-gv]").forEach(b=>b.onclick=()=>{const g=data.groups.find(x=>x.id===b.dataset.gv),r=data.rules[bucket()],hid=g.sels.every(s=>(r[s]||{}).display==="none");for(const s of g.sels){if(hid){if(r[s]){delete r[s].display;if(!Object.keys(r[s]).length)delete r[s]}}else(r[s]=r[s]||{}).display="none"}live();commit();render()});
+ a.querySelectorAll("[data-gl]").forEach(b=>b.onclick=()=>{const g=data.groups.find(x=>x.id===b.dataset.gl),on=g.sels.every(s=>data.locks.includes(s));data.locks=on?data.locks.filter(u=>!g.sels.includes(u)):[...new Set([...data.locks,...g.sels])];commit();render()});
+ a.querySelectorAll("[data-gu]").forEach(b=>b.onclick=()=>{data.groups=data.groups.filter(g=>g.id!==b.dataset.gu);commit();render()});
+ if($("lgrp"))$("lgrp").onclick=()=>{const n=prompt("Name this group",`Group ${data.groups.length+1}`);if(!n)return;data.groups.push({id:rid("g"),name:n.trim(),sels:multi.map(uid)});commit();render()};
+ if($("ldel"))$("ldel").onclick=()=>delEl(sel.dataset.rfEl);
+ if($("lcol"))$("lcol").onclick=()=>{layerEls=[];openEls=new WeakSet();renderLayers()}}
+function layerDrop(el,tg,zone){if(!el||!tg||el===tg||el.contains(tg))return;
+ const cd=el.dataset?.rfEl&&data.elements.find(e=>e.id===el.dataset.rfEl);
+ if(cd){let z=zone;if(z==="in"&&!isBox(tg))z="after";cd.anchor=anchorOf(tg);cd.where=z==="in"?"end":z;live();commit();render();return}
+ if(el.parentElement!==tg.parentElement){mark(dirty,"Items the app draws can only be moved within their own block. Add your own Row or Column box to rearrange freely.",dirty?"dirty":"ok");return}
+ const p=el.parentElement;if(!/flex|grid/.test(getComputedStyle(p).display)){const kids=seqOf(p),rowish=kids.length>1&&Math.abs(kids[0].getBoundingClientRect().top-kids[1].getBoundingClientRect().top)<4;
+  if(!confirm("To reorder these, I'll switch their container to a "+(rowish?"row":"column")+" layout, which looks the same in most cases. Continue?"))return;
+  const u=uid(p),r=data.rules[bucket()];r[u]={...(r[u]||{}),display:"flex","flex-direction":rowish?"row":"column",...(rowish?{"flex-wrap":"wrap"}:{})};live()}
+ moveTo(el,tg,zone==="after")}
+let lmo=null;function watchLayers(){if(lmo)lmo.disconnect();let t=null;lmo=new win.MutationObserver(()=>{if(tab!=="layers")return;clearTimeout(t);t=setTimeout(()=>{if(!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)&&dragFrom<0)renderLayers()},500)});lmo.observe(doc.body,{childList:true,subtree:true})}
+
 /* ---------- chrome: devices, modes, fitting ---------- */
-function fit(){const st=$("stage"),w=DEV[dev].w,k=Math.min(1,(st.clientWidth-28)/w),wrap=$("wrap");wrap.style.width=w+"px";wrap.style.height=Math.max(300,(st.clientHeight-28)/k)+"px";wrap.style.transform=`scale(${k})`;wrap.style.marginBottom=-(wrap.offsetHeight*(1-k))+"px"}
-$("devs").onclick=e=>{const d=e.target.dataset.d;if(!d)return;dev=d;[...$("devs").children].forEach(b=>b.classList.toggle("on",b.dataset.d===d));fit();render()};
+const PRESETS=[["Desktop",[["Laptop 1280×720",1280,720],["Laptop 1366×768",1366,768],["MacBook 1440×900",1440,900],["Desktop 1920×1080",1920,1080],["Large 2560×1440",2560,1440]]],["Tablet",[["iPad mini 744×1133",744,1133],["iPad 820×1180",820,1180],["iPad Pro 11″ 834×1194",834,1194],["iPad Pro 12.9″ 1024×1366",1024,1366],["Galaxy Tab 800×1280",800,1280],["Surface Pro 912×1368",912,1368]]],["Phone",[["iPhone SE 375×667",375,667],["iPhone 15 393×852",393,852],["iPhone 15 Pro Max 430×932",430,932],["Galaxy S 360×800",360,800],["Pixel 412×915",412,915],["Small phone 320×568",320,568],["Foldable, folded 344×882",344,882]]]];
+$("dsel").innerHTML='<option value="">Custom size</option>'+PRESETS.map(([g,l])=>`<optgroup label="${g}">${l.map(([n,w,h])=>`<option value="${w}x${h}">${n}</option>`).join("")}</optgroup>`).join("");
+function setFrame(w,h,rerender=true){w=Math.max(280,Math.min(3840,Math.round(w)||fw));h=Math.max(280,Math.min(3840,Math.round(h)||fh));const old=dev;fw=w;fh=h;dev=bucketOf(w);
+ $("dw").value=w;$("dh").value=h;$("wsl").value=Math.min(2000,w);$("dsel").value=[...$("dsel").options].some(o=>o.value===w+"x"+h)?w+"x"+h:"";
+ [...$("devs").children].forEach(b=>b.classList.toggle("on",b.dataset.d===dev));$("dlab").textContent=`Editing the ${dev} range (${RANGE[dev]})`;fit();if(rerender&&(old!==dev||true))render()}
+function fit(){const cv=$("cv"),k=zoom==="fit"?Math.min(1,(cv.clientWidth-28)/fw,(cv.clientHeight-28)/fh):+zoom/100,sz=$("sizer"),wr=$("wrap");sz.style.width=fw*k+"px";sz.style.height=fh*k+"px";wr.style.width=fw+"px";wr.style.height=fh+"px";wr.style.transform=`scale(${k})`}
+$("devs").onclick=e=>{const d=e.target.dataset.d;if(!d)return;const p={desktop:[1440,900],tablet:[820,1180],phone:[393,852]}[d];setFrame(p[0],p[1])};
+$("dsel").onchange=e=>{if(!e.target.value)return;const[w,h]=e.target.value.split("x");setFrame(+w,+h)};
+$("dw").onchange=()=>setFrame(+$("dw").value,fh);$("dh").onchange=()=>setFrame(fw,+$("dh").value);
+$("drot").onclick=()=>setFrame(fh,fw);$("wsl").oninput=()=>setFrame(+$("wsl").value,fh,false);$("wsl").onchange=()=>render();$("dz").onchange=e=>{zoom=e.target.value;fit()};
 $("modes").onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;if(win)win.__rfNoActions=m==="edit";[...$("modes").children].forEach(b=>b.classList.toggle("on",b.dataset.m===m));if(doc){doc.body.style.cursor=m==="edit"?"crosshair":"";if(m!=="edit")doc.querySelectorAll("[data-rf-s],[data-rf-h]").forEach(x=>{x.removeAttribute("data-rf-s");x.removeAttribute("data-rf-h")})}if(m!=="edit")sel=null;render()};
 addEventListener("resize",fit);addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();$("undo").click()}if(e.key==="Escape"&&sel){sel.removeAttribute("data-rf-s");sel=null;render()}});
-fetch("/api/custom").then(r=>r.json()).then(d=>{data=Object.assign(EMPTY(),d);committed=JSON.stringify(data);mark(false,"Ready","ok");fit();$("frame").src="/app/index.html?studio=1";render()});
+fetch("/api/custom").then(r=>r.json()).then(d=>{data=Object.assign(EMPTY(),d);committed=JSON.stringify(data);mark(false,"Ready","ok");setFrame(1440,900,false);$("frame").src="/app/index.html?studio=1";render()});
 </script></html>
