@@ -94,7 +94,21 @@ def change_text(d):
     if hits != 1: return {"changed": 0, "reason": "text-found-%d-times" % hits}
     inner2 = pat.sub(lambda g: g.group(1) + _h.escape(new, quote=False), inner, count=1)
     f.write_bytes((src[:m.end() - 1] + inner2 + src[end:]).encode("utf-8"))
-    return {"changed": 1, "file": "index.html"}
+    out = {"changed": 1, "file": "index.html"}
+    # Some headings are set again by the app's scripts when a screen opens (for example the lists heading).
+    # Only for named items (id="..."), and only when the exact text appears once in the scripts, update that too.
+    if attr.startswith("id="):
+        q = '"' + old.replace("\\", "\\\\").replace('"', '\\"') + '"'
+        hits = []
+        for js in sorted((APP / "js").glob("*.js")):
+            t = js.read_bytes().decode("utf-8")
+            c = t.count(q)
+            if c: hits.append((js, t, c))
+        if len(hits) == 1 and hits[0][2] == 1:
+            js, t, _ = hits[0]
+            js.write_bytes(t.replace(q, '"' + new.replace("\\", "\\\\").replace('"', '\\"') + '"', 1).encode("utf-8"))
+            out["script"] = "js/" + js.name
+    return out
 
 
 def save_custom(d):
@@ -181,7 +195,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "15"
+APP_ID = "app-builder"; VERSION = "16"
 SRV = [None]
 
 
