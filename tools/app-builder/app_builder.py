@@ -62,6 +62,26 @@ ASSETS = APP / "custom" / "assets"
 LISTS = ("labels", "pages", "elements", "actions", "styles", "applied", "locks", "names", "groups", "templates")
 
 
+def set_app(path):
+    """Switch the builder to another RulesForge folder and remember it for next time."""
+    global APP, CUSTOM, ASSETS
+    c = Path(path).resolve()
+    if not valid_app(str(c)): raise RuntimeError("That folder doesn't look like a RulesForge folder (it needs index.html and js/main.js).")
+    APP, CUSTOM, ASSETS = c, c / "custom" / "custom.json", c / "custom" / "assets"
+    try: (Path.home() / ".rulesforge-appfolder.txt").write_text(str(c), "utf-8")
+    except Exception: pass
+    return {"folder": str(c)}
+
+
+def pick_folder():
+    """Open the system's folder chooser in a separate small process (keeps the server thread safe)."""
+    import subprocess
+    code = ("import tkinter,tkinter.filedialog as f;r=tkinter.Tk();r.withdraw();r.attributes('-topmost',True);"
+            "print(f.askdirectory(title='Choose the RulesForge folder to edit') or '')")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=600)
+    return out.stdout.strip()
+
+
 def support_ok():
     """True when this RulesForge folder has the files the App Builder needs to show its changes (js/custom.js, loaded by js/main.js)."""
     try:
@@ -203,7 +223,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "17"
+APP_ID = "app-builder"; VERSION = "18"
 SRV = [None]
 
 
@@ -269,6 +289,10 @@ class H(BaseHTTPRequestHandler):
             if self.path == "/api/custom": save_custom(d); return self.send(200, {"saved": str(CUSTOM)})
             if self.path == "/api/publish": return self.send(200, publish(d))
             if self.path == "/api/source/text": return self.send(200, change_text(d))
+            if self.path == "/api/set-folder": return self.send(200, set_app(d.get("path", "")))
+            if self.path == "/api/choose-folder":
+                chosen = pick_folder()
+                return self.send(200, set_app(chosen) if chosen else {"folder": None})
         except Exception as e:
             return self.send(400, {"error": str(e) or e.__class__.__name__})
         self.send(404, {"error": "not found"})

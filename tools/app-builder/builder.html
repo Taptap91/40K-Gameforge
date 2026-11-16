@@ -22,6 +22,7 @@ main{display:flex;flex-direction:column;overflow:hidden;background:#0e0e10;min-h
 </style>
 <header><b>App Builder <span id="abVer" class="hint" style="font-weight:normal"></span></b><span id="appPath" class="hint" title="The folder of the RulesForge app this builder is editing" style="margin:0 8px;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px"></span><div id="scr"><button id="scrb" title="Go to any screen, add pages and subpages">Screens ▾</button><div id="scrm" hidden></div></div>
 <div class="seg" id="modes"><button data-m="interact" class="on" title="Use the app normally to get to the screen you want to edit">Use the app</button><button data-m="edit" title="Click any part of the app to change it">Edit</button></div>
+<button id="pickFolder" style="margin-left:10px" title="Choose which RulesForge folder to edit">Choose app folder…</button>
 <span class="sp"></span><span id="status">Loading…</span>
 <button id="undo" disabled title="Undo the last change">Undo</button><button id="save" class="p" hidden title="Changes save automatically">Save</button></header>
 
@@ -228,6 +229,10 @@ function pick(el,add,quiet){el=el&&el.closest?el.closest("[data-rf-el]")||el:el;
  selUid=sel?uid(sel):null;mark2();if(!quiet)render()}
 function pickMany(els){els=els.filter(Boolean);multi=els.length>1?els:[];sel=els[0]||null;mark2();render()}
 $("frame").onload=install;
+$("pickFolder").onclick=async()=>{try{const r=await post("/api/choose-folder",{});if(!r.folder)return;
+  const d=await fetch("/api/custom").then(x=>x.json());data=Object.assign(EMPTY(),d);committed=JSON.stringify(data);undoStack=[];$("undo").disabled=true;
+  $("appPath").textContent="Editing: "+r.folder;$("noSupport")?.remove();
+  mark(false,"Opened "+r.folder,"ok");$("frame").src="/app/index.html?studio=1";render()}catch(e){mark(true,e.message,"err")}};
 
 /* ---------- side panel ---------- */
 function hex(c){const m=/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(c||"");if(m&&m[4]!=="0")return"#"+[1,2,3].map(i=>(+m[i]).toString(16).padStart(2,"0")).join("");return/^#[0-9a-f]{6}$/i.test(c||"")?c:"#000000"}
