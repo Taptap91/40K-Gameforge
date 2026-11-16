@@ -7,7 +7,7 @@ Web capture uses Chrome, Edge or Chromium already installed on your computer.
 The merged PDF is saved to packs/incoming/<Game>/<Edition>/<Type>/<Title>.pdf with a <Title>.json beside it
 holding the title, faction, version and description, which is exactly what RulesForge's pack converter reads.
 """
-import base64, json, os, re, shutil, subprocess, sys, tempfile, threading, urllib.request, urllib.error, uuid, webbrowser
+import base64, json, os, re, shutil, socket, struct, subprocess, sys, tempfile, threading, time, urllib.request, urllib.error, uuid, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -105,6 +105,162 @@ def capture(url):
         raise RuntimeError("The page couldn't be captured (is the address right, and are you online?).")
     host = urlparse(url).netloc or "web page"
     return register(dest, f"{host} (web page)")
+
+
+# ---------- live web page capture: open the page, let the user tick boxes and open sections, then print it ----------
+class WS:
+    """A tiny WebSocket client (standard library only) for Chrome's DevTools protocol."""
+    def __init__(self, url):
+        u = urlparse(url); self.s = socket.create_connection((u.hostname, u.port), 10); self.id = 0; self.events = []
+        key = base64.b64encode(os.urandom(16)).decode()
+        self.s.sendall(f"GET {u.path} HTTP/1.1\r\nHost: {u.hostname}:{u.port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            c = self.s.recv(4096)
+            if not c: raise RuntimeError("The browser closed the connection.")
+            buf += c
+        head, self.buf = buf.split(b"\r\n\r\n", 1)
+        if b" 101 " not in head.split(b"\r\n")[0]: raise RuntimeError("The browser refused the connection.")
+
+    def _read(self, n):
+        while len(self.buf) < n:
+            c = self.s.recv(1 << 20)
+            if not c: raise EOFError("The browser closed.")
+            self.buf += c
+        out, self.buf = self.buf[:n], self.buf[n:]
+        return out
+
+    def _send(self, text):
+        data = text.encode(); n = len(data); mask = os.urandom(4); h = bytearray([0x81])
+        if n < 126: h.append(0x80 | n)
+        elif n < 65536: h.append(0x80 | 126); h += struct.pack(">H", n)
+        else: h.append(0x80 | 127); h += struct.pack(">Q", n)
+        self.s.sendall(bytes(h) + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
+
+    def _recv(self):
+        msg = b""
+        while True:
+            b1, b2 = self._read(2); n = b2 & 0x7F
+            if n == 126: n = struct.unpack(">H", self._read(2))[0]
+            elif n == 127: n = struct.unpack(">Q", self._read(8))[0]
+            data = self._read(n); op = b1 & 0x0F
+            if op == 8: raise EOFError("The browser closed.")
+            if op in (0, 1, 2): msg += data
+            if b1 & 0x80 and op in (0, 1, 2): return msg.decode()
+
+    def call(self, method, params=None, timeout=60):
+        self.id += 1; mid = self.id; self.s.settimeout(timeout)
+        self._send(json.dumps({"id": mid, "method": method, "params": params or {}}))
+        while True:
+            m = json.loads(self._recv())
+            if m.get("id") == mid:
+                if "error" in m: raise RuntimeError(m["error"].get("message", "browser error"))
+                return m.get("result", {})
+            if "method" in m: self.events.append(m["method"])
+
+    def wait_event(self, name, timeout):
+        end = time.time() + timeout
+        while name not in self.events and time.time() < end:
+            self.s.settimeout(max(0.1, end - time.time()))
+            try: m = json.loads(self._recv())
+            except socket.timeout: break
+            if "method" in m: self.events.append(m["method"])
+        return name in self.events
+
+
+SESSIONS = {}
+SCAN_JS = r"""(()=>{const txt=t=>(t||'').replace(/\s+/g,' ').trim().slice(0,80);
+document.querySelectorAll('[data-rf-c]').forEach(e=>e.removeAttribute('data-rf-c'));
+const label=e=>{if(e.id){const l=document.querySelector('label[for="'+CSS.escape(e.id)+'"]');if(l&&txt(l.textContent))return txt(l.textContent)}
+const p=e.closest('label');if(p&&txt(p.textContent))return txt(p.textContent);if(e.getAttribute('aria-label'))return txt(e.getAttribute('aria-label'));
+const nx=e.nextSibling&&e.nextSibling.textContent;if(txt(nx))return txt(nx);const pv=e.previousSibling&&e.previousSibling.textContent;if(txt(pv))return txt(pv);
+return txt(e.parentElement&&e.parentElement.textContent)||'(unlabelled)'};
+const out=[];const add=(e,type,l,st)=>{if(out.length>=200)return;e.setAttribute('data-rf-c',out.length);out.push({i:out.length,type,label:l,state:st})};
+document.querySelectorAll('input[type=checkbox]').forEach(e=>add(e,'checkbox',label(e),e.checked));
+document.querySelectorAll('details').forEach(e=>{const s=e.querySelector('summary');add(e,'details',txt(s&&s.textContent)||'(section)',e.open)});
+document.querySelectorAll('[aria-expanded]').forEach(e=>{if(!e.closest('details'))add(e,'aria',txt(e.textContent)||'(section)',e.getAttribute('aria-expanded')==='true')});
+document.querySelectorAll('button,a,span,div,label,[role=button]').forEach(e=>{if(e.children.length||e.hasAttribute('data-rf-c')||e.hasAttribute('aria-expanded'))return;const t=txt(e.textContent);
+if(t&&t.length<40&&/^(show|hide|expand|collapse)\b/i.test(t)&&!e.closest('summary'))add(e,'button',t,null)});
+return out})()"""
+STATE_JS = r"""(()=>[...document.querySelectorAll('[data-rf-c]')].map(e=>({i:+e.getAttribute('data-rf-c'),state:e.matches('input')?e.checked:e.matches('details')?e.open:e.hasAttribute('aria-expanded')?e.getAttribute('aria-expanded')==='true':null})))()"""
+
+
+def _set_js(ops):
+    return "(()=>{const o=" + json.dumps(ops) + r""";for(const x of o){const e=document.querySelector('[data-rf-c="'+x.i+'"]');if(!e)continue;
+if(x.kind==='checkbox'){if(e.checked!==x.v)e.click()}else if(x.kind==='details'){e.open=x.v}
+else if(x.kind==='aria'){if((e.getAttribute('aria-expanded')==='true')!==x.v)e.click()}
+else if(x.kind==='button'){const t=(e.textContent||'').trim().toLowerCase(),open=/^(show|expand)/.test(t);if(open===x.v)e.click()}}return 1})()"""
+
+
+def close_session(sid):
+    s = SESSIONS.pop(sid, None)
+    if not s: return
+    try: s["ws"].s.close()
+    except Exception: pass
+    try: s["proc"].kill()
+    except Exception: pass
+    shutil.rmtree(s["prof"], ignore_errors=True)
+
+
+def open_page(d, progress):
+    for k in list(SESSIONS): close_session(k)
+    browser = find_browser()
+    if not browser:
+        raise RuntimeError("Couldn't find Chrome or Edge on this computer. Install one, or set CHROME_PATH to its program.")
+    url = d.get("url", "").strip()
+    if not re.match(r"https?://|file://", url): url = "https://" + url
+    progress(5, 100, "Starting the browser…")
+    prof = WORK / f"profile-{uuid.uuid4().hex[:6]}"; prof.mkdir(parents=True, exist_ok=True)
+    flags = {"creationflags": 0x08000000} if os.name == "nt" else {}
+    proc = subprocess.Popen([browser, "--headless=new", "--disable-gpu", "--no-sandbox", f"--user-data-dir={prof}", "--remote-debugging-port=0", "--hide-scrollbars", "--window-size=1280,1600", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
+    sid = uuid.uuid4().hex[:8]; SESSIONS[sid] = {"proc": proc, "prof": prof, "ws": None, "t": time.time(), "url": url}
+    try:
+        port = None
+        for _ in range(100):
+            f = prof / "DevToolsActivePort"
+            if f.exists() and f.read_text().strip():
+                port = int(f.read_text().split()[0]); break
+            time.sleep(0.15)
+        if not port: raise RuntimeError("The browser didn't start.")
+        progress(20, 100, "Connecting…")
+        tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=10))
+        ws = WS(next(t for t in tabs if t.get("type") == "page")["webSocketDebuggerUrl"]); SESSIONS[sid]["ws"] = ws
+        ws.call("Page.enable"); ws.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 1600, "deviceScaleFactor": 1, "mobile": False})
+        progress(30, 100, "Loading the page…")
+        ws.call("Page.navigate", {"url": url}, timeout=60)
+        end = time.time() + 45
+        while not ws.wait_event("Page.loadEventFired", 1) and time.time() < end:
+            progress(30 + int(45 * (1 - (end - time.time()) / 45)), 100, "Loading the page…")
+        progress(80, 100, "Letting the page settle…"); time.sleep(1.5)
+        progress(90, 100, "Finding checkboxes and sections…")
+        controls = ws.call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])
+        SESSIONS[sid]["t"] = time.time()
+        return {"sid": sid, "controls": controls, "title": ws.call("Runtime.evaluate", {"expression": "document.title", "returnByValue": True})["result"].get("value", "")}
+    except Exception:
+        close_session(sid); raise
+
+
+def page_set(d):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    s["ws"].call("Runtime.evaluate", {"expression": _set_js(d.get("ops", [])), "returnByValue": True}); time.sleep(0.3)
+    return {"states": s["ws"].call("Runtime.evaluate", {"expression": STATE_JS, "returnByValue": True})["result"].get("value", [])}
+
+
+def print_page(d, progress):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    try:
+        ws = s["ws"]; progress(15, 100, "Preparing the page…")
+        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,document.body.scrollHeight)"}); time.sleep(0.8)
+        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,0)"}); progress(35, 100, "Creating the PDF…")
+        r = ws.call("Page.printToPDF", {"printBackground": True, "displayHeaderFooter": False, "preferCSSPageSize": True}, timeout=300)
+        progress(90, 100, "Saving…")
+        dest = WORK / f"{uuid.uuid4().hex[:8]}.pdf"; dest.write_bytes(base64.b64decode(r["data"]))
+        host = urlparse(s["url"]).netloc or "web page"
+        return register(dest, f"{host} (web page)")
+    finally:
+        close_session(d.get("sid", ""))
 
 
 def _mul(a, b):
@@ -423,6 +579,10 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, register(p, name))
             d = json.loads(raw or b"{}")
             if u.path == "/api/capture": return self.send(200, capture(d.get("url", "").strip()))
+            if u.path == "/api/page/open": return self.send(200, start_job(lambda p: open_page(d, p)))
+            if u.path == "/api/page/set": return self.send(200, page_set(d))
+            if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
+            if u.path == "/api/page/cancel": close_session(d.get("sid", "")); return self.send(200, {"ok": True})
             if u.path == "/api/save": return self.send(200, save(d))
             if u.path == "/api/remote": return self.send(200, remote_games(d))
             if u.path == "/api/detect": return self.send(200, start_job(lambda p: detect(d, p)))
@@ -443,13 +603,14 @@ section{background:var(--c);border:1px solid var(--b);border-radius:12px;padding
 .row{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:6px 8px;margin-top:8px}
 .row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row small{color:var(--m)}
 input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px}input,select,textarea{width:100%}
-.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:12px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600}#pdl,#pup{margin-top:10px}[hidden]{display:none!important}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
+.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:12px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600}#pdl,#pup{margin-top:10px}[hidden]{display:none!important}.pgp{border:1px solid var(--b);border-radius:10px;padding:10px;margin:8px 0}.row2{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.row2 button{padding:5px 9px;font-size:13px}#ctl{max-height:260px;overflow:auto;margin:6px 0}#ctl label{display:flex;gap:8px;align-items:center;padding:3px 2px;font-size:13px}#ctl input{width:auto}#ctl small{color:var(--m)}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
 label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hint{color:var(--m);font-size:12px;margin-top:3px}
 #msg{grid-column:1/-1;min-height:24px}.err{color:#ff6b6b}.ok{color:#5ddc8b}.cap{display:flex;gap:6px;margin-top:10px}.cap input{flex:1}
-</style><main><h1>PDF Studio <span style="font-size:12px;color:var(--m)">v3 · merge button, progress bars, download/upload switch</span><small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
+</style><main><h1>PDF Studio <span style="font-size:12px;color:var(--m)">v5 · page checkboxes, merge, progress bars</span><small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
 <section><h2>1 · Pieces</h2>
 <div class="drop" id="drop">Drop PDFs here, or click to choose<input id="pick" type="file" accept="application/pdf" multiple hidden></div>
-<div class="cap"><input id="url" placeholder="Capture a web page: paste its address"><button id="grab">Capture</button></div>
+<div class="cap"><input id="url" placeholder="Capture a web page: paste its address"><button id="grab">Open page</button></div>
+<div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div><div class="row2"><button data-all="tick">Tick all boxes</button><button data-all="untick">Untick all boxes</button><button data-all="open">Open all sections</button><button data-all="close">Close all sections</button></div><div id="ctl"></div><div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div></div>
 <div class="hint" id="nb"></div><div id="list"></div>
 <div class="hint">Merged top to bottom. Use ↑ ↓ to reorder. Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div></section>
 <section><h2>2 · Name it</h2>
@@ -492,7 +653,15 @@ async function add(files){for(const f of files){if(!/pdf$/i.test(f.name)){msg(`$
 $("drop").onclick=()=>$("pick").click();$("pick").onchange=e=>add(e.target.files);
 $("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("on")};$("drop").ondragleave=()=>$("drop").classList.remove("on");
 $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.dataTransfer.files)};
-$("grab").onclick=async()=>{const u=$("url").value.trim();if(!u)return;$("grab").disabled=true;msg("Capturing the page… this can take up to a minute.");try{items.push(await api("/api/capture",JSON.stringify({url:u})));$("url").value="";draw();msg("Captured.","ok")}catch(e){msg(e.message,"err")}$("grab").disabled=false};
+let pg=null;
+function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${c.label}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${c.label} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
+async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl()}catch(e){msg(e.message,"err")}}
+$("grab").onclick=async()=>{const u=$("url").value.trim();if(!u)return;$("grab").disabled=true;msg("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));$("pgt").textContent=`Opened: ${pg.title||u}. Choose what should show, then save.`;drawCtl();$("pgp").hidden=false;msg("Page ready.","ok")}catch(e){msg(e.message,"err")}prog(false);$("grab").disabled=false};
+$("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
+$("ctl").onclick=e=>{const i=e.target.dataset.click;if(i!=null){const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:"button",v:/^(show|expand)/i.test(c.label)}])}};
+$("pgp").onclick=e=>{const a=e.target.dataset.all;if(!a||!pg)return;const on=a==="tick"||a==="open",sec=a==="open"||a==="close";setOps(pg.controls.filter(c=>sec?(c.type!=="checkbox"):c.type==="checkbox").map(c=>({i:c.i,kind:c.type,v:on})))};
+$("pcan").onclick=async()=>{if(pg)await api("/api/page/cancel",JSON.stringify({sid:pg.sid}));pg=null;$("pgp").hidden=true;msg("")};
+$("psave").onclick=async()=>{$("psave").disabled=true;msg("Creating the PDF…");try{items.push(await job("/api/page/print",JSON.stringify({sid:pg.sid})));pg=null;$("pgp").hidden=true;$("url").value="";draw();msg("Page added to the list.","ok")}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
 let remote=null;
 function dests(){const o=[];for(const[g,es]of Object.entries(remote.games)){if(!es.length)o.push([g,""]);es.forEach(e=>o.push([g,e]))}return o}
 $("load").onclick=async()=>{msg("Reading the repository…");try{remote=await api("/api/remote",JSON.stringify({repo:$("repo").value,branch:$("br").value,token:$("tok").value}));const o=dests();
