@@ -35,3 +35,7 @@ local copies to `RulesForge-PDFs` in your home folder, and GitHub upload works t
 Set `RF_OUT` to save somewhere other than the repo's `packs/incoming`.
 Web capture prints the page as text-based PDF without browser headers or footers, which the app reads well.
 Pages that need a login or that load content as you scroll may capture only what's visible at load.
+
+
+## Merge, then download or upload
+Press **1 · Merge the PDFs** (a progress bar shows the pages being merged). When it finishes, **Download PDF** and **Upload / save** unlock. If you change the files, ranges, header/footer sizes or title afterwards, merge again. **Find them automatically** also shows a progress bar while it reads the pages.

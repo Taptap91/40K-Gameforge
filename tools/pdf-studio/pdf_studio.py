@@ -156,14 +156,15 @@ def clear_bands(page, top_pct, bottom_pct):
     page.replace_contents(cs)
 
 
-def detect_bands(paths_pages):
+def detect_bands(paths_pages, progress=None):
     """Finds lines that repeat at the top or bottom of many pages (site name, date, address, page numbers) and
     returns the suggested band sizes in percent plus the repeated text found."""
-    seen = {}; total = 0; heights = []
+    seen = {}; total = 0; heights = []; every = sum(len(i) for _, i in paths_pages); done = 0
     for path, idxs in paths_pages:
         r = PdfReader(path)
         for i in idxs:
-            pg = r.pages[i]; total += 1
+            pg = r.pages[i]; total += 1; done += 1
+            if progress: progress(done - 1, every, f"Reading page {done} of {every}")
             h = float(pg.mediabox.height); base = float(pg.mediabox.bottom); heights.append(h)
             lines = {}
             def visit(text, cm, tm, fd, fs):
@@ -183,8 +184,11 @@ def detect_bands(paths_pages):
     return {"top": round(top, 1), "bottom": round(bot, 1), "found": sorted(set(found)), "pages": total}
 
 
-def build(items, title, top=0.0, bottom=0.0):
-    w = PdfWriter()
+def build(items, title, top=0.0, bottom=0.0, progress=None):
+    w = PdfWriter(); every = 0; done = 0
+    for it in items:
+        f = FILES.get(it["id"])
+        if f: every += len(parse_range(it.get("range", ""), f["pages"]))
     for it in items:
         f = FILES.get(it["id"])
         if not f:
@@ -195,6 +199,8 @@ def build(items, title, top=0.0, bottom=0.0):
         for i in idx:
             w.add_page(r.pages[i])
             clear_bands(w.pages[-1], top, bottom)
+            done += 1
+            if progress: progress(done, every, f"Merging page {done} of {every}")
         if len(items) > 1 and idx:
             w.add_outline_item(Path(f["name"]).stem, first)
     if not len(w.pages):
@@ -207,12 +213,44 @@ def bands(d):
     return (max(0.0, min(40.0, float(d.get("top") or 0))), max(0.0, min(40.0, float(d.get("bottom") or 0))))
 
 
-def detect(d):
+def detect(d, progress=None):
     pp = []
     for it in d["items"]:
         f = FILES[it["id"]]
         pp.append((f["path"], parse_range(it.get("range", ""), f["pages"])))
-    return detect_bands(pp)
+    return detect_bands(pp, progress)
+
+
+JOBS = {}
+MERGED = {}
+
+
+def start_job(fn):
+    """Runs fn(progress) on a thread; the page polls /api/job for the percentage."""
+    jid = uuid.uuid4().hex[:10]
+    JOBS[jid] = {"pct": 0, "label": "Starting…", "done": False}
+    def prog(n, total, label):
+        JOBS[jid].update(pct=int(100 * n / max(total, 1)), label=label)
+    def run():
+        try:
+            JOBS[jid]["result"] = fn(prog)
+            JOBS[jid].update(pct=100, label="Done")
+        except Exception as e:
+            JOBS[jid]["error"] = str(e) or e.__class__.__name__
+        JOBS[jid]["done"] = True
+    threading.Thread(target=run, daemon=True).start()
+    return {"job": jid}
+
+
+def merge(d, progress):
+    title = d.get("title", "").strip()
+    if not title:
+        raise ValueError("Give the file a title first: it's what the app will call it.")
+    w = build(d["items"], title, *bands(d), progress=progress)
+    progress(99, 100, "Saving the merged file…")
+    mid = uuid.uuid4().hex[:8]; dest = WORK / f"merged-{mid}.pdf"
+    w.write(str(dest)); MERGED[mid] = dest
+    return {"merged": mid, "name": f"{safe(title)}.pdf", "pages": len(w.pages), "mb": (f"{dest.stat().st_size // 1024} KB" if dest.stat().st_size < 1048576 else f"{dest.stat().st_size / 1048576:.1f} MB")}
 
 
 def github_put(cfg, repo_path, data, message):
@@ -269,17 +307,20 @@ def save(d):
     title, game, edition, typ = (d.get(k, "").strip() for k in ("title", "game", "edition", "type"))
     if not title:
         raise ValueError("Give the file a title: it's what the app will call it.")
+    pre = MERGED.get(d.get("merged", ""))
     if d.get("mode") == "download":
+        if pre and pre.exists(): return {"download": f"/api/pdf?path={pre.name}", "name": f"{safe(title)}.pdf"}
         dest = WORK / f"{safe(title)}.pdf"
         build(d["items"], title, *bands(d)).write(str(dest))
         return {"download": f"/api/pdf?path={dest.name}", "name": dest.name}
     if not game or not edition or typ not in TYPES:
         raise ValueError("Pick the Game, Edition and Type so it lands in the right Game Pack.")
     folder = OUT / safe(game) / safe(edition) / typ
-    writer = build(d["items"], title, *bands(d))   # build first, so a bad page range leaves no empty folders behind
+    writer = None if pre and pre.exists() else build(d["items"], title, *bands(d))   # build first, so a bad page range leaves no empty folders behind
     folder.mkdir(parents=True, exist_ok=True)
     dest = folder / f"{safe(title)}.pdf"
-    writer.write(str(dest))
+    if writer is None: shutil.copyfile(pre, dest)
+    else: writer.write(str(dest))
     meta = {"title": title}
     if typ == "Factions" and d.get("faction", "").strip():
         meta["faction"] = d["faction"].strip()
@@ -334,6 +375,9 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/api/info":
             c = load_config()
             return self.send(200, {"out": str(OUT), "games": existing(), "browser": bool(find_browser()), "repo": c.get("repo", "Taptap91/40k-gameforge"), "branch": c.get("branch", "game-packs"), "hasToken": bool(c.get("token"))})
+        if u.path == "/api/job":
+            j = JOBS.get(parse_qs(u.query).get("id", [""])[0])
+            return self.send(200 if j else 404, j or {"error": "unknown job"})
         if u.path == "/api/pdf":
             p = WORK / Path(parse_qs(u.query).get("path", [""])[0]).name
             if p.exists(): return self.send(200, p.read_bytes(), "application/pdf")
@@ -352,7 +396,8 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/capture": return self.send(200, capture(d.get("url", "").strip()))
             if u.path == "/api/save": return self.send(200, save(d))
             if u.path == "/api/remote": return self.send(200, remote_games(d))
-            if u.path == "/api/detect": return self.send(200, detect(d))
+            if u.path == "/api/detect": return self.send(200, start_job(lambda p: detect(d, p)))
+            if u.path == "/api/merge": return self.send(200, start_job(lambda p: merge(d, p)))
         except Exception as e:
             return self.send(400, {"error": str(e) or e.__class__.__name__})
         self.send(404, {"error": "not found"})
@@ -369,7 +414,7 @@ section{background:var(--c);border:1px solid var(--b);border-radius:12px;padding
 .row{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:6px 8px;margin-top:8px}
 .row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row small{color:var(--m)}
 input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px}input,select,textarea{width:100%}
-.row input{width:90px;padding:4px 6px}button{cursor:pointer}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
+.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
 label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hint{color:var(--m);font-size:12px;margin-top:3px}
 #msg{grid-column:1/-1;min-height:24px}.err{color:#ff6b6b}.ok{color:#5ddc8b}.cap{display:flex;gap:6px;margin-top:10px}.cap input{flex:1}
 </style><main><h1>PDF Studio<small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
@@ -399,7 +444,9 @@ label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display
 <label>Destination <small>(only folders that exist under packs/incoming)</small></label><select id="dest" disabled><option>Load the folders first</option></select>
 <div class="hint" id="path"></div>
 <div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div></details>
-<div style="display:flex;gap:8px;margin-top:16px"><button class="p" id="save" style="flex:1">Save to Game Pack folder</button><button id="dl">Download PDF</button></div>
+<div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div>
+<div style="margin-top:16px"><button class="p" id="mg" style="width:100%">1 · Merge the PDFs</button></div><div class="hint" id="mres">Merge first; then you can download it or upload it.</div>
+<div style="display:flex;gap:8px;margin-top:8px"><button class="p" id="save" style="flex:1" disabled>2 · Upload / save to Game Pack folder</button><button id="dl" disabled>2 · Download PDF</button></div>
 <div class="hint" id="out"></div></section><div id="msg"></div></main>
 <script>
 const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],info={games:{}};
@@ -425,9 +472,16 @@ $("dest").onchange=pick;for(const id of["type","game","ed"])$(id).addEventListen
 function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
 $("type").onchange=$("game").oninput=sync;
 const form=m=>({top:$("top").value,bottom:$("bot").value,github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||""})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
-$("save").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify(form("folder")));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}};
-$("det").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");msg("Looking for repeated lines…");try{const r=await api("/api/detect",JSON.stringify(form("download")));$("top").value=r.top||"";$("bot").value=r.bottom||"";$("detout").textContent=r.found.length?"Found: "+r.found.join(" · "):"Nothing repeated found.";msg("")}catch(e){msg(e.message,"err")}};
-$("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify(form("download")));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
+let merged=null,sig="";
+const prog=(on,pct,label)=>{$("bar").hidden=!on;$("barf").style.width=pct+"%";$("barl").textContent=on?`${pct}%  ${label||""}`:""};
+async function job(path,body,done){const {job:id}=await api(path,body);for(;;){const j=await (await fetch("/api/job?id="+id)).json();prog(true,j.pct,j.label);if(j.done){if(j.error)throw Error(j.error);return j.result}await new Promise(r=>setTimeout(r,250))}}
+const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||""]),$("top").value,$("bot").value,$("title").value]);
+function gate(){const ok=merged&&sig===signature();$("save").disabled=$("dl").disabled=!ok;if(merged&&!ok)$("mres").textContent="Something changed since the merge: merge again before downloading or uploading."}
+document.addEventListener("input",()=>setTimeout(gate,0));document.addEventListener("click",()=>setTimeout(gate,0));
+$("mg").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("mg").disabled=true;merged=null;gate();prog(true,0,"Starting…");try{const r=await job("/api/merge",JSON.stringify(form("download")));merged=r.merged;sig=signature();$("mres").textContent=`Merged ${r.pages} pages (${r.mb}). Now download it or upload it.`;msg("Merge finished.","ok");gate()}catch(e){msg(e.message,"err");prog(false)}$("mg").disabled=false};
+$("save").onclick=async()=>{$("save").disabled=true;prog(true,100,"Uploading / saving…");try{const r=await api("/api/save",JSON.stringify({...form("folder"),merged}));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}prog(false);gate()};
+$("det").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("det").disabled=true;msg("Looking for repeated header and footer lines…");prog(true,0,"Starting…");try{const r=await job("/api/detect",JSON.stringify(form("download")));$("top").value=r.top||"";$("bot").value=r.bottom||"";$("detout").textContent=r.found.length?"Found: "+r.found.join(" · "):"Nothing repeated found.";msg("Search finished.","ok")}catch(e){msg(e.message,"err")}prog(false);$("det").disabled=false;gate()};
+$("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify({...form("download"),merged}));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
 fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Web capture needs Chrome or Edge installed; none was found.";sync()});sync();
 </script></html>"""
 
