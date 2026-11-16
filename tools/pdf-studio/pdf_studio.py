@@ -268,19 +268,32 @@ def live_preview(d):
     return {"url": f"/api/pdf?path={dest.name}"}
 
 
-def page_shot(d):
-    """The live page as stacked pictures, so it can be shown in the viewer and clicked."""
+CHUNK = 1200
+
+
+def page_size(d):
     s = SESSIONS.get(d.get("sid", ""))
     if not s: raise RuntimeError("That page session ended. Open the page again.")
     with s["lock"]:
-        ws = s["ws"]
-        h = int(ws.call("Runtime.evaluate", {"expression": "Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0)", "returnByValue": True})["result"].get("value", 1600))
-        h = max(400, min(h, 48000)); chunks = []; y = 0
-        while y < h:
-            ch = min(4000, h - y)
-            r = ws.call("Page.captureScreenshot", {"format": "jpeg", "quality": 72, "captureBeyondViewport": True, "clip": {"x": 0, "y": y, "width": 1280, "height": ch, "scale": 1}}, timeout=120)
-            chunks.append({"y": y, "h": ch, "src": "data:image/jpeg;base64," + r["data"]}); y += ch
-    return {"width": 1280, "height": h, "chunks": chunks}
+        h = int(s["ws"].call("Runtime.evaluate", {"expression": "Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0)", "returnByValue": True})["result"].get("value", 1600))
+    return {"height": max(400, min(h, 60000)), "chunk": CHUNK}
+
+
+def page_shot(d):
+    """One horizontal strip of the live page as a picture. The viewer asks for the strips nearest the reader first."""
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    y, h = int(d.get("y", 0)), int(d.get("h", CHUNK))
+    with s["lock"]:
+        r = s["ws"].call("Page.captureScreenshot", {"format": "jpeg", "quality": 65, "captureBeyondViewport": True, "clip": {"x": 0, "y": y, "width": 1280, "height": h, "scale": 1}}, timeout=120)
+    return {"src": "data:image/jpeg;base64," + r["data"]}
+
+
+def page_controls(d):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    with s["lock"]:
+        return {"controls": s["ws"].call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])}
 
 
 def page_click(d):
@@ -289,14 +302,13 @@ def page_click(d):
     x, y = float(d.get("x", 0)), float(d.get("y", 0))
     with s["lock"]:
         ws = s["ws"]
-        ws.call("Runtime.evaluate", {"expression": f"window.scrollTo(0,{max(0, y - 300)})"}); time.sleep(0.15)
-        sy = float(ws.call("Runtime.evaluate", {"expression": "window.scrollY", "returnByValue": True})["result"].get("value", 0))
+        sy = float(ws.call("Runtime.evaluate", {"expression": f"window.scrollTo(0,{max(0, y - 300)});window.scrollY", "returnByValue": True})["result"].get("value", 0))
         vy = y - sy
         for t, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
             ws.call("Input.dispatchMouseEvent", {"type": t, "x": x, "y": vy, **extra})
-        time.sleep(0.5)
-        controls = ws.call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])
-    return {"controls": controls}
+        # wait for the page to react: two animation frames and a short settle, not a fixed half second
+        ws.call("Runtime.evaluate", {"expression": "new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,60))))", "awaitPromise": True}, timeout=10)
+    return {"ok": True}
 
 
 def page_set(d):
@@ -614,7 +626,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "pdf-studio"; VERSION = "9"
+APP_ID = "pdf-studio"; VERSION = "10"
 SRV = [None]
 
 
@@ -685,6 +697,8 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/page/set": return self.send(200, page_set(d))
             if u.path == "/api/page/preview": return self.send(200, live_preview(d))
             if u.path == "/api/page/shot": return self.send(200, page_shot(d))
+            if u.path == "/api/page/size": return self.send(200, page_size(d))
+            if u.path == "/api/page/controls": return self.send(200, page_controls(d))
             if u.path == "/api/page/click": return self.send(200, page_click(d))
             if u.path == "/api/preview": return self.send(200, start_job(lambda p: preview(d, p)))
             if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
@@ -720,10 +734,10 @@ label{display:block;margin:8px 0 2px;color:var(--m);font-size:12px}.two{display:
 #ctl{max-height:220px;overflow:auto;margin:4px 0}#ctl label{display:flex;gap:6px;align-items:center;padding:2px;font-size:12px;margin:0;color:var(--t)}#ctl input{width:auto}#ctl small{color:var(--m)}
 #pdl,#pup{margin-top:10px}[hidden]{display:none!important}
 main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0e10}#vh{display:flex;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--b);background:var(--c);font-size:13px}#vt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#vtabs button{padding:3px 10px;font-size:12px}#vtabs button.on{background:var(--a);border-color:var(--a)}#liveview{flex:1;overflow:auto;background:#fff}#liveview img{display:block;width:100%;cursor:pointer}#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
+#vtabs button{padding:3px 10px;font-size:12px}#vtabs button.on{background:var(--a);border-color:var(--a)}#liveview{flex:1;overflow:auto;background:#fff}#liveview .ck{width:100%;background:#f1f1f1}#liveview img{display:block;width:100%;cursor:pointer}#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
 </style>
 <aside>
-<h1>PDF Studio <small>v9 · click the live page, per-file headers/footers</small></h1>
+<h1>PDF Studio <small>v10 · click the live page, per-file headers/footers</small></h1>
 <div id="stat"><div id="msg"></div><div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div></div>
 
 <details class="sec" open><summary>1 · Add a page or PDF</summary>
@@ -813,10 +827,21 @@ $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.d
 /* ---- opening a web page: live preview, tick/untick, then save as a PDF ---- */
 function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${esc(c.label)}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${esc(c.label)} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
 let rf=false,again=false,vmode="live",chunks=[];
-async function shot(){const r=await api("/api/page/shot",JSON.stringify({sid:pg.sid}));chunks=r.chunks;const st=$("liveview").scrollTop;$("liveview").innerHTML=r.chunks.map((c,i)=>`<img data-ci="${i}" draggable="false" src="${c.src}">`).join("");$("liveview").scrollTop=st;$("empty").hidden=true;$("view").hidden=true;$("liveview").hidden=false;$("vt").textContent="Click things on the page to show or hide them: "+(pg.title||pg.url)}
-async function refresh(){if(!pg)return;if(rf){again=true;return}rf=true;$("busy").hidden=false;try{do{again=false;if(vmode==="live")await shot();else{const r=await api("/api/page/preview",JSON.stringify({sid:pg.sid}));if(pg)show(r.url,"PDF preview of "+(pg.title||pg.url)+" (this is what will be saved)")}}while(again&&pg)}catch(e){msg(e.message,"err")}rf=false;$("busy").hidden=true}
+let shotGen=0,CH=1200,pgH=0;
+async function shot(focusY){const gen=++shotGen,lv=$("liveview");
+ const sz=await api("/api/page/size",JSON.stringify({sid:pg.sid}));if(gen!==shotGen)return;CH=sz.chunk;const n=Math.ceil(sz.height/CH);
+ if(lv.children.length!==n||pgH!==sz.height){const st=lv.scrollTop;lv.innerHTML=Array.from({length:n},(_,i)=>{const h=Math.min(CH,sz.height-i*CH);return`<div class="ck" data-ci="${i}" data-y="${i*CH}" data-h="${h}" style="aspect-ratio:1280/${h}"><img draggable="false" hidden></div>`}).join("");lv.scrollTop=st;pgH=sz.height}
+ $("empty").hidden=true;$("view").hidden=true;lv.hidden=false;$("vt").textContent="Click things on the page to show or hide them: "+(pg.title||pg.url);
+ const k=lv.clientWidth/1280||1,focus=focusY!=null?focusY:(lv.scrollTop+lv.clientHeight/2)/k;
+ const order=[...Array(n).keys()].sort((a,b)=>Math.abs(a*CH+CH/2-focus)-Math.abs(b*CH+CH/2-focus));
+ for(const i of order){if(gen!==shotGen)return;const c=lv.children[i];try{const r=await api("/api/page/shot",JSON.stringify({sid:pg.sid,y:+c.dataset.y,h:+c.dataset.h}));if(gen!==shotGen)return;const im=c.firstChild;im.src=r.src;im.hidden=false}catch(e){if(gen===shotGen)msg(e.message,"err");return}}
+ $("busy").hidden=true}
+async function refresh(){if(!pg)return;if(vmode==="live"){$("busy").hidden=false;try{await shot()}catch(e){msg(e.message,"err")}return}
+ if(rf){again=true;return}rf=true;$("busy").hidden=false;try{do{again=false;const r=await api("/api/page/preview",JSON.stringify({sid:pg.sid}));if(pg)show(r.url,"PDF preview of "+(pg.title||pg.url)+" (this is what will be saved)")}while(again&&pg)}catch(e){msg(e.message,"err")}rf=false;$("busy").hidden=true}
 $("vtabs").onclick=e=>{const v=e.target.dataset.vt;if(!v||!pg)return;vmode=v;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt===v));refresh()};
-$("liveview").onclick=async e=>{const im=e.target.closest("img");if(!im||!pg||rf)return;const c=chunks[+im.dataset.ci],r=im.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1280,y=c.y+(e.clientY-r.top)/r.height*c.h;rf=true;$("busy").hidden=false;try{const j=await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));pg.controls=j.controls;drawCtl();await shot()}catch(err){msg(err.message,"err")}rf=false;$("busy").hidden=true};
+$("liveview").onclick=async e=>{const c=e.target.closest(".ck");if(!c||!pg)return;const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*1280,y=+c.dataset.y+(e.clientY-r.top)/r.height*+c.dataset.h;
+ $("busy").hidden=false;c.style.outline="2px solid #ff9f0a";setTimeout(()=>c.style.outline="",250);
+ try{await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));shot(y);api("/api/page/controls",JSON.stringify({sid:pg.sid})).then(j=>{if(pg){pg.controls=j.controls;drawCtl()}}).catch(()=>{})}catch(err){msg(err.message,"err");$("busy").hidden=true}};
 async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
 async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
