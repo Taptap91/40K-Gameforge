@@ -223,8 +223,25 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "19"
+APP_ID = "app-builder"; VERSION = "20"
 SRV = [None]
+
+
+def stop_other_builders():
+    """Stop any older App Builder still running on the usual ports, so only one copy is ever left.
+    Only App Builder copies are touched: other Python programs on this computer are left alone."""
+    import time as _t
+    for port in range(8960, 8980):
+        base = f"http://127.0.0.1:{port}"
+        try: info = json.load(urllib.request.urlopen(base + "/api/id", timeout=0.5))
+        except Exception: continue
+        if not isinstance(info, dict) or info.get("app") != APP_ID or info.get("version") == VERSION: continue
+        try: urllib.request.urlopen(urllib.request.Request(base + "/api/quit", b"{}", {"X-RF-Quit": "1"}, method="POST"), timeout=2)
+        except Exception: pass
+        for _ in range(30):
+            _t.sleep(0.2)
+            try: urllib.request.urlopen(base + "/api/id", timeout=0.5)
+            except Exception: break
 
 
 def claim_port(port):
@@ -300,6 +317,7 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8960))
+    stop_other_builders()
     if claim_port(port) == "same":   # already running this exact version: just open it
         if not os.environ.get("NO_BROWSER"): webbrowser.open(f"http://127.0.0.1:{port}")
         sys.exit(0)
