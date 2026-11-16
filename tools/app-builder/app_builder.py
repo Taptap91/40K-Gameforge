@@ -190,7 +190,7 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] == "/api/id":
-            return self.send(200, {"app": APP_ID, "version": VERSION})
+            return self.send(200, {"app": APP_ID, "version": VERSION, "folder": str(APP)})
         if self.path.split("?")[0] == "/api/ping":
             import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
         if self.path.split("?")[0] == "/api/bye":
