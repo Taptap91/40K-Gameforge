@@ -35,7 +35,7 @@ const STATE=/^(active|open|on|sel|selected|hidden|disabled|focus|hover|current|i
 let data={css:"",labels:[],rules:{all:{},desktop:{},tablet:{},phone:{}}},dev="desktop",mode="interact",scope="device",selMode="like",sel=null,doc=null,win=null;
 let committed="",undoStack=[],dirty=false;
 const PROPS=[
- {g:"Text",k:"color",l:"Text colour",t:"color"},{k:"font-size",l:"Size",t:"size"},
+ {g:"Text style",k:"color",l:"Text colour",t:"color"},{k:"font-size",l:"Size",t:"size"},
  {k:"font-weight",l:"Weight",t:"sel",o:[["","—"],["300","Light"],["400","Regular"],["500","Medium"],["600","Semi-bold"],["700","Bold"],["800","Extra bold"]]},
  {k:"text-align",l:"Align",t:"sel",o:[["","—"],["left","Left"],["center","Centre"],["right","Right"]]},
  {k:"font-family",l:"Font",t:"sel",o:[["","—"],["system-ui,sans-serif","Sans"],["Georgia,serif","Serif"],["ui-monospace,monospace","Mono"]]},
@@ -97,7 +97,7 @@ function install(){doc=$("frame").contentDocument;win=$("frame").contentWindow;
   if(!dropEl)drop.hidden=true},true);
  doc.addEventListener("pointerup",e=>{if(!edit())return;stop(e);drop.hidden=true;if(dragging&&dropEl)moveTo(sel,dropEl,dropAfter);down=null;setTimeout(()=>dragging=false,0)},true);
  doc.addEventListener("click",e=>{if(!edit())return;stop(e);if(dragging)return;pick(e.target)},true);
- doc.addEventListener("scroll",()=>{},true);live()}
+ data.css=genCSS();win.__rfCustomApply?.({css:data.css,labels:data.labels})}
 function pick(el){if(!el||el===doc.documentElement||el===doc.body||el.id==="rf-drop")return;doc.querySelectorAll("[data-rf-s],[data-rf-h]").forEach(x=>{x.removeAttribute("data-rf-s");x.removeAttribute("data-rf-h")});sel=el;el.setAttribute("data-rf-s","");render()}
 $("frame").onload=install;
 
