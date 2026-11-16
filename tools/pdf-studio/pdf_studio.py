@@ -251,6 +251,7 @@ def open_page(d, progress):
             ws.call("Network.enable"); ws.call("Network.setBlockedURLs", {"urls": AD_URLS})
             ws.call("Page.addScriptToEvaluateOnNewDocument", {"source": AD_CSS_JS})
         ws.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 1600, "deviceScaleFactor": 1, "mobile": False})
+        set_theme(ws, d.get("theme", "light"))
         progress(30, 100, "Loading the page…")
         ws.call("Page.navigate", {"url": url}, timeout=60)
         end = time.time() + 45
@@ -311,6 +312,21 @@ def page_controls(d):
     if not s: raise RuntimeError("That page session ended. Open the page again.")
     with s["lock"]:
         return {"controls": s["ws"].call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])}
+
+
+def set_theme(ws, theme):
+    """Tell the hidden browser which colour scheme the page should use, so the viewer and the saved PDF match.
+    Without this the browser follows the computer: a dark-mode computer gives sites their dark styles in the PDF."""
+    theme = "dark" if theme == "dark" else "light"
+    ws.call("Emulation.setEmulatedMedia", {"media": "screen", "features": [{"name": "prefers-color-scheme", "value": theme}]})
+    return theme
+
+
+def page_theme(d):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    with s["lock"]:
+        return {"theme": set_theme(s["ws"], d.get("theme", "light"))}
 
 
 def page_reveal(d):
@@ -730,6 +746,7 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/page/controls": return self.send(200, page_controls(d))
             if u.path == "/api/page/click": return self.send(200, page_click(d))
             if u.path == "/api/page/reveal": return self.send(200, page_reveal(d))
+            if u.path == "/api/page/theme": return self.send(200, page_theme(d))
             if u.path == "/api/preview": return self.send(200, start_job(lambda p: preview(d, p)))
             if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
             if u.path == "/api/page/cancel": close_session(d.get("sid", "")); return self.send(200, {"ok": True})
@@ -777,6 +794,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <div class="hint" id="nb"></div>
 <div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div>
 <div class="sw2" id="sa" title="Opens or closes every show/hide section on the page"><button data-sa="show" class="on">Show All</button><button data-sa="hide">Hide All</button></div>
+<div class="ci"><label style="flex:1">Page colours for the viewer and the saved PDF</label><select id="thm"><option value="light" selected>Light</option><option value="dark">Dark</option></select></div>
 <div id="ctl"></div>
 <div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div>
 <div class="hint">The preview on the right updates after each change. Saving keeps exactly what you see.</div></div>
@@ -875,7 +893,7 @@ $("liveview").onclick=async e=>{const c=e.target.closest(".ck");if(!c||!pg)retur
  $("busy").hidden=false;c.style.outline="2px solid #ff9f0a";setTimeout(()=>c.style.outline="",250);
  try{await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));shot(y);api("/api/page/controls",JSON.stringify({sid:pg.sid})).then(j=>{if(pg){pg.controls=j.controls;drawCtl()}}).catch(()=>{})}catch(err){msg(err.message,"err");$("busy").hidden=true}};
 async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c){c.state=s.state;if(s.label)c.label=s.label}});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
-async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();await applyAll(showAll);msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
+async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked,theme:$("thm").value}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();await applyAll(showAll);msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
 $("ctl").onclick=async e=>{const g=e.target.dataset.go;if(g==null||!pg)return;try{const r=await api("/api/page/reveal",JSON.stringify({sid:pg.sid,i:+g}));if(r.y==null){msg("That item is not on the page any more. Try Show All or reopen the page.","err");return}
@@ -883,6 +901,7 @@ $("ctl").onclick=async e=>{const g=e.target.dataset.go;if(g==null||!pg)return;tr
  const k=$("liveview").clientWidth/1280||1;await shot(r.y,Math.max(0,r.y*k-60))}catch(err){msg(err.message,"err")}};
 function setSwitch(){[...$("sa").children].forEach(b=>b.classList.toggle("on",(b.dataset.sa==="show")===showAll))}
 async function applyAll(on){showAll=on;setSwitch();if(!pg)return;const ops=pg.controls.filter(c=>c.type!=="checkbox").map(c=>({i:c.i,kind:c.type,v:on}));if(ops.length)await setOps(ops)}
+$("thm").onchange=async()=>{if(!pg)return;try{await api("/api/page/theme",JSON.stringify({sid:pg.sid,theme:$("thm").value}));refresh()}catch(e){msg(e.message,"err")}};
 $("sa").onclick=e=>{const v=e.target.dataset.sa;if(!v||!pg)return;applyAll(v==="show")};
 async function cancelPage(){const s=pg&&pg.sid;pg=null;$("vtabs").hidden=true;$("pgp").hidden=true;if(s)await api("/api/page/cancel",JSON.stringify({sid:s})).catch(()=>{});msg("");items.length?preview():blank("Add a PDF, or paste a web page address.")}
 $("pcan").onclick=cancelPage;
