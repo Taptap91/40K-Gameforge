@@ -25,9 +25,9 @@ def find_app():
 
 APP = find_app()
 CUSTOM = APP / "custom" / "custom.json"
-DEFAULT = {"version": 3, "css": "", "labels": [], "pages": [], "elements": [], "actions": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
+DEFAULT = {"version": 4, "css": "", "labels": [], "pages": [], "elements": [], "actions": [], "styles": [], "applied": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
 ASSETS = APP / "custom" / "assets"
-LISTS = ("labels", "pages", "elements", "actions")
+LISTS = ("labels", "pages", "elements", "actions", "styles", "applied")
 
 
 def load_custom():
@@ -46,7 +46,7 @@ def save_custom(d):
         raise ValueError("That doesn't look like App Builder data.")
     if len(json.dumps(d)) > 2_000_000:
         raise ValueError("Too many changes in one file.")
-    out = {"version": 3, "css": d.get("css", ""), **{k: d.get(k, []) for k in LISTS}, "rules": d.get("rules", DEFAULT["rules"])}
+    out = {"version": 4, "css": d.get("css", ""), **{k: d.get(k, []) for k in LISTS}, "rules": d.get("rules", DEFAULT["rules"])}
     CUSTOM.parent.mkdir(parents=True, exist_ok=True)
     if CUSTOM.exists():
         CUSTOM.with_suffix(".json.bak").write_bytes(CUSTOM.read_bytes())
@@ -95,7 +95,7 @@ def publish(d):
     head = {"Authorization": f"Bearer {cfg['token']}", "Accept": "application/vnd.github+json", "User-Agent": "rulesforge-appbuilder"}
     msg = "Update the app design (App Builder)"
     # Pictures first, so they are there when the page that shows them goes live.
-    for src in sorted({e.get("src") for e in saved["elements"] if str(e.get("src", "")).startswith("custom/assets/")}):
+    for src in sorted(set(re.findall(r"custom/assets/[\w.-]+\.(?:png|jpe?g|gif|webp|svg)", json.dumps(saved)))):
         f = APP / src
         if f.is_file(): put_file(cfg, head, src, f.read_bytes(), msg)
     put_file(cfg, head, "custom/custom.json", CUSTOM.read_bytes(), msg)

@@ -17,13 +17,29 @@ const ICONS = {
   book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 };
-const BASE_CSS = `.rf-page-body{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+const BASE_CSS = `.rf-page-body{position:relative;flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .rf-el-row,.rf-el-col{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.rf-el-col{flex-direction:column}
-.rf-el-text,.rf-el-heading{margin:0}.rf-el-image{max-width:100%;height:auto;border-radius:8px}.rf-el-divider{width:100%;border:0;border-top:1px solid rgba(255,255,255,.15);margin:4px 0}.rf-el-space{height:24px;width:100%}`;
+.rf-el-text,.rf-el-heading{margin:0}.rf-el-image{max-width:100%;height:auto;border-radius:8px}.rf-el-divider{width:100%;border:0;border-top:1px solid rgba(255,255,255,.15);margin:4px 0}.rf-el-space{height:24px;width:100%}
+.rf-el-rect{width:140px;height:90px;background:#0a84ff;border-radius:10px}.rf-el-ellipse{width:110px;height:110px;background:#0a84ff;border-radius:50%}.rf-el-line{width:160px;height:3px;background:#0a84ff;border-radius:2px}
+@keyframes rf-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes rf-slide-up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes rf-slide-down{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}
+@keyframes rf-slide-left{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes rf-slide-right{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
+@keyframes rf-zoom-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+@keyframes rf-pop{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes rf-flip-in{from{opacity:0;transform:perspective(600px) rotateX(-70deg)}to{opacity:1;transform:none}}
+@keyframes rf-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes rf-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes rf-shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-6px)}40%,60%{transform:translateX(6px)}}
+@keyframes rf-spin{to{transform:rotate(360deg)}}
+@keyframes rf-glow{0%,100%{box-shadow:0 0 0 rgba(10,132,255,0)}50%{box-shadow:0 0 18px rgba(10,132,255,.9)}}
+@keyframes rf-blink{50%{opacity:.25}}`;
 let data = { css: "", labels: [], pages: [], elements: [], actions: [] };
 const originals = new Map();   // text node → its text before a label changed it, so the editor can undo a rename live
 let running = false;
-let current = null;   // the id of the custom page on screen, if any
+let current = null;
+let sig = "";   // what the pages and elements last looked like, so unchanged ones are left alone while editing   // the id of the custom page on screen, if any
 
 const $q = s => { try { return document.querySelector(s); } catch { return null; } };
 function setCSS(css) {
@@ -97,6 +113,9 @@ function build(d) {
     case "space": el = document.createElement("div"); el.className = "rf-el-space"; break;
     case "row": el = document.createElement("div"); el.className = "rf-el-row"; break;
     case "column": el = document.createElement("div"); el.className = "rf-el-col"; break;
+    case "rect": el = document.createElement("div"); el.className = "rf-el-rect"; break;
+    case "ellipse": el = document.createElement("div"); el.className = "rf-el-ellipse"; break;
+    case "line": el = document.createElement("div"); el.className = "rf-el-line"; break;
     default: return null;
   }
   el.dataset.rfEl = d.id;
@@ -147,8 +166,12 @@ function apply(next) {
   const keep = current;
   for (const [n, text] of originals) if (n.isConnected) n.nodeValue = text;
   originals.clear();
-  document.querySelectorAll("[data-rf-el]").forEach(x => x.remove());
-  document.querySelectorAll(".rf-page,.rf-nav").forEach(x => x.remove());
+  const nextSig = JSON.stringify([next.pages, next.elements]);
+  if (nextSig !== sig) {
+    sig = nextSig;
+    document.querySelectorAll("[data-rf-el]").forEach(x => x.remove());
+    document.querySelectorAll(".rf-page,.rf-nav").forEach(x => x.remove());
+  }
   data = { css: next.css || "", labels: (next.labels || []).filter(l => l && l.sel && l.from && typeof l.to === "string"),
     pages: next.pages || [], elements: next.elements || [], actions: next.actions || [] };
   setCSS(data.css); ensurePages(); ensureElements(); applyLabels();

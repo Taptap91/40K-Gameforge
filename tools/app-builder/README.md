@@ -16,19 +16,33 @@ editor; the first time, download your Game Packs in it as you normally would.
   menu buttons), **All like this** changes the whole kind; **Only this one** changes just that item.
 
 ## What you can do
-* **Restyle anything that exists:** text colour, size, weight, font, background, rounding, width/height, opacity;
-  **space outside (margin) and space inside (padding) on each side**, and Left / Centre / Right positioning;
-  for blocks that hold other blocks, direction, wrapping, spread, number of columns and gaps.
-* **Remove or hide** anything on a screen size. **Rename** headings, buttons and menu names.
-* **Rearrange:** drag a block onto another, or ◀ Earlier / Later ▶, for blocks in a row, column or grid.
-* **Add things:** select a block, choose where (inside it, before it, after it), then add a **Heading, Text, Button,
-  Image, Divider, Space, Row** (items side by side) or **Column** (items stacked). Put several things in a Row or
-  Column box to lay them out. Pictures are uploaded into `custom/assets/`.
-* **Add pages:** *＋ New page* adds a screen with its own menu button (choose an icon, or leave it out of the menu).
-  Open it, select its area, and add things to it.
-* **Choose where buttons go:** under *When it's pressed*, any button, yours or the app's, can open one of the app's
-  screens, one of your pages, a web address, scroll to the top, or do nothing. This applies to that one button.
-* **Undo** (Ctrl+Z), **All my changes** (with ✕ to remove any one), **Reset everything**.
+**Style anything that exists or that you add** (open the section you need in the side panel):
+* **Text style:** colour, size, weight, font, italic, align, line height, letter spacing, capitals, underline, text shadow.
+* **Fill and border:** solid colour, linear or radial **gradient**, or a **picture** (paste an address or upload); border
+  width, style and colour; **rounding for each corner**.
+* **Effects:** drop **shadow** (x, y, blur, spread, colour, strength, inside), **blur**, frosted **glass blur**, opacity, blend mode.
+* **Size and space:** width, height, min/max, **margin and padding on each side**, Left/Centre/Right, overflow.
+* **Position and layer:** normal, offset, **free** (absolute) or stuck on screen; offsets; layer order (bring forward /
+  send back); **move, rotate and scale** without disturbing the layout.
+* **Free move:** tick it, then in Edit drag an item anywhere (it **snaps to edges and centres** of its box and its
+  neighbours, with pink guides) and drag the handles to **resize**.
+* **Arrange the contents** of a block: direction, wrap, spread, line-up, columns, gap.
+* **Hover, Pressed and Focused looks:** switch the Normal / Hover / Pressed / Focused tabs and style how it reacts.
+
+**Animation:** pick an effect (fade, slide, zoom, pop, flip, shake, or looping pulse, float, spin, glow, blink), its length,
+delay, feel (smooth, bounce…) and repeats, and press ▶ Preview. **Smooth changes** make hover and pressed looks glide.
+Under **Whole app**, *Screen change* animates every move between screens. Animations switch off for visitors whose
+device asks for reduced motion.
+
+**Reusable styles:** *Save selected element's look as a style*, apply it to other things, and **Edit** it once to update
+everything using it (like Figma styles). **Whole app** lists the app's colours, radius and fonts: change one and the
+whole app changes (like Figma variables).
+
+**Add things and pages:** select a block, choose where, then add a Heading, Text, Button, Image, Rectangle, Circle, Line,
+Divider, Space, **Row** or **Column** (to lay several items out). *＋ New page* adds a screen with its own menu button.
+**Buttons:** any button, yours or the app's, can open an app screen, one of your pages, a web address, scroll to the top
+or do nothing (this one button only). Also: remove or hide anything, rename text, reorder by dragging or ◀ ▶,
+**Undo** (Ctrl+Z), **All my changes** (✕ to remove any), **Reset everything**.
 
 ## Saving and publishing
 **Save** writes `custom/custom.json` (and any pictures in `custom/assets/`) in your RulesForge folder; the previous
