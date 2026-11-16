@@ -67,3 +67,7 @@ live once the app's files are published. Without the file, or with it empty, the
 * Adding many pages makes the phone's bottom bar crowded; keep extra pages out of the menu and link to them from a
   button instead.
 * Text built from your data (army and unit names) isn't something to rename here.
+
+
+## Starting and stopping
+Double-click the Start file: no black window stays open, your browser opens the tool, and when you close the browser tab the program stops itself within a few seconds. Nothing else to close. (On Windows it also installs the one PDF library it needs the first time, if missing.)

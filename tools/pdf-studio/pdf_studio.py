@@ -365,6 +365,23 @@ def existing():
     return games
 
 
+# ---- auto-quit: the page pings while it is open; when the tab is closed the program stops itself ----
+if sys.stdout is None: sys.stdout = open(os.devnull, "w")   # pythonw has no console
+if sys.stderr is None: sys.stderr = open(os.devnull, "w")
+SEEN = {"last": None, "bye": None, "start": __import__("time").time()}
+
+
+def watch(srv):
+    import time
+    while True:
+        time.sleep(1)
+        now = time.time(); last, bye = SEEN["last"], SEEN["bye"]
+        gone = (bye and now - bye > 8) or (last and now - last > 180) or (last is None and now - SEEN["start"] > 90)
+        if gone:
+            srv.shutdown(); return
+
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
@@ -376,6 +393,10 @@ class H(BaseHTTPRequestHandler):
         return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
 
     def do_GET(self):
+        if self.path.split("?")[0] == "/api/ping":
+            import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
+        if self.path.split("?")[0] == "/api/bye":
+            import time; SEEN["bye"] = time.time(); return self.send(200, {"ok": True})
         u = urlparse(self.path)
         if not self.local(): return self.send(403, {"error": "local only"})
         if u.path == "/":
@@ -459,6 +480,7 @@ label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display
 <div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div><button class="p" id="save" style="width:100%;margin-top:12px" disabled>2 · Upload to GitHub</button></div>
 <div class="hint" id="out"></div></section><div id="msg"></div></main>
 <script>
+setInterval(()=>fetch("/api/ping").catch(()=>{}),3000);fetch("/api/ping").catch(()=>{});addEventListener("pagehide",()=>navigator.sendBeacon&&navigator.sendBeacon("/api/bye"));
 const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],info={games:{}};
 $("type").innerHTML=Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${k} · ${v}</option>`).join("");
 const msg=(t,c)=>{$("msg").innerHTML=`<span class="${c||""}">${t}</span>`};
@@ -511,6 +533,7 @@ if __name__ == "__main__":
     print(f"PDF Studio is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nSaving to: {OUT}")
     if not os.environ.get("NO_BROWSER"):
         threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    if not os.environ.get("NO_BROWSER"): threading.Thread(target=watch, args=(srv,), daemon=True).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

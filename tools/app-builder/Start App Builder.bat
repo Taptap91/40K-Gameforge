@@ -1,3 +1,4 @@
 @echo off
-python "%~dp0app_builder.py" %* || py "%~dp0app_builder.py" %*
-pause
+set PYW=pythonw
+where pythonw >nul 2>nul || set PYW=pyw
+start "" %PYW% "%~dp0app_builder.py" %*

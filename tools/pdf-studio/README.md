@@ -39,3 +39,7 @@ Pages that need a login or that load content as you scroll may capture only what
 
 ## Merge, then download or upload
 Press **1 · Merge the PDFs** (a progress bar shows the pages being merged). When it finishes, **Download PDF** and **Upload / save** unlock. If you change the files, ranges, header/footer sizes or title afterwards, merge again. **Find them automatically** also shows a progress bar while it reads the pages.
+
+
+## Starting and stopping
+Double-click the Start file: no black window stays open, your browser opens the tool, and when you close the browser tab the program stops itself within a few seconds. Nothing else to close. (On Windows it also installs the one PDF library it needs the first time, if missing.)

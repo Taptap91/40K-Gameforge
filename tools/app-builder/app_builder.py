@@ -109,6 +109,23 @@ def gh_error(e):
     return f"GitHub said {e.code}: {msg} {hint}".strip()
 
 
+# ---- auto-quit: the page pings while it is open; when the tab is closed the program stops itself ----
+if sys.stdout is None: sys.stdout = open(os.devnull, "w")   # pythonw has no console
+if sys.stderr is None: sys.stderr = open(os.devnull, "w")
+SEEN = {"last": None, "bye": None, "start": __import__("time").time()}
+
+
+def watch(srv):
+    import time
+    while True:
+        time.sleep(1)
+        now = time.time(); last, bye = SEEN["last"], SEEN["bye"]
+        gone = (bye and now - bye > 8) or (last and now - last > 180) or (last is None and now - SEEN["start"] > 90)
+        if gone:
+            srv.shutdown(); return
+
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
@@ -120,6 +137,10 @@ class H(BaseHTTPRequestHandler):
     def local(self): return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
 
     def do_GET(self):
+        if self.path.split("?")[0] == "/api/ping":
+            import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
+        if self.path.split("?")[0] == "/api/bye":
+            import time; SEEN["bye"] = time.time(); return self.send(200, {"ok": True})
         if not self.local(): return self.send(403, {"error": "local only"})
         p = self.path.split("?")[0]
         if p == "/": return self.send(200, (HERE / "builder.html").read_bytes(), "text/html; charset=utf-8")
@@ -154,5 +175,6 @@ if __name__ == "__main__":
     srv = ThreadingHTTPServer(("127.0.0.1", port), H)
     print(f"App Builder is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nEditing the app in: {APP}")
     if not os.environ.get("NO_BROWSER"): threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    if not os.environ.get("NO_BROWSER"): threading.Thread(target=watch, args=(srv,), daemon=True).start()
     try: srv.serve_forever()
     except KeyboardInterrupt: pass
