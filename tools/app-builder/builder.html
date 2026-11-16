@@ -91,7 +91,13 @@ function setTheme(n,v){const r=data.rules.all;v=(v||"").trim();if(v&&!OK(v))retu
 /* ---------- text, order ---------- */
 function textNode(el){return[...el.childNodes].find(n=>n.nodeType===3&&n.nodeValue.trim())}
 function labelFor(el){if(el.dataset?.rfEl)return null;const t=textNode(el);if(!t)return null;const now=t.nodeValue.trim();const l=data.labels.find(l=>l.to===now&&el.matches(l.sel));return{from:l?l.from:now,to:now,entry:l}}
-function setLabel(v){const el=sel,info=labelFor(el);if(!info)return;data.labels=data.labels.filter(l=>!(l.sel===curSel()&&l.from===info.from)&&l!==info.entry);if(v.trim()&&v.trim()!==info.from)data.labels.push({sel:curSel(),from:info.from,to:v.trim()});live()}
+async function setLabel(v){const el=sel;if(!el)return;const t=textNode(el);if(!t)return;const from=t.nodeValue.trim(),to=(v||"").trim();if(!to||to===from)return;
+ const attr=el.dataset?.view?`data-view="${el.dataset.view}"`:el.id?`id="${el.id}"`:"";
+ try{const r=await post("/api/source/text",{from,to,attr});
+  if(r.changed){mark(false,"Changed in index.html","ok");if(win)win.location.reload();return true}
+  const why={"element-not-found":"Couldn’t find that item in index.html. Nothing changed.","no-locator":"This item has no name in the code yet, so nothing changed.","element-not-closed":"Couldn’t read that item in index.html. Nothing changed."}[r.reason]||`That text appears in more than one place inside that item (${r.reason.replace("text-found-","").replace("-times","")} times), so nothing changed.`;
+  mark(true,why,"err");return false}
+ catch(e){mark(true,e.message,"err");return false}}
 function seqOf(parent){return[...parent.children].filter(c=>!/^(SCRIPT|STYLE)$/.test(c.tagName)&&c.id!=="rf-box"&&getComputedStyle(c).display!=="none").map((c,i)=>({c,i,o:+getComputedStyle(c).order||0})).sort((a,b)=>a.o-b.o||a.i-b.i).map(x=>x.c)}
 const arrangeable=el=>el&&el.parentElement&&/flex|grid/.test(getComputedStyle(el.parentElement).display);
 function moveTo(el,target,after){const p=el.parentElement,seq=seqOf(p).filter(c=>c!==el);let i=seq.indexOf(target);if(i<0)return;seq.splice(after?i+1:i,0,el);const b=bucket();
@@ -338,7 +344,7 @@ function wire(){const a=$("side");wireTree();
  if($("zb"))$("zb").onclick=()=>{const z=parseInt(win.getComputedStyle(sel).zIndex)||0;if(win.getComputedStyle(sel).position==="static")setRule(null,"position","relative");setRule(null,"z-index",String(z-1));commit();render()};
  if($("apv"))$("apv").onclick=()=>{sel.style.animation="none";void sel.offsetWidth;sel.style.animation=""};
  if($("hide"))$("hide").onchange=e=>{setRule(null,"display",e.target.checked?"none":"");commit();render()};
- if($("txt")){$("txt").oninput=e=>{if(e.target.value.trim())setLabel(e.target.value)};$("txt").onchange=()=>{if(!$("txt").value.trim())setLabel("");commit();render()}}
+ if($("txt")){$("txt").onchange=async()=>{const v=$("txt").value;if(v.trim())await setLabel(v);commit();render()}}
  if($("bk"))$("bk").onclick=()=>nudge(-1);if($("fw"))$("fw").onclick=()=>nudge(1);
  if($("clr"))$("clr").onclick=()=>{const s=curSel();for(const bk of Object.keys(data.rules))for(const suf of Object.values(SUF))delete data.rules[bk][s+suf];live();commit();render()};
  a.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const[bk,s]=b.dataset.rm.split("|");delete data.rules[bk][s];live();commit();render()});

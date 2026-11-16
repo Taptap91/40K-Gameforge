@@ -73,6 +73,30 @@ def load_custom():
         return json.loads(json.dumps(DEFAULT))
 
 
+def change_text(d):
+    """Change one piece of visible text in the app's own index.html, so the code itself says the new name.
+    d = {"from": old text, "to": new text, "attr": 'data-view="lists"' or 'id="listsTitle"'} (attr says which element).
+    Only writes when the text is found exactly once inside that element, so nothing is guessed."""
+    import html as _h
+    old, new, attr = (d.get("from") or "").strip(), (d.get("to") or "").strip(), (d.get("attr") or "").strip()
+    if not old or not new: raise RuntimeError("Nothing to change.")
+    if not attr: return {"changed": 0, "reason": "no-locator"}
+    f = APP / "index.html"
+    src = f.read_bytes().decode("utf-8")
+    m = re.search(r"<([a-zA-Z0-9]+)\b[^>]*\b" + re.escape(attr) + r"[^>]*>", src)
+    if not m: return {"changed": 0, "reason": "element-not-found"}
+    tag = m.group(1)
+    end = src.find("</" + tag + ">", m.end())
+    if end < 0: return {"changed": 0, "reason": "element-not-closed"}
+    inner = src[m.end() - 1:end]  # starts at the '>' that closes the opening tag
+    pat = re.compile(r"(>\s*)" + re.escape(_h.escape(old, quote=False)) + r"(?=\s*(?:<|\Z))")
+    hits = len(pat.findall(inner))
+    if hits != 1: return {"changed": 0, "reason": "text-found-%d-times" % hits}
+    inner2 = pat.sub(lambda g: g.group(1) + _h.escape(new, quote=False), inner, count=1)
+    f.write_bytes((src[:m.end() - 1] + inner2 + src[end:]).encode("utf-8"))
+    return {"changed": 1, "file": "index.html"}
+
+
 def save_custom(d):
     if not isinstance(d, dict) or not isinstance(d.get("css", ""), str) or any(not isinstance(d.get(k, []), list) for k in LISTS):
         raise ValueError("That doesn't look like App Builder data.")
@@ -157,7 +181,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "14"
+APP_ID = "app-builder"; VERSION = "15"
 SRV = [None]
 
 
@@ -222,6 +246,7 @@ class H(BaseHTTPRequestHandler):
             d = json.loads(raw or b"{}")
             if self.path == "/api/custom": save_custom(d); return self.send(200, {"saved": str(CUSTOM)})
             if self.path == "/api/publish": return self.send(200, publish(d))
+            if self.path == "/api/source/text": return self.send(200, change_text(d))
         except Exception as e:
             return self.send(400, {"error": str(e) or e.__class__.__name__})
         self.send(404, {"error": "not found"})
