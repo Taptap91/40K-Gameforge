@@ -36,7 +36,7 @@ const EMPTY=()=>({css:"",labels:[],pages:[],elements:[],actions:[],styles:[],app
 let selUid=null,fw=1440,fh=900,zoom="fit",tab="design",multi=[],layerEls=[],openEls=new WeakSet(),dragFrom=-1;
 fetch("/api/id").then(r=>r.json()).then(j=>{if(j.folder)$("appPath").textContent="Editing: "+j.folder}).catch(()=>{});
 let data=EMPTY(),dev="desktop",mode="interact",scope="all",selMode="like",sel=null,doc=null,win=null,pstate="",editStyle=null,freeMove=false;
-let committed="",undoStack=[],dirty=false,placeWhere="";const openG=new Set(["add","act","Fill and border","Size and space","align"]);
+let committed="",undoStack=[],dirty=false,placeWhere="";const openG=new Set(["add","act","Fill and border","Size and space","align","tree","links"]);
 const SUF={"":"",hover:":hover",active:":active",focus:":focus-visible"};
 const camel=k=>k.replace(/-(\w)/g,(_,c)=>c.toUpperCase());
 const O=(...a)=>[["","—"],...a.map(x=>Array.isArray(x)?x:[x,x])];
@@ -284,7 +284,7 @@ function rowHTML(p,cur,cs){
  if(p.t==="sel")return`<div class="f"><label>${p.l}</label><select data-k="${p.k}">${p.o.map(([val,lab])=>`<option value="${esc(val)}" ${v===val?"selected":""}>${lab}</option>`).join("")}</select></div>`;
  return`<div class="f"><label>${p.l}</label><input type="text" data-k="${p.k}" ${p.u?`data-u="${p.u}"`:""} value="${esc(v)}" placeholder="${esc(ph)}"></div>`}
 function scopeBar(){const cap=dev[0].toUpperCase()+dev.slice(1);return`<div class="scopebar"><div class="sw2" id="scopeSw"><button data-sc="all" class="${scope==="all"?"on":""}">All screens</button><button data-sc="device" class="${scope==="device"?"on":""}">Only ${cap}</button></div><div class="hint">Edits apply to ${scope==="all"?"every screen size":cap+" (" + RANGE[dev] + ") only"}.</div></div>`}
-function render(){if(!doc){$("side").innerHTML="";return}scrLabel();if(tab==="layers"&&!editStyle){renderLayers();return}const a=$("side");let h=scopeBar()+tabsHTML();
+function render(){if(!doc){$("side").innerHTML="";return}scrLabel();if(tab==="layers"&&!editStyle){renderLayers();return}const a=$("side");let h=scopeBar()+tabsHTML()+treeHTML()+linksHTML();
  if(editStyle){const st=styleObj();h+=`<div class="sel">Editing style “${esc(st?.name||"")}”: changes apply everywhere it's used.</div><div class="row"><button id="sdone" class="p">Done</button></div>`}
  
  const subject=editStyle?(sel&&sel.isConnected?sel:doc?.body):(mode==="edit"&&sel&&sel.isConnected?sel:null),many=multi.length>1;
@@ -314,10 +314,10 @@ function render(){if(!doc){$("side").innerHTML="";return}scrLabel();if(tab==="la
  h+=`<details><summary>Publish to GitHub</summary><div class="f"><label>Repository</label><input id="repo" value="Taptap91/40k-gameforge"></div><div class="f"><label>Branch</label><input id="br" value="game-packs"></div><div class="f"><label>Token</label><input id="tok" type="password" autocomplete="off"></div><label class="r"><input type="checkbox" id="rem"><span>Remember on this computer</span></label><div class="row"><button id="pub" class="p">Save and publish</button></div><div class="hint">Uploads custom/custom.json and any pictures you added. Token: fine-grained, one repository, Contents read/write.</div></details>`;
  h+=`<div class="row"><button id="rst">Reset everything to the original app</button></div>`;
  const keep=["repo","br","tok"].map(i=>$(i)?.value),sc=a.scrollTop;a.innerHTML=h;["repo","br","tok"].forEach((i,n)=>{if(keep[n]!=null&&keep[n]!=="")$(i).value=keep[n]});a.scrollTop=sc;wire()}
-function wire(){const a=$("side");
+function wire(){const a=$("side");wireTree();
  a.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
  a.querySelectorAll("details[data-g]").forEach(d=>d.addEventListener("toggle",()=>{d.open?openG.add(d.dataset.g):openG.delete(d.dataset.g)}));
- a.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{scope=b.dataset.sc;render()});a.querySelectorAll('[name="sm"]').forEach(r=>r.onchange=()=>{selMode=r.value;render()});
+ a.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{scope=b.dataset.sc;render()});wireTree();a.querySelectorAll('[name="sm"]').forEach(r=>r.onchange=()=>{selMode=r.value;render()});
  a.querySelectorAll("[data-ps]").forEach(b=>b.onclick=()=>{pstate=b.dataset.ps;render()});
  if($("up"))$("up").onclick=()=>pick(sel.parentElement);
  a.querySelectorAll("[data-k]").forEach(i=>{const k=i.dataset.k,sync=()=>{let v=i.value;if(i.dataset.u&&/^-?\d+(\.\d+)?$/.test(v))v+=i.dataset.u;setRule(null,k,v);
@@ -437,6 +437,39 @@ function a9(ix,iy){if(!sel)return;const many=multi.length>1;
  const tx=ix===0?L:ix===1?(L+Rr)/2-(U.r-U.l)/2:Rr-(U.r-U.l),ty=iy===0?T:iy===1?(T+B)/2-(U.b-U.t)/2:B-(U.b-U.t),dx=Math.round(tx-U.l),dy=Math.round(ty-U.t),b=data.rules[bucket()];
  for(const m of mem){const u=uid(m),o=(b[u]=b[u]||{}),cs=win.getComputedStyle(m);if(cs.position==="static"&&!o.position)o.position="relative";const l0=parsePx(o.left!=null?o.left:cs.left),t0=parsePx(o.top!=null?o.top:cs.top);o.left=Math.round(l0+dx)+"px";o.top=Math.round(t0+dy)+"px"}
  live();commit();render()}
+
+
+/* ---------- plain-language links and the screen tree ---------- */
+function describeAct(a,isCustom){if(!a||a.type==="default")return null;
+ if(a.type==="none")return"Does nothing when pressed";
+ if(a.type==="top")return"Scrolls back to the top of the screen";
+ if(a.type==="url")return"Opens the web address "+(a.target||"(none yet)");
+ if(a.type==="view"){const t=titleOfKey("view:"+a.target);return"Opens the “"+(t||a.target)+"” screen"}
+ if(a.type==="page"){const t=titleOfKey(a.target);return"Opens the “"+(t||"(missing page)")+"” page"}
+ return null}
+function linkRows(){const rows=[];
+ for(const e of data.elements){const d=describeAct(e.action,true);if(!d)continue;rows.push({name:(e.text||"").trim()||TYPES[e.type]?.[0]||"Item",desc:d,find:`[data-rf-el="${e.id}"]`})}
+ for(const x of data.actions){const d=describeAct(x,false);if(!d)continue;let name=x.sel;try{const el=doc?.querySelector(x.sel);if(el)name=(el.textContent||"").replace(/\s+/g," ").trim()||name}catch{}rows.push({name,desc:d,find:x.sel})}
+ return rows}
+function linksHTML(){const rows=linkRows();
+ return`<details class="grp" ${openG.has("links")?"open":""} data-g="links"><summary>What my buttons do (${rows.length})</summary>${rows.length?rows.map((r,i)=>`<div class="ch" style="cursor:pointer" data-lk="${i}"><span><b>“${esc(r.name.slice(0,40))}”</b><br>${esc(r.desc)}</span></div>`).join(""):'<div class="hint">Nothing links anywhere yet. Pick a button on the screen and choose where it goes under “When it\'s pressed”.</div>'}</details>`}
+function treeNodes(){const roots=builtins().map(b=>({key:b.key,title:b.title,builtin:true,parent:null}));
+ const pages=data.pages.map(p=>({key:p.id,title:p.title||"Untitled",parent:p.parent||null}));return[...roots,...pages]}
+function isDescendant(key,anc){let cur=data.pages.find(p=>p.id===key);while(cur&&cur.parent){if(cur.parent===anc)return true;cur=data.pages.find(p=>p.id===cur.parent)}return false}
+function treeHTML(){const nodes=treeNodes();let out="";
+ const walk=(parent,depth)=>{for(const n of nodes.filter(x=>x.parent===parent)){const icon=n.builtin?"▣":"▤";
+   out+=`<div class="tr" data-tk="${esc(n.key)}" ${n.builtin?"":'draggable="true"'} style="padding-left:${depth*16+6}px;padding-top:4px;padding-bottom:4px;border-radius:6px;cursor:${n.builtin?"default":"grab"}">${icon} ${esc(n.title)}${n.builtin?' <small class="hint">(built in)</small>':""}</div>`;walk(n.key,depth+1)}};
+ walk(null,0);
+ return`<details class="grp" ${openG.has("tree")?"open":""} data-g="tree"><summary>Screen map</summary><div class="hint">Drag a screen onto another to make it a subscreen of that one. Drag it onto the box below to move it back to the top.</div><div id="treeBox">${out||'<div class="hint">No screens yet.</div>'}</div><div class="tr" id="toTop" style="margin-top:6px;border:1px dashed var(--b);border-radius:6px;padding:6px;text-align:center">Drop here to make it a top-level screen</div></details>`}
+function wireTree(){const a=$("side");let drag=null;
+ a.querySelectorAll('[data-tk][draggable="true"]').forEach(el=>{el.ondragstart=e=>{drag=el.dataset.tk;e.dataTransfer.setData("text/plain",drag)};el.ondragend=()=>{drag=null}});
+ const drop=(target)=>{if(!drag)return;const src=drag;if(target&&(target===src||isDescendant(target,src))){mark(dirty,"A screen can’t be moved inside itself.","err");return}
+  const p=data.pages.find(x=>x.id===src);if(!p)return;const par=target&&data.pages.some(x=>x.id===target)||target&&target.startsWith("view:")?target:null;
+  p.parent=par||undefined;p.menu=!par;if(!par)delete p.parent;live();commit();render();scrLabel()};
+ a.querySelectorAll("#treeBox [data-tk]").forEach(el=>{el.ondragover=e=>{e.preventDefault()};el.ondrop=e=>{e.preventDefault();drop(el.dataset.tk)}});
+ const top=$("toTop");if(top){top.ondragover=e=>e.preventDefault();top.ondrop=e=>{e.preventDefault();drop(null)}}
+ a.querySelectorAll("[data-lk]").forEach(el=>el.onclick=()=>{const r=linkRows()[+el.dataset.lk];if(!r||!doc)return;if(mode!=="edit"){const b=document.querySelector('#modes [data-m="edit"]');b&&b.click()}
+  const t=(()=>{try{return doc.querySelector(r.find)}catch{return null}})();if(t)pick(t)})}
 
 /* ---------- layers ---------- */
 const tabsHTML=()=>`<div class="seg" id="tabs" style="margin-bottom:10px"><button data-t="design" class="${tab==="design"?"on":""}">Design</button><button data-t="layers" class="${tab==="layers"?"on":""}">Layers</button></div>`;
