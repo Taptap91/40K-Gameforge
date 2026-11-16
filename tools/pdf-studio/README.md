@@ -45,7 +45,7 @@ Press **1 · Merge the PDFs** (a progress bar shows the pages being merged). Whe
 Double-click the Start file: no black window stays open, your browser opens the tool, and when you close the browser tab the program stops itself within a few seconds. Nothing else to close. (On Windows it also installs the one PDF library it needs the first time, if missing.)
 
 ## Capturing web pages with their checkboxes
-Paste an address and press **Open page**. The page loads in a hidden browser and every checkbox and show/hide section found on it is listed. Tick or untick them individually, or use **Tick all / Untick all boxes** and **Show all / Hide all** (these open or close every section whose button says Show or Hide, and the list updates to match the page), then **Save this page as a PDF**. What you chose is exactly what gets printed. Pages that need a sign-in are not supported.
+Paste an address and press **Open page**. The page loads in a hidden browser and every checkbox and show/hide section found on it is listed. Tick or untick the checkboxes individually. Each item has a **Go to** button that scrolls the page viewer to its first instance. The **Show All / Hide All** switch opens or closes every show/hide section (Show All is the default when a page opens), and you can still click any show/hide button on the page itself. then **Save this page as a PDF**. What you chose is exactly what gets printed. Pages that need a sign-in are not supported.
 
 ## The new layout (v7)
 Controls are on the left quarter; the right three quarters is a PDF viewer.

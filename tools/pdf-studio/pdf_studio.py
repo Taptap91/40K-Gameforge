@@ -313,6 +313,18 @@ def page_controls(d):
         return {"controls": s["ws"].call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])}
 
 
+def page_reveal(d):
+    """Scroll the live page so the first instance of one listed item is in view; returns its height on the page."""
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    i = int(d.get("i", -1))
+    with s["lock"]:
+        r = s["ws"].call("Runtime.evaluate", {"expression": f"""(()=>{{const e=document.querySelector('[data-rf-c="{i}"]');if(!e)return null;
+e.scrollIntoView({{block:'center'}});const b=e.getBoundingClientRect();return window.scrollY+b.top+b.height/2;}})()""", "returnByValue": True})
+        y = r["result"].get("value")
+    return {"y": None if y is None else float(y)}
+
+
 def page_click(d):
     s = SESSIONS.get(d.get("sid", ""))
     if not s: raise RuntimeError("That page session ended. Open the page again.")
@@ -717,6 +729,7 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/page/size": return self.send(200, page_size(d))
             if u.path == "/api/page/controls": return self.send(200, page_controls(d))
             if u.path == "/api/page/click": return self.send(200, page_click(d))
+            if u.path == "/api/page/reveal": return self.send(200, page_reveal(d))
             if u.path == "/api/preview": return self.send(200, start_job(lambda p: preview(d, p)))
             if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
             if u.path == "/api/page/cancel": close_session(d.get("sid", "")); return self.send(200, {"ok": True})
@@ -747,7 +760,7 @@ label{display:block;margin:8px 0 2px;color:var(--m);font-size:12px}.two{display:
 .row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.row small{color:var(--m)}.row input{width:64px;padding:2px 4px;font-size:12px}.row button{padding:1px 6px}
 .bar{height:10px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}
 .sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:10px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600;font-size:13px}
-.pgp{border:1px solid var(--b);border-radius:10px;padding:8px;margin-top:8px}.row2{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}.row2 button{padding:4px 8px;font-size:12px}
+.pgp{border:1px solid var(--b);border-radius:10px;padding:8px;margin-top:8px}.sw2{display:inline-flex;border:1px solid var(--b);border-radius:999px;padding:2px;margin:6px 0;background:var(--bg)}.sw2 button{border:0;background:none;padding:5px 14px;border-radius:999px;font-size:12px;cursor:pointer;color:inherit}.sw2 button.on{background:var(--a,#0a84ff);color:#fff}.ci{display:flex;align-items:center;gap:6px;margin:3px 0}.ci label{flex:1;margin:0}.ci .go{padding:3px 8px;font-size:12px;white-space:nowrap}.row2{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}.row2 button{padding:4px 8px;font-size:12px}
 #ctl{max-height:220px;overflow:auto;margin:4px 0}#ctl label{display:flex;gap:6px;align-items:center;padding:2px;font-size:12px;margin:0;color:var(--t)}#ctl input{width:auto}#ctl small{color:var(--m)}
 #pdl,#pup{margin-top:10px}[hidden]{display:none!important}
 main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0e10}#vh{display:flex;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--b);background:var(--c);font-size:13px}#vt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -763,7 +776,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="adb" checked style="width:auto"> Block ads and trackers on web pages</label>
 <div class="hint" id="nb"></div>
 <div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div>
-<div class="row2"><button data-all="tick">Tick all</button><button data-all="untick">Untick all</button><button data-all="open">Show all</button><button data-all="close">Hide all</button></div>
+<div class="sw2" id="sa" title="Opens or closes every show/hide section on the page"><button data-sa="show" class="on">Show All</button><button data-sa="hide">Hide All</button></div>
 <div id="ctl"></div>
 <div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div>
 <div class="hint">The preview on the right updates after each change. Saving keeps exactly what you see.</div></div>
@@ -843,12 +856,13 @@ $("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("on")};$("dr
 $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.dataTransfer.files)};
 
 /* ---- opening a web page: live preview, tick/untick, then save as a PDF ---- */
-function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${esc(c.label)}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${esc(c.label)} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
-let rf=false,again=false,vmode="live",chunks=[];
+function drawCtl(){const rows=pg.controls.filter(c=>c.type!=="button").map(c=>`<div class="ci"><label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${esc(c.label)} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label><button class="go" data-go="${c.i}" title="Scroll the page to this item">Go to ⤵</button></div>`).join("");$("ctl").innerHTML=rows||"<small>No checkboxes or show/hide sections found on this page.</small>"}
+let rf=false,again=false,vmode="live",chunks=[],showAll=true;
 let shotGen=0,CH=1200,pgH=0;
-async function shot(focusY){const gen=++shotGen,lv=$("liveview");
+async function shot(focusY,scrollPx){const gen=++shotGen,lv=$("liveview");
  const sz=await api("/api/page/size",JSON.stringify({sid:pg.sid}));if(gen!==shotGen)return;CH=sz.chunk;const n=Math.ceil(sz.height/CH);
  if(lv.children.length!==n||pgH!==sz.height){const st=lv.scrollTop;lv.innerHTML=Array.from({length:n},(_,i)=>{const h=Math.min(CH,sz.height-i*CH);return`<div class="ck" data-ci="${i}" data-y="${i*CH}" data-h="${h}" style="aspect-ratio:1280/${h}"><img draggable="false" hidden></div>`}).join("");lv.scrollTop=st;pgH=sz.height}
+ if(scrollPx!=null)lv.scrollTop=scrollPx;
  $("empty").hidden=true;$("view").hidden=true;lv.hidden=false;$("vt").textContent="Click things on the page to show or hide them: "+(pg.title||pg.url);
  const k=lv.clientWidth/1280||1,focus=focusY!=null?focusY:(lv.scrollTop+lv.clientHeight/2)/k;
  const order=[...Array(n).keys()].sort((a,b)=>Math.abs(a*CH+CH/2-focus)-Math.abs(b*CH+CH/2-focus));
@@ -861,11 +875,15 @@ $("liveview").onclick=async e=>{const c=e.target.closest(".ck");if(!c||!pg)retur
  $("busy").hidden=false;c.style.outline="2px solid #ff9f0a";setTimeout(()=>c.style.outline="",250);
  try{await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));shot(y);api("/api/page/controls",JSON.stringify({sid:pg.sid})).then(j=>{if(pg){pg.controls=j.controls;drawCtl()}}).catch(()=>{})}catch(err){msg(err.message,"err");$("busy").hidden=true}};
 async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c){c.state=s.state;if(s.label)c.label=s.label}});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
-async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
+async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();await applyAll(showAll);msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
-$("ctl").onclick=e=>{const i=e.target.dataset.click;if(i!=null){const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:"button",v:/^(show|expand)/i.test(c.label)}])}};
-$("pgp").onclick=e=>{const a=e.target.dataset.all;if(!a||!pg)return;const on=a==="tick"||a==="open",sec=a==="open"||a==="close";setOps(pg.controls.filter(c=>sec?(c.type!=="checkbox"):c.type==="checkbox").map(c=>({i:c.i,kind:c.type,v:on})))};
+$("ctl").onclick=async e=>{const g=e.target.dataset.go;if(g==null||!pg)return;try{const r=await api("/api/page/reveal",JSON.stringify({sid:pg.sid,i:+g}));if(r.y==null){msg("That item is not on the page any more. Try Show All or reopen the page.","err");return}
+ if(vmode!=="live"){vmode="live";[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"))}
+ const k=$("liveview").clientWidth/1280||1;await shot(r.y,Math.max(0,r.y*k-60))}catch(err){msg(err.message,"err")}};
+function setSwitch(){[...$("sa").children].forEach(b=>b.classList.toggle("on",(b.dataset.sa==="show")===showAll))}
+async function applyAll(on){showAll=on;setSwitch();if(!pg)return;const ops=pg.controls.filter(c=>c.type!=="checkbox").map(c=>({i:c.i,kind:c.type,v:on}));if(ops.length)await setOps(ops)}
+$("sa").onclick=e=>{const v=e.target.dataset.sa;if(!v||!pg)return;applyAll(v==="show")};
 async function cancelPage(){const s=pg&&pg.sid;pg=null;$("vtabs").hidden=true;$("pgp").hidden=true;if(s)await api("/api/page/cancel",JSON.stringify({sid:s})).catch(()=>{});msg("");items.length?preview():blank("Add a PDF, or paste a web page address.")}
 $("pcan").onclick=cancelPage;
 $("psave").onclick=async()=>{$("psave").disabled=true;msg("Saving the page as a PDF…");try{const f=await job("/api/page/print",JSON.stringify({sid:pg.sid}));pg=null;$("vtabs").hidden=true;$("pgp").hidden=true;$("url").value="";items.push({...f,top:0,bottom:0});sel=items.length-1;draw();msg("Saved. Now press “Find them automatically” to remove its header and footer, then check the preview. Paste another address for the next page.","ok");prog(false);await preview()}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
