@@ -237,7 +237,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "21"
+APP_ID = "app-builder"; VERSION = "22"
 SRV = [None]
 
 
