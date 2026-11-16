@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""RulesForge Layout Studio: change how the app looks and is laid out, visually, for desktop, tablet and phone.
+"""RulesForge App Builder: change how the app looks and is laid out, visually, for desktop, tablet and phone.
 
-Run:  python layout_studio.py [path-to-your-RulesForge-folder]     (needs only Python 3; nothing to install)
+Run:  python app_builder.py [path-to-your-RulesForge-folder]     (needs only Python 3; nothing to install)
 It opens in your browser on this computer only. The real app runs inside the editor; click any part of it, change
 colours, sizes, spacing, visibility, layout, order and text, and watch it update. Save writes custom/custom.json in
-your RulesForge folder (the app reads it on load); Publish sends that one file to GitHub.
+your RulesForge folder (the app reads it on load); Publish sends that file and any pictures you added to GitHub.
 """
 import base64, json, mimetypes, os, re, sys, threading, urllib.error, urllib.request, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 GITHUB_API = os.environ.get("GITHUB_API", "https://api.github.com")
-CONFIG = Path.home() / ".rulesforge-layoutstudio.json"
+CONFIG = Path.home() / ".rulesforge-appbuilder.json"
 
 
 def find_app():
@@ -20,18 +20,21 @@ def find_app():
     for c in cands:
         if c and (Path(c) / "index.html").is_file() and (Path(c) / "js" / "main.js").is_file():
             return Path(c).resolve()
-    sys.exit("Layout Studio needs your RulesForge folder (the one containing index.html and js/).\nRun:  python layout_studio.py \"C:\\path\\to\\RulesForge\"")
+    sys.exit("App Builder needs your RulesForge folder (the one containing index.html and js/).\nRun:  python app_builder.py \"C:\\path\\to\\RulesForge\"")
 
 
 APP = find_app()
 CUSTOM = APP / "custom" / "custom.json"
-DEFAULT = {"version": 2, "css": "", "labels": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
+DEFAULT = {"version": 3, "css": "", "labels": [], "pages": [], "elements": [], "actions": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
+ASSETS = APP / "custom" / "assets"
+LISTS = ("labels", "pages", "elements", "actions")
 
 
 def load_custom():
     try:
         d = json.loads(CUSTOM.read_text("utf-8"))
-        d.setdefault("rules", DEFAULT["rules"]); d.setdefault("labels", []); d.setdefault("css", "")
+        d.setdefault("rules", DEFAULT["rules"]); d.setdefault("css", "")
+        for k in LISTS: d.setdefault(k, [])
         for k in DEFAULT["rules"]: d["rules"].setdefault(k, {})
         return d
     except Exception:
@@ -39,16 +42,42 @@ def load_custom():
 
 
 def save_custom(d):
-    if not isinstance(d, dict) or not isinstance(d.get("css", ""), str) or not isinstance(d.get("labels", []), list):
-        raise ValueError("That doesn't look like Layout Studio data.")
+    if not isinstance(d, dict) or not isinstance(d.get("css", ""), str) or any(not isinstance(d.get(k, []), list) for k in LISTS):
+        raise ValueError("That doesn't look like App Builder data.")
     if len(json.dumps(d)) > 2_000_000:
         raise ValueError("Too many changes in one file.")
-    out = {"version": 2, "css": d.get("css", ""), "labels": d.get("labels", []), "rules": d.get("rules", DEFAULT["rules"])}
+    out = {"version": 3, "css": d.get("css", ""), **{k: d.get(k, []) for k in LISTS}, "rules": d.get("rules", DEFAULT["rules"])}
     CUSTOM.parent.mkdir(parents=True, exist_ok=True)
     if CUSTOM.exists():
         CUSTOM.with_suffix(".json.bak").write_bytes(CUSTOM.read_bytes())
     tmp = CUSTOM.with_suffix(".tmp"); tmp.write_text(json.dumps(out, indent=1, ensure_ascii=False), "utf-8"); tmp.replace(CUSTOM)
     return out
+
+
+def save_asset(name, raw):
+    name = re.sub(r"[^\w.-]", "_", Path(name).name)[:80] or "image"
+    if not re.search(r"\.(png|jpe?g|gif|webp|svg)$", name, re.I):
+        raise ValueError("Use a PNG, JPG, GIF, WebP or SVG image.")
+    if len(raw) > 8_000_000:
+        raise ValueError("That image is over 8 MB; make it smaller first.")
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    (ASSETS / name).write_bytes(raw)
+    return {"src": f"custom/assets/{name}"}
+
+
+def put_file(cfg, head, rel, data, message):
+    url = f"{GITHUB_API}/repos/{cfg['repo']}/contents/" + "/".join(urllib.request.quote(p) for p in rel.split("/"))
+    sha = None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(f"{url}?ref={cfg['branch']}", headers=head)) as r: sha = json.load(r).get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404: raise RuntimeError(gh_error(e))
+    body = {"message": message, "content": base64.b64encode(data).decode(), "branch": cfg["branch"]}
+    if sha: body["sha"] = sha
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, json.dumps(body).encode(), {**head, "Content-Type": "application/json"}, method="PUT")): pass
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(gh_error(e))
 
 
 def publish(d):
@@ -62,20 +91,14 @@ def publish(d):
         CONFIG.write_text(json.dumps(cfg), "utf-8")
         try: CONFIG.chmod(0o600)
         except OSError: pass
-    save_custom(d["data"])
-    url = f"{GITHUB_API}/repos/{cfg['repo']}/contents/custom/custom.json"
-    head = {"Authorization": f"Bearer {cfg['token']}", "Accept": "application/vnd.github+json", "User-Agent": "rulesforge-layoutstudio"}
-    sha = None
-    try:
-        with urllib.request.urlopen(urllib.request.Request(f"{url}?ref={cfg['branch']}", headers=head)) as r: sha = json.load(r).get("sha")
-    except urllib.error.HTTPError as e:
-        if e.code != 404: raise RuntimeError(gh_error(e))
-    body = {"message": "Update look and layout (Layout Studio)", "content": base64.b64encode(CUSTOM.read_bytes()).decode(), "branch": cfg["branch"]}
-    if sha: body["sha"] = sha
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, json.dumps(body).encode(), {**head, "Content-Type": "application/json"}, method="PUT")): pass
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(gh_error(e))
+    saved = save_custom(d["data"])
+    head = {"Authorization": f"Bearer {cfg['token']}", "Accept": "application/vnd.github+json", "User-Agent": "rulesforge-appbuilder"}
+    msg = "Update the app design (App Builder)"
+    # Pictures first, so they are there when the page that shows them goes live.
+    for src in sorted({e.get("src") for e in saved["elements"] if str(e.get("src", "")).startswith("custom/assets/")}):
+        f = APP / src
+        if f.is_file(): put_file(cfg, head, src, f.read_bytes(), msg)
+    put_file(cfg, head, "custom/custom.json", CUSTOM.read_bytes(), msg)
     return {"published": f"{cfg['repo']}@{cfg['branch']}:custom/custom.json"}
 
 
@@ -99,7 +122,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.local(): return self.send(403, {"error": "local only"})
         p = self.path.split("?")[0]
-        if p == "/": return self.send(200, (HERE / "studio.html").read_bytes(), "text/html; charset=utf-8")
+        if p == "/": return self.send(200, (HERE / "builder.html").read_bytes(), "text/html; charset=utf-8")
         if p == "/api/custom": return self.send(200, load_custom())
         if p == "/api/info": return self.send(200, {"app": str(APP)})
         if p.startswith("/app/"):
@@ -115,6 +138,9 @@ class H(BaseHTTPRequestHandler):
         if not self.local(): return self.send(403, {"error": "local only"})
         raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         try:
+            if self.path.startswith("/api/asset"):
+                from urllib.parse import parse_qs, urlparse
+                return self.send(200, save_asset(parse_qs(urlparse(self.path).query).get("name", ["image"])[0], raw))
             d = json.loads(raw or b"{}")
             if self.path == "/api/custom": save_custom(d); return self.send(200, {"saved": str(CUSTOM)})
             if self.path == "/api/publish": return self.send(200, publish(d))
@@ -126,7 +152,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8960))
     srv = ThreadingHTTPServer(("127.0.0.1", port), H)
-    print(f"Layout Studio is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nEditing the app in: {APP}")
+    print(f"App Builder is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nEditing the app in: {APP}")
     if not os.environ.get("NO_BROWSER"): threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
     try: srv.serve_forever()
     except KeyboardInterrupt: pass
