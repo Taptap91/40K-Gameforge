@@ -370,7 +370,7 @@ class H(BaseHTTPRequestHandler):
 
     def send(self, code, body, ctype="application/json"):
         data = body if isinstance(body, bytes) else json.dumps(body).encode()
-        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+        self.send_response(code); self.send_header("Content-Type", ctype); self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
 
     def local(self):
         return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
@@ -425,7 +425,7 @@ input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);bo
 .row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:12px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600}#pdl,#pup{margin-top:10px}[hidden]{display:none!important}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
 label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hint{color:var(--m);font-size:12px;margin-top:3px}
 #msg{grid-column:1/-1;min-height:24px}.err{color:#ff6b6b}.ok{color:#5ddc8b}.cap{display:flex;gap:6px;margin-top:10px}.cap input{flex:1}
-</style><main><h1>PDF Studio<small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
+</style><main><h1>PDF Studio <span style="font-size:12px;color:var(--m)">v3 · merge button, progress bars, download/upload switch</span><small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
 <section><h2>1 · Pieces</h2>
 <div class="drop" id="drop">Drop PDFs here, or click to choose<input id="pick" type="file" accept="application/pdf" multiple hidden></div>
 <div class="cap"><input id="url" placeholder="Capture a web page: paste its address"><button id="grab">Capture</button></div>
@@ -499,7 +499,15 @@ fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("b
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8940))
-    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+    for attempt in range(25):   # an older copy may still be running on the same port; use the next free one
+        try:
+            srv = ThreadingHTTPServer(("127.0.0.1", port), H); break
+        except OSError:
+            port += 1
+    else:
+        raise SystemExit("Couldn't find a free port. Close other PDF Studio windows and try again.")
+    if port != int(os.environ.get("PORT", 8940)):
+        print("NOTE: an older PDF Studio is still open in another window; this new one is using a different address. Close the old window.")
     print(f"PDF Studio is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nSaving to: {OUT}")
     if not os.environ.get("NO_BROWSER"):
         threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
