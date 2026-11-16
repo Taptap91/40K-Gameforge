@@ -290,7 +290,7 @@ function render(){if(!doc){$("side").innerHTML="";return}scrLabel();if(tab==="la
   if(sel&&!editStyle&&!many){h+=`<h3>Selected</h3><div class="sel">${esc(curSel())}</div><div class="row"><button id="up">↑ Select the block around it</button></div>`;
    if(!custom)h+=`<label class="r"><input type="radio" name="sm" value="like" ${selMode==="like"&&like?"checked":""} ${like?"":"disabled"}><span>All like this${like?` (${count(like)} on this screen)`:""}</span></label><label class="r"><input type="radio" name="sm" value="one" ${selMode==="one"||!like?"checked":""}><span>Only this one</span></label>`;
    if(custom)h+=elHTML();
-   const li=labelFor(sel);if(li)h+=`<h3>Text</h3><div class="f"><label>Wording</label><input id="txt" value="${esc(li.to)}"></div><div class="hint">Changes this wording everywhere it appears in the same spot.</div>`;
+   const li=labelFor(sel);if(li)h+=`<h3>Text</h3><div class="f"><label>Wording</label><input id="txt" value="${esc(li.to)}"></div><div class="hint">Changes this wording everywhere it appears in the same spot. Clearing the box and leaving it puts the original back. A screen's heading is separate text from its menu button, so rename both if you want them to match.</div>`;
    h+=actionHTML();
    h+=`<details class="grp" ${openG.has("add")?"open":""} data-g="add"><summary>Add something</summary><div class="f"><label>Where</label><select id="pw">${[["","Automatically"],["end","Inside it, at the end"],["start","Inside it, at the start"],["before","Just before it"],["after","Just after it"]].map(([v,l])=>`<option value="${v}" ${placeWhere===v?"selected":""}>${l}</option>`).join("")}</select></div><div class="row">${Object.entries(TYPES).map(([k,v])=>`<button data-add="${k}">${v[0].split(" (")[0]}</button>`).join("")}</div></details>`;
    h+=`<details class="grp" ${openG.has("move")?"open":""} data-g="move"><summary>Order</summary>${arrangeable(sel)?`<div class="row"><button id="bk">◀ Earlier</button><button id="fw">Later ▶</button></div><div class="hint">Or drag the selected block onto another one in the app.</div>`:`<div class="hint">This block's container isn't a row, column or grid, so its order can't be changed. Select the block around it, or put the items in a Row or Column box. You can still use Free move under Position.</div>`}</details>`;
@@ -330,7 +330,7 @@ function wire(){const a=$("side");
  if($("zb"))$("zb").onclick=()=>{const z=parseInt(win.getComputedStyle(sel).zIndex)||0;if(win.getComputedStyle(sel).position==="static")setRule(null,"position","relative");setRule(null,"z-index",String(z-1));commit();render()};
  if($("apv"))$("apv").onclick=()=>{sel.style.animation="none";void sel.offsetWidth;sel.style.animation=""};
  if($("hide"))$("hide").onchange=e=>{setRule(null,"display",e.target.checked?"none":"");commit();render()};
- if($("txt")){$("txt").oninput=e=>setLabel(e.target.value);$("txt").onchange=()=>{commit();render()}}
+ if($("txt")){$("txt").oninput=e=>{if(e.target.value.trim())setLabel(e.target.value)};$("txt").onchange=()=>{if(!$("txt").value.trim())setLabel("");commit();render()}}
  if($("bk"))$("bk").onclick=()=>nudge(-1);if($("fw"))$("fw").onclick=()=>nudge(1);
  if($("clr"))$("clr").onclick=()=>{const s=curSel();for(const bk of Object.keys(data.rules))for(const suf of Object.values(SUF))delete data.rules[bk][s+suf];live();commit();render()};
  a.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const[bk,s]=b.dataset.rm.split("|");delete data.rules[bk][s];live();commit();render()});
