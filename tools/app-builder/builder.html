@@ -62,7 +62,8 @@ function blk(r){const pl=[],mo=[];for(const[s,p]of Object.entries(r)){const a=[]
 function genCSS(){const out=[],sr={};for(const st of data.styles)for(const a of data.applied.filter(x=>x.style===st.id))sr[a.sel]={...(sr[a.sel]||{}),...st.props};out.push(blk(sr),blk(data.rules.all));
  for(const d of["desktop","tablet","phone"]){const b=blk(data.rules[d]);if(b.trim())out.push(`${DEV[d].bp}{\n${b}\n}`)}return out.filter(x=>x.trim()).join("\n")}
 const payload=()=>({css:data.css,labels:data.labels,pages:data.pages,elements:data.elements,actions:data.actions});
-function live(){data.css=genCSS();win?.__rfCustomApply?.(payload());reselect();mark(true)}
+let saveT=null;function autoSave(){clearTimeout(saveT);saveT=setTimeout(async()=>{try{data.css=genCSS();await post("/api/custom",data);mark(false,"Saved automatically","ok")}catch(e){mark(true,e.message,"err")}},400)}
+function live(){data.css=genCSS();win?.__rfCustomApply?.(payload());reselect();mark(true,"Saving…");autoSave()}
 function reselect(){if(sel&&!sel.dataset?.rfEl&&!sel.isConnected&&selUid){const n=doc.querySelector(selUid);if(n){sel=n;n.setAttribute("data-rf-s","")}else sel=null}if(sel&&sel.dataset?.rfEl){const n=doc.querySelector(`[data-rf-el="${sel.dataset.rfEl}"]`);if(n){sel=n;n.setAttribute("data-rf-s","")}else sel=null}}
 function mark(d,msg,cls){dirty=d;const s=$("status");s.textContent=msg||(d?"Unsaved changes":"Saved");s.className=cls||(d?"dirty":"ok")}
 function commit(){const now=JSON.stringify(data);if(now!==committed){undoStack.push(committed);committed=now}$("undo").disabled=!undoStack.length}
