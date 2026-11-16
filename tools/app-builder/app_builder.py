@@ -57,9 +57,9 @@ def find_app():
 
 APP = find_app()
 CUSTOM = APP / "custom" / "custom.json"
-DEFAULT = {"version": 4, "css": "", "labels": [], "pages": [], "elements": [], "actions": [], "styles": [], "applied": [], "locks": [], "names": [], "groups": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
+DEFAULT = {"version": 4, "css": "", "labels": [], "pages": [], "elements": [], "actions": [], "styles": [], "applied": [], "locks": [], "names": [], "groups": [], "templates": [], "rules": {"all": {}, "desktop": {}, "tablet": {}, "phone": {}}}
 ASSETS = APP / "custom" / "assets"
-LISTS = ("labels", "pages", "elements", "actions", "styles", "applied", "locks", "names", "groups")
+LISTS = ("labels", "pages", "elements", "actions", "styles", "applied", "locks", "names", "groups", "templates")
 
 
 def load_custom():

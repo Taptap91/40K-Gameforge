@@ -53,6 +53,17 @@ or do nothing (this one button only). Also: remove or hide anything, rename text
   several together; **drag a layer** onto another to reorder it on the canvas (top edge before, bottom edge after,
   middle inside a box you added).
 
+## Screens, subpages and templates
+* **Screens ▾** (top bar) lists every screen, with subpages indented beneath their parent. Click one to go to it (the
+  preview switches and you can edit it straight away). Hover a row and press **＋ Add subpage** to add a page under it, to
+  any depth, on your own pages or on the app's built-in screens. **＋ Add page** at the bottom adds a top-level page.
+* In the app, a page with subpages shows buttons for them at the bottom, and each subpage shows a trail back up
+  (Section › Parent › This page). Subpages aren't added to the side menu unless you tick *In the menu*. In the side
+  panel's page list you can rename, re-parent ("Under: …"), hide the subpage buttons, or delete (a page's subpages go too).
+* **Templates:** when you add a page or subpage you choose what to start from: Blank, a starter (text, image, hub, army
+  page, quick reference) or your own. *Save this page as a template* keeps a page's content and design, filed under a
+  group name (use a game pack name). *Export my templates* / *Import templates* share them as one file between computers.
+
 ## Saving and publishing
 **Save** writes `custom/custom.json` (and any pictures in `custom/assets/`) in your RulesForge folder; the previous
 version is kept as `custom.json.bak`. Upload those to GitHub, or use **Publish to GitHub** (repository, branch,

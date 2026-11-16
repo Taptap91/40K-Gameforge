@@ -17,7 +17,8 @@ const ICONS = {
   book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 };
-const BASE_CSS = `.rf-page-body{position:relative;flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+const BASE_CSS = `.rf-subnav{margin:6px 18px 24px}.rf-subnav h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}.rf-subnav .list{display:flex;flex-wrap:wrap;gap:8px}.rf-crumbs{padding:6px 18px 0;font-size:13px;opacity:.9;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.rf-crumbs button{background:none;border:0;color:var(--accent,#0a84ff);cursor:pointer;padding:0;font:inherit}
+.rf-page-body{position:relative;flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .rf-el-row,.rf-el-col{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.rf-el-col{flex-direction:column}
 .rf-el-text,.rf-el-heading{margin:0}.rf-el-image{max-width:100%;height:auto;border-radius:8px}.rf-el-divider{width:100%;border:0;border-top:1px solid rgba(255,255,255,.15);margin:4px 0}.rf-el-space{height:24px;width:100%}
 .rf-el-rect{width:140px;height:90px;background:#0a84ff;border-radius:10px}.rf-el-ellipse{width:110px;height:110px;background:#0a84ff;border-radius:50%}.rf-el-line{width:160px;height:3px;background:#0a84ff;border-radius:2px}
@@ -86,6 +87,48 @@ function ensurePages() {
     }
     if (b) { const s = b.querySelector("span"); if (s.textContent !== p.title) s.textContent = p.title; if (p.menu === false) b.remove(); }
   }
+  ensureLinks();
+}
+/* subpages: a page with children lists them at its foot; a child shows a trail back up */
+const keyView = key => key.startsWith("view:") ? document.getElementById("view-" + key.slice(5)) : pageView(key);
+const keyTitle = key => key.startsWith("view:")
+  ? (document.querySelector(`.nav-item[data-view="${key.slice(5)}"]`)?.textContent || key.slice(5)).replace(/\s+/g, " ").trim()
+  : ((data.pages || []).find(p => p.id === key)?.title || "");
+function ensureLinks() {
+  const pages = data.pages || [];
+  const parents = new Set(pages.map(p => p.parent).filter(Boolean));
+  document.querySelectorAll(".rf-subnav,.rf-crumbs").forEach(n => { const v = n.parentElement; const k = v && (v.id.startsWith("view-rf-") ? v.id.slice(8) : "view:" + v.id.slice(5)); if (!(n.classList.contains("rf-subnav") ? parents.has(k) : pages.find(p => p.id === k && p.parent))) n.remove(); });
+  for (const key of parents) {
+    const v = keyView(key); if (!v) continue;
+    const kids = pages.filter(p => p.parent === key), page = pages.find(p => p.id === key);
+    if (page && page.links === false) { v.querySelector(":scope > .rf-subnav")?.remove(); continue; }
+    const sig = JSON.stringify(kids.map(k => [k.id, k.title]));
+    let n = v.querySelector(":scope > .rf-subnav");
+    if (!n) { n = document.createElement("nav"); n.className = "rf-subnav"; v.appendChild(n); }
+    if (n.dataset.sig !== sig) {
+      n.dataset.sig = sig; n.innerHTML = '<h3>In this section</h3><div class="list"></div>';
+      const l = n.querySelector(".list");
+      for (const k of kids) { const b = document.createElement("button"); b.type = "button"; b.className = "btn"; b.dataset.rfGo = k.id; b.textContent = k.title; l.appendChild(b); }
+    }
+  }
+  for (const p of pages) {
+    if (!p.parent) continue;
+    const v = pageView(p.id); if (!v) continue;
+    const trail = []; let k = p.parent, guard = 0;
+    while (k && guard++ < 20) { trail.unshift(k); k = (pages.find(x => x.id === k) || {}).parent; }
+    const sig = JSON.stringify([trail.map(keyTitle), p.title]);
+    let c = v.querySelector(":scope > .rf-crumbs");
+    if (!c) { c = document.createElement("div"); c.className = "rf-crumbs"; const h = v.querySelector(":scope > header"); h ? h.after(c) : v.prepend(c); }
+    if (c.dataset.sig !== sig) {
+      c.dataset.sig = sig; c.innerHTML = "";
+      trail.forEach(t => { const b = document.createElement("button"); b.type = "button"; b.dataset.rfGo = t; b.textContent = keyTitle(t); c.append(b, " › "); });
+      const e = document.createElement("b"); e.textContent = p.title; c.append(e);
+    }
+  }
+}
+function goKey(key) {
+  if (key.startsWith("view:")) { hidePages(); document.querySelector(`.nav-item[data-view="${key.slice(5)}"]`)?.click(); }
+  else openPage(key);
 }
 function hidePages() {
   current = null;
@@ -151,6 +194,8 @@ document.addEventListener("click", e => {
   if (running) return;
   const nb = e.target.closest?.("[data-rf-page]");
   if (nb && nb.classList.contains("rf-nav") && !window.__rfNoActions) { e.preventDefault(); e.stopImmediatePropagation(); openPage(nb.dataset.rfPage); return; }
+  const go = e.target.closest?.("[data-rf-go]");
+  if (go && !window.__rfNoActions) { e.preventDefault(); e.stopImmediatePropagation(); goKey(go.dataset.rfGo); return; }
   if (window.__rfNoActions) return;
   let act = null;
   const ce = e.target.closest?.("[data-rf-el]");
@@ -186,6 +231,7 @@ new MutationObserver(() => {
 }).observe(document.documentElement, { childList: true, subtree: true });
 window.__rfCustomApply = apply;
 window.__rfCustomOpenPage = openPage;
+window.__rfCustomGo = goKey;
 window.__rfCustomHidePages = hidePages;
 
 const studio = /[?&]studio=1/.test(location.search);   // inside App Builder the editor is in charge
