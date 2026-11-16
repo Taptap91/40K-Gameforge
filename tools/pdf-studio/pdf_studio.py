@@ -203,7 +203,7 @@ document.querySelectorAll('button,a,span,div,label,[role=button]').forEach(e=>{i
 if(t&&t.length<40&&/^(show|hide|expand|collapse)\b/i.test(t)&&!e.closest('summary'))add(e,'button',t,null)});
 cand.sort((a,b)=>a[0]===b[0]?0:(a[0].compareDocumentPosition(b[0])&4)?-1:1);   // the order they appear on the page
 return cand.slice(0,200).map(([e,type,l,st],i)=>{e.setAttribute('data-rf-c',i);return{i,type,label:l,state:st}})})()"""
-STATE_JS = r"""(()=>[...document.querySelectorAll('[data-rf-c]')].map(e=>({i:+e.getAttribute('data-rf-c'),state:e.matches('input')?e.checked:e.matches('details')?e.open:e.hasAttribute('aria-expanded')?e.getAttribute('aria-expanded')==='true':null})))()"""
+STATE_JS = r"""(()=>[...document.querySelectorAll('[data-rf-c]')].map(e=>({i:+e.getAttribute('data-rf-c'),state:e.matches('input')?e.checked:e.matches('details')?e.open:e.hasAttribute('aria-expanded')?e.getAttribute('aria-expanded')==='true':null,label:(e.textContent||'').replace(/\s+/g,' ').trim().slice(0,80)})))()"""
 
 
 def _set_js(ops):
@@ -763,7 +763,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="adb" checked style="width:auto"> Block ads and trackers on web pages</label>
 <div class="hint" id="nb"></div>
 <div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div>
-<div class="row2"><button data-all="tick">Tick all</button><button data-all="untick">Untick all</button><button data-all="open">Open all sections</button><button data-all="close">Close all sections</button></div>
+<div class="row2"><button data-all="tick">Tick all</button><button data-all="untick">Untick all</button><button data-all="open">Show all</button><button data-all="close">Hide all</button></div>
 <div id="ctl"></div>
 <div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div>
 <div class="hint">The preview on the right updates after each change. Saving keeps exactly what you see.</div></div>
@@ -860,7 +860,7 @@ $("vtabs").onclick=e=>{const v=e.target.dataset.vt;if(!v||!pg)return;vmode=v;[..
 $("liveview").onclick=async e=>{const c=e.target.closest(".ck");if(!c||!pg)return;const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*1280,y=+c.dataset.y+(e.clientY-r.top)/r.height*+c.dataset.h;
  $("busy").hidden=false;c.style.outline="2px solid #ff9f0a";setTimeout(()=>c.style.outline="",250);
  try{await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));shot(y);api("/api/page/controls",JSON.stringify({sid:pg.sid})).then(j=>{if(pg){pg.controls=j.controls;drawCtl()}}).catch(()=>{})}catch(err){msg(err.message,"err");$("busy").hidden=true}};
-async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
+async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c){c.state=s.state;if(s.label)c.label=s.label}});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
 async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
