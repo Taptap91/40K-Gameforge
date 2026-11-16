@@ -157,6 +157,26 @@ def watch(srv):
             srv.shutdown(); return
 
 
+APP_ID = "app-builder"; VERSION = "9"
+SRV = [None]
+
+
+def claim_port(port):
+    """If an older copy of THIS tool holds the port, ask it to quit and take its place. Never touches the other tool."""
+    base = f"http://127.0.0.1:{port}"
+    try: info = json.load(urllib.request.urlopen(base + "/api/id", timeout=1.5))
+    except Exception: return "free"
+    if not isinstance(info, dict) or info.get("app") != APP_ID: return "free"
+    if info.get("version") == VERSION: return "same"
+    try: urllib.request.urlopen(urllib.request.Request(base + "/api/quit", b"{}", {"X-RF-Quit": "1"}, method="POST"), timeout=2)
+    except Exception: pass
+    import time as _t
+    for _ in range(30):
+        _t.sleep(0.2)
+        try: urllib.request.urlopen(base + "/api/id", timeout=0.5)
+        except Exception: return "free"
+    return "busy"
+
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -169,6 +189,8 @@ class H(BaseHTTPRequestHandler):
     def local(self): return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
 
     def do_GET(self):
+        if self.path.split("?")[0] == "/api/id":
+            return self.send(200, {"app": APP_ID, "version": VERSION})
         if self.path.split("?")[0] == "/api/ping":
             import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
         if self.path.split("?")[0] == "/api/bye":
@@ -189,6 +211,9 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self.local(): return self.send(403, {"error": "local only"})
+        if self.path == "/api/quit":
+            if self.headers.get("X-RF-Quit") != "1": return self.send(403, {"error": "no"})
+            self.send(200, {"ok": True}); threading.Timer(0.3, lambda: SRV[0] and SRV[0].shutdown()).start(); return
         raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         try:
             if self.path.startswith("/api/asset"):
@@ -204,7 +229,15 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8960))
-    srv = ThreadingHTTPServer(("127.0.0.1", port), H)
+    if claim_port(port) == "same":   # already running this exact version: just open it
+        if not os.environ.get("NO_BROWSER"): webbrowser.open(f"http://127.0.0.1:{port}")
+        sys.exit(0)
+    for _ in range(25):   # an older copy may still hold the port; use the next free one
+        try: srv = ThreadingHTTPServer(("127.0.0.1", port), H); break
+        except OSError: port += 1
+    else:
+        alert("Couldn't find a free port. Close other App Builder windows and try again."); sys.exit(1)
+    SRV[0] = srv
     print(f"App Builder is running at http://127.0.0.1:{port}  (Ctrl+C to quit)\nEditing the app in: {APP}")
     if not os.environ.get("NO_BROWSER"): threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
     if not os.environ.get("NO_BROWSER"): threading.Thread(target=watch, args=(srv,), daemon=True).start()

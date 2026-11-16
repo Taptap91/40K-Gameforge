@@ -82,3 +82,6 @@ live once the app's files are published. Without the file, or with it empty, the
 
 ## Starting and stopping
 Double-click the Start file: no black window stays open, your browser opens the tool, and when you close the browser tab the program stops itself within a few seconds. Nothing else to close. (On Windows it also installs the one PDF library it needs the first time, if missing.)
+
+## Updating while the other tool is open
+PDF Studio and App Builder use separate addresses, so you can keep both open. Starting a newer version of one asks the older copy of *that same tool* to quit and takes its place, without touching the other tool. Starting the same version twice just reopens it. (Copies older than v9 can't be asked to quit, so the first time you may see a different address; close their tab and wait a few seconds, or end `python.exe`/`pythonw.exe` in Task Manager.)

@@ -55,3 +55,6 @@ Controls are on the left quarter; the right three quarters is a PDF viewer.
 
 ## Clicking the page itself (v8)
 After **Open**, the right side shows the live page as a picture you can click: press any show/hide button or checkbox right on it and the picture updates. Scroll it normally. The **PDF preview** tab shows what will be saved. Links are blocked so a stray click can't leave the page. The list on the left still works too.
+
+## Updating while the other tool is open
+PDF Studio and App Builder use separate addresses, so you can keep both open. Starting a newer version of one asks the older copy of *that same tool* to quit and takes its place, without touching the other tool. Starting the same version twice just reopens it. (Copies older than v9 can't be asked to quit, so the first time you may see a different address; close their tab and wait a few seconds, or end `python.exe`/`pythonw.exe` in Task Manager.)

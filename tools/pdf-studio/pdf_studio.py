@@ -614,6 +614,26 @@ def watch(srv):
             srv.shutdown(); return
 
 
+APP_ID = "pdf-studio"; VERSION = "9"
+SRV = [None]
+
+
+def claim_port(port):
+    """If an older copy of THIS tool holds the port, ask it to quit and take its place. Never touches the other tool."""
+    base = f"http://127.0.0.1:{port}"
+    try: info = json.load(urllib.request.urlopen(base + "/api/id", timeout=1.5))
+    except Exception: return "free"
+    if not isinstance(info, dict) or info.get("app") != APP_ID: return "free"
+    if info.get("version") == VERSION: return "same"
+    try: urllib.request.urlopen(urllib.request.Request(base + "/api/quit", b"{}", {"X-RF-Quit": "1"}, method="POST"), timeout=2)
+    except Exception: pass
+    import time as _t
+    for _ in range(30):
+        _t.sleep(0.2)
+        try: urllib.request.urlopen(base + "/api/id", timeout=0.5)
+        except Exception: return "free"
+    return "busy"
+
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -626,6 +646,8 @@ class H(BaseHTTPRequestHandler):
         return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
 
     def do_GET(self):
+        if self.path.split("?")[0] == "/api/id":
+            return self.send(200, {"app": APP_ID, "version": VERSION})
         if self.path.split("?")[0] == "/api/ping":
             import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
         if self.path.split("?")[0] == "/api/bye":
@@ -648,6 +670,9 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         if not self.local(): return self.send(403, {"error": "local only"})
+        if self.path == "/api/quit":
+            if self.headers.get("X-RF-Quit") != "1": return self.send(403, {"error": "no"})
+            self.send(200, {"ok": True}); threading.Timer(0.3, lambda: SRV[0] and SRV[0].shutdown()).start(); return
         n = int(self.headers.get("Content-Length", 0)); raw = self.rfile.read(n)
         try:
             if u.path == "/api/upload":
@@ -698,7 +723,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 #vtabs button{padding:3px 10px;font-size:12px}#vtabs button.on{background:var(--a);border-color:var(--a)}#liveview{flex:1;overflow:auto;background:#fff}#liveview img{display:block;width:100%;cursor:pointer}#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
 </style>
 <aside>
-<h1>PDF Studio <small>v8 · click the live page, per-file headers/footers</small></h1>
+<h1>PDF Studio <small>v9 · click the live page, per-file headers/footers</small></h1>
 <div id="stat"><div id="msg"></div><div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div></div>
 
 <details class="sec" open><summary>1 · Add a page or PDF</summary>
@@ -841,9 +866,13 @@ def _alert(text):
 
 def main():
     port = int(os.environ.get("PORT", 8940))
+    st = claim_port(port)
+    if st == "same":   # already running this exact version: just open it
+        if not os.environ.get("NO_BROWSER"): webbrowser.open(f"http://127.0.0.1:{port}")
+        return
     for attempt in range(25):   # an older copy may still be running on the same port; use the next free one
         try:
-            srv = ThreadingHTTPServer(("127.0.0.1", port), H); break
+            srv = ThreadingHTTPServer(("127.0.0.1", port), H); SRV[0] = srv; break
         except OSError:
             port += 1
     else:
