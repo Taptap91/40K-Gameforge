@@ -46,3 +46,9 @@ Double-click the Start file: no black window stays open, your browser opens the 
 
 ## Capturing web pages with their checkboxes
 Paste an address and press **Open page**. The page loads in a hidden browser and every checkbox and show/hide section found on it is listed. Tick or untick them individually, or use **Tick all / Untick all boxes** and **Open all / Close all sections**, then **Save this page as a PDF**. What you chose is exactly what gets printed. Pages that need a sign-in are not supported.
+
+## The new layout (v7)
+Controls are on the left quarter; the right three quarters is a PDF viewer.
+1. **Add** a PDF, or paste a web address and press **Open**. The page's checkboxes and sections are listed on the left; the viewer shows a live preview you can scroll, and it refreshes after each change. **Save this page as a PDF** keeps exactly what you see.
+2. Click any file in the list to view it. Header/footer sizes belong to the selected file: press **Find them automatically** and the viewer shows it with those bands removed. **Use for all files** copies the sizes to every file.
+3. Repeat for the next address or PDF. When done, **Merge**, check the merged PDF in the viewer, then **Download** or **Upload to GitHub**.

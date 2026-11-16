@@ -221,7 +221,7 @@ def open_page(d, progress):
     prof = WORK / f"profile-{uuid.uuid4().hex[:6]}"; prof.mkdir(parents=True, exist_ok=True)
     flags = {"creationflags": 0x08000000} if os.name == "nt" else {}
     proc = subprocess.Popen([browser, "--headless=new", "--disable-gpu", "--no-sandbox", f"--user-data-dir={prof}", "--remote-debugging-port=0", "--hide-scrollbars", "--window-size=1280,1600", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
-    sid = uuid.uuid4().hex[:8]; SESSIONS[sid] = {"proc": proc, "prof": prof, "ws": None, "t": time.time(), "url": url}
+    sid = uuid.uuid4().hex[:8]; SESSIONS[sid] = {"proc": proc, "prof": prof, "ws": None, "t": time.time(), "url": url, "lock": threading.Lock(), "n": 0}
     try:
         port = None
         for _ in range(100):
@@ -243,28 +243,48 @@ def open_page(d, progress):
         progress(90, 100, "Finding checkboxes and sections…")
         controls = ws.call("Runtime.evaluate", {"expression": SCAN_JS, "returnByValue": True})["result"].get("value", [])
         SESSIONS[sid]["t"] = time.time()
-        return {"sid": sid, "controls": controls, "title": ws.call("Runtime.evaluate", {"expression": "document.title", "returnByValue": True})["result"].get("value", "")}
+        progress(94, 100, "Creating the preview…")
+        pv = live_preview({"sid": sid})
+        return {"sid": sid, "preview": pv["url"], "controls": controls, "title": ws.call("Runtime.evaluate", {"expression": "document.title", "returnByValue": True})["result"].get("value", "")}
     except Exception:
         close_session(sid); raise
+
+
+def _pdf_bytes(ws, lazy=False):
+    if lazy:   # scroll to the bottom and back so lazy-loaded images and sections appear
+        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,document.body.scrollHeight)"}); time.sleep(0.8)
+        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,0)"})
+    r = ws.call("Page.printToPDF", {"printBackground": True, "displayHeaderFooter": False, "preferCSSPageSize": True}, timeout=300)
+    return base64.b64decode(r["data"])
+
+
+def live_preview(d):
+    s = SESSIONS.get(d.get("sid", ""))
+    if not s: raise RuntimeError("That page session ended. Open the page again.")
+    with s["lock"]:
+        s["n"] += 1; dest = WORK / f"live-{d['sid']}-{s['n']}.pdf"; dest.write_bytes(_pdf_bytes(s["ws"], s["n"] == 1))
+        if s["n"] > 3: (WORK / f"live-{d['sid']}-{s['n'] - 3}.pdf").unlink(missing_ok=True)
+    return {"url": f"/api/pdf?path={dest.name}"}
 
 
 def page_set(d):
     s = SESSIONS.get(d.get("sid", ""))
     if not s: raise RuntimeError("That page session ended. Open the page again.")
-    s["ws"].call("Runtime.evaluate", {"expression": _set_js(d.get("ops", [])), "returnByValue": True}); time.sleep(0.3)
-    return {"states": s["ws"].call("Runtime.evaluate", {"expression": STATE_JS, "returnByValue": True})["result"].get("value", [])}
+    with s["lock"]:
+        s["ws"].call("Runtime.evaluate", {"expression": _set_js(d.get("ops", [])), "returnByValue": True}); time.sleep(0.3)
+        return {"states": s["ws"].call("Runtime.evaluate", {"expression": STATE_JS, "returnByValue": True})["result"].get("value", [])}
 
 
 def print_page(d, progress):
     s = SESSIONS.get(d.get("sid", ""))
     if not s: raise RuntimeError("That page session ended. Open the page again.")
     try:
-        ws = s["ws"]; progress(15, 100, "Preparing the page…")
-        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,document.body.scrollHeight)"}); time.sleep(0.8)
-        ws.call("Runtime.evaluate", {"expression": "window.scrollTo(0,0)"}); progress(35, 100, "Creating the PDF…")
-        r = ws.call("Page.printToPDF", {"printBackground": True, "displayHeaderFooter": False, "preferCSSPageSize": True}, timeout=300)
+        progress(15, 100, "Preparing the page…")
+        with s["lock"]:
+            progress(35, 100, "Creating the PDF…")
+            data = _pdf_bytes(s["ws"], True)
         progress(90, 100, "Saving…")
-        dest = WORK / f"{uuid.uuid4().hex[:8]}.pdf"; dest.write_bytes(base64.b64decode(r["data"]))
+        dest = WORK / f"{uuid.uuid4().hex[:8]}.pdf"; dest.write_bytes(data)
         host = urlparse(s["url"]).netloc or "web page"
         return register(dest, f"{host} (web page)")
     finally:
@@ -356,6 +376,12 @@ def detect_bands(paths_pages, progress=None):
     return {"top": round(top, 1), "bottom": round(bot, 1), "found": sorted(set(found)), "pages": total}
 
 
+def band(v, default=0.0):
+    try: x = float(v) if v not in (None, "") else float(default)
+    except (TypeError, ValueError): x = float(default)
+    return max(0.0, min(40.0, x))
+
+
 def build(items, title, top=0.0, bottom=0.0, progress=None):
     w = PdfWriter(); every = 0; done = 0
     for it in items:
@@ -370,7 +396,7 @@ def build(items, title, top=0.0, bottom=0.0, progress=None):
         first = len(w.pages)
         for i in idx:
             w.add_page(r.pages[i])
-            clear_bands(w.pages[-1], top, bottom)
+            clear_bands(w.pages[-1], band(it.get("top"), top), band(it.get("bottom"), bottom))
             done += 1
             if progress: progress(done, every, f"Merging page {done} of {every}")
         if len(items) > 1 and idx:
@@ -412,6 +438,17 @@ def start_job(fn):
         JOBS[jid]["done"] = True
     threading.Thread(target=run, daemon=True).start()
     return {"job": jid}
+
+
+PREV = []
+
+
+def preview(d, progress):
+    """The selected file as it will be merged (page range and header/footer removal applied), for the viewer."""
+    w = build([d["item"]], "Preview", progress=progress)
+    dest = WORK / f"pv-{uuid.uuid4().hex[:8]}.pdf"; w.write(str(dest)); PREV.append(dest)
+    while len(PREV) > 4: PREV.pop(0).unlink(missing_ok=True)
+    return {"url": f"/api/pdf?path={dest.name}", "pages": len(w.pages)}
 
 
 def merge(d, progress):
@@ -589,6 +626,8 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/capture": return self.send(200, capture(d.get("url", "").strip()))
             if u.path == "/api/page/open": return self.send(200, start_job(lambda p: open_page(d, p)))
             if u.path == "/api/page/set": return self.send(200, page_set(d))
+            if u.path == "/api/page/preview": return self.send(200, live_preview(d))
+            if u.path == "/api/preview": return self.send(200, start_job(lambda p: preview(d, p)))
             if u.path == "/api/page/print": return self.send(200, start_job(lambda p: print_page(d, p)))
             if u.path == "/api/page/cancel": close_session(d.get("sid", "")); return self.send(200, {"ok": True})
             if u.path == "/api/save": return self.send(200, save(d))
@@ -603,98 +642,153 @@ class H(BaseHTTPRequestHandler):
 PAGE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RulesForge PDF Studio</title><style>
 :root{color-scheme:dark;--bg:#1c1c1e;--c:#2a2a2d;--b:#3a3a3e;--t:#f2f2f4;--m:#9a9aa2;--a:#0a84ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.4 system-ui,sans-serif}
-main{max-width:1000px;margin:0 auto;padding:20px;display:grid;gap:18px;grid-template-columns:1fr 1fr}@media(max-width:800px){main{grid-template-columns:1fr}}
-h1{grid-column:1/-1;margin:0;font-size:22px}h1 small{color:var(--m);font-weight:400;font-size:13px;margin-left:8px}
-section{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:16px}h2{margin:0 0 10px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--m)}
-.drop{border:2px dashed var(--b);border-radius:10px;padding:22px;text-align:center;color:var(--m);cursor:pointer}.drop.on{border-color:var(--a);color:var(--t)}
-.row{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:6px 8px;margin-top:8px}
-.row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row small{color:var(--m)}
-input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px}input,select,textarea{width:100%}
-.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:12px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600}#pdl,#pup{margin-top:10px}[hidden]{display:none!important}.pgp{border:1px solid var(--b);border-radius:10px;padding:10px;margin:8px 0}.row2{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.row2 button{padding:5px 9px;font-size:13px}#ctl{max-height:260px;overflow:auto;margin:6px 0}#ctl label{display:flex;gap:8px;align-items:center;padding:3px 2px;font-size:13px}#ctl input{width:auto}#ctl small{color:var(--m)}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
-label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hint{color:var(--m);font-size:12px;margin-top:3px}
-#msg{grid-column:1/-1;min-height:24px}.err{color:#ff6b6b}.ok{color:#5ddc8b}.cap{display:flex;gap:6px;margin-top:10px}.cap input{flex:1}
-</style><main><h1>PDF Studio <span style="font-size:12px;color:var(--m)">v5 · page checkboxes, merge, progress bars</span><small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
-<section><h2>1 · Pieces</h2>
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--t);font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-columns:minmax(330px,25%) 1fr;overflow:hidden}
+@media(max-width:760px){body{grid-template-columns:1fr;grid-template-rows:auto 55vh;overflow:auto}}
+aside{overflow-y:auto;border-right:1px solid var(--b);background:var(--c);padding:0 12px 24px}
+h1{margin:0;font-size:17px;padding:12px 0 2px}h1 small{display:block;color:var(--m);font-weight:400;font-size:11px}
+#stat{position:sticky;top:0;z-index:5;background:var(--c);padding:8px 0;border-bottom:1px solid var(--b);margin-bottom:6px}
+#msg{min-height:20px;font-size:13px}.err{color:#ff6b6b}.ok{color:#5ddc8b}
+details.sec{border-bottom:1px solid var(--b);padding:6px 0}details.sec>summary{cursor:pointer;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--m);padding:6px 0;font-weight:600}
+.drop{border:2px dashed var(--b);border-radius:10px;padding:14px;text-align:center;color:var(--m);cursor:pointer;font-size:13px}.drop.on{border-color:var(--a);color:var(--t)}
+input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:6px 8px}input,select,textarea{width:100%}button{cursor:pointer}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5;cursor:default}
+label{display:block;margin:8px 0 2px;color:var(--m);font-size:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hint{color:var(--m);font-size:12px;margin-top:3px}
+.cap{display:flex;gap:6px;margin-top:8px}.cap input{flex:1;min-width:0}
+.row{display:flex;gap:4px;align-items:center;background:var(--bg);border:2px solid var(--b);border-radius:8px;padding:4px 6px;margin-top:6px;cursor:pointer}.row.on{border-color:var(--a)}
+.row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.row small{color:var(--m)}.row input{width:64px;padding:2px 4px;font-size:12px}.row button{padding:1px 6px}
+.bar{height:10px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}
+.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:10px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600;font-size:13px}
+.pgp{border:1px solid var(--b);border-radius:10px;padding:8px;margin-top:8px}.row2{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}.row2 button{padding:4px 8px;font-size:12px}
+#ctl{max-height:220px;overflow:auto;margin:4px 0}#ctl label{display:flex;gap:6px;align-items:center;padding:2px;font-size:12px;margin:0;color:var(--t)}#ctl input{width:auto}#ctl small{color:var(--m)}
+#pdl,#pup{margin-top:10px}[hidden]{display:none!important}
+main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0e10}#vh{display:flex;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--b);background:var(--c);font-size:13px}#vt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
+</style>
+<aside>
+<h1>PDF Studio <small>v7 · live page preview, per-file headers/footers</small></h1>
+<div id="stat"><div id="msg"></div><div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div></div>
+
+<details class="sec" open><summary>1 · Add a page or PDF</summary>
 <div class="drop" id="drop">Drop PDFs here, or click to choose<input id="pick" type="file" accept="application/pdf" multiple hidden></div>
-<div class="cap"><input id="url" placeholder="Capture a web page: paste its address"><button id="grab">Open page</button></div>
-<div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div><div class="row2"><button data-all="tick">Tick all boxes</button><button data-all="untick">Untick all boxes</button><button data-all="open">Open all sections</button><button data-all="close">Close all sections</button></div><div id="ctl"></div><div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div></div>
-<div class="hint" id="nb"></div><div id="list"></div>
-<div class="hint">Merged top to bottom. Use ↑ ↓ to reorder. Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div></section>
-<section><h2>2 · Name it</h2>
+<div class="cap"><input id="url" placeholder="…or paste a web page address"><button id="grab">Open</button></div>
+<div class="hint" id="nb"></div>
+<div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div>
+<div class="row2"><button data-all="tick">Tick all</button><button data-all="untick">Untick all</button><button data-all="open">Open all sections</button><button data-all="close">Close all sections</button></div>
+<div id="ctl"></div>
+<div class="row2"><button class="p" id="psave">Save this page as a PDF</button><button id="pcan">Cancel</button></div>
+<div class="hint">The preview on the right updates after each change. Saving keeps exactly what you see.</div></div>
+</details>
+
+<details class="sec" open><summary>2 · Files (click one to view it)</summary>
+<div id="list"></div><div class="hint" id="lh">Merged top to bottom. ↑ ↓ reorder. Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div>
+</details>
+
+<details class="sec" open><summary>3 · Headers and footers</summary>
+<div class="hint" id="sf">Click a file in the list first.</div>
+<div class="two"><div><label>Top %</label><input id="top" type="number" min="0" max="40" step="0.5" placeholder="0" disabled></div><div><label>Bottom %</label><input id="bot" type="number" min="0" max="40" step="0.5" placeholder="0" disabled></div></div>
+<div class="row2"><button id="det" disabled>Find them automatically</button><button id="allb" disabled>Use for all files</button></div><div class="hint" id="detout"></div>
+<div class="hint">The text inside these bands is deleted from the PDF, not just covered. The viewer shows the result so you can check it, then adjust the numbers if real text is too close to the edge.</div>
+</details>
+
+<details class="sec" open><summary>4 · Name it</summary>
 <div class="two"><div><label>Game</label><input id="game" list="games" placeholder="Warhammer 40K"><datalist id="games"></datalist></div>
 <div><label>Edition</label><input id="ed" list="eds" placeholder="11th Edition"><datalist id="eds"></datalist></div></div>
 <label>Type: where it shows in the Game Pack</label><select id="type"></select>
 <label>Title: what the app calls it</label><input id="title" placeholder="Codex: Space Marines">
 <div id="facw"><label>Faction (for an army)</label><input id="fac" placeholder="Space Marines"></div>
 <div id="kw" hidden><label>Rules kind</label><select id="rk"><option value="core">Core Rules</option><option value="updates">Update / FAQ / errata</option></select></div>
-<label>Remove headers and footers (website address, date, page numbers…)</label>
-<div class="two"><div><input id="top" type="number" min="0" max="40" step="0.5" placeholder="Top % of page"></div><div><input id="bot" type="number" min="0" max="40" step="0.5" placeholder="Bottom % of page"></div></div>
-<div style="margin-top:6px"><button id="det">Find them automatically</button> <span class="hint" id="detout"></span></div>
-<div class="hint">The text inside these bands is deleted from the saved PDF, not just covered. Detect looks in the outer 7% of each page for lines repeated on most pages and fills the sizes in. Check the result, then adjust the numbers if real text is too close to the edge.</div>
 <div class="two"><div><label>Version (optional)</label><input id="ver" placeholder="2026-11"></div><div><label>Note (optional)</label><input id="desc"></div></div>
-<div style="margin-top:16px"><button class="p" id="mg" style="width:100%">1 · Merge the PDFs</button></div>
-<div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div>
+</details>
+
+<details class="sec" open><summary>5 · Merge, then send</summary>
+<button class="p" id="mg" style="width:100%">Merge the PDFs</button>
 <div class="hint" id="mres">Merge first; then choose to download it or upload it.</div>
 <div class="sw" id="sw" data-v="down"><i></i><button data-s="down">Download</button><button data-s="up">Upload to GitHub</button></div>
-<div id="pdl"><button class="p" id="dl" style="width:100%" disabled>2 · Download PDF</button></div>
+<div id="pdl"><button class="p" id="dl" style="width:100%" disabled>Download PDF</button></div>
 <div id="pup" hidden>
 <input type="checkbox" id="up" checked hidden>
 <div class="two"><div><label>Repository</label><input id="repo" value="Taptap91/40k-gameforge"></div><div><label>Branch</label><input id="br" value="game-packs"></div></div>
 <label>Token <span id="tkn"></span></label><input id="tok" type="password" autocomplete="off" placeholder="GitHub token with Contents: read and write">
-<label><input type="checkbox" id="rem" style="width:auto"> Remember on this computer</label>
-<div style="margin-top:8px"><button id="load">Load folders from GitHub</button></div>
-<label>Destination <small>(only folders that exist under packs/incoming)</small></label><select id="dest" disabled><option>Load the folders first</option></select>
+<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="rem" style="width:auto"> Remember on this computer</label>
+<div style="margin-top:6px"><button id="load">Load folders from GitHub</button></div>
+<label>Destination <small>(only folders under packs/incoming)</small></label><select id="dest" disabled><option>Load the folders first</option></select>
 <div class="hint" id="path"></div>
-<div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div><button class="p" id="save" style="width:100%;margin-top:12px" disabled>2 · Upload to GitHub</button></div>
-<div class="hint" id="out"></div></section><div id="msg"></div></main>
+<div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only goes to github.com.</div>
+<button class="p" id="save" style="width:100%;margin-top:10px" disabled>Upload to GitHub</button></div>
+<div class="hint" id="out"></div>
+</details>
+</aside>
+<main><div id="vh"><span id="vt">Nothing to show yet</span><span id="busy" hidden>Updating the preview…</span></div>
+<div id="empty">Add a PDF, or paste a web page address.<br>It will appear here so you can check it.</div><iframe id="view" hidden></iframe></main>
 <script>
 setInterval(()=>fetch("/api/ping").catch(()=>{}),3000);fetch("/api/ping").catch(()=>{});addEventListener("pagehide",()=>navigator.sendBeacon&&navigator.sendBeacon("/api/bye"));
-const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],info={games:{}};
+const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],sel=-1,info={games:{}},pg=null,merged=null,sig="",remote=null;
 $("type").innerHTML=Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${k} · ${v}</option>`).join("");
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const msg=(t,c)=>{$("msg").innerHTML=`<span class="${c||""}">${t}</span>`};
 const api=async(p,b)=>{const r=await fetch(p,{method:"POST",body:b});const j=await r.json();if(!r.ok)throw Error(j.error);return j};
-function draw(){$("list").innerHTML=items.map((f,i)=>`<div class="row"><span class="n">${f.name} <small>${f.pages}p</small></span><input data-r="${i}" value="${f.range||""}" placeholder="all pages"><button data-u="${i}">↑</button><button data-d="${i}">↓</button><button data-x="${i}">✕</button></div>`).join("")}
-$("list").onclick=e=>{const g=k=>e.target.dataset[k];if(g("x")!=null)items.splice(+g("x"),1);else if(g("u")>0)[items[g("u")-1],items[g("u")]]=[items[g("u")],items[g("u")-1]];else if(g("d")!=null&&g("d")<items.length-1)[items[+g("d")+1],items[+g("d")]]=[items[+g("d")],items[+g("d")+1]];else return;draw()};
-$("list").oninput=e=>{if(e.target.dataset.r!=null)items[e.target.dataset.r].range=e.target.value};
-async function add(files){for(const f of files){if(!/pdf$/i.test(f.name)){msg(`${f.name} isn't a PDF`,"err");continue}msg(`Reading ${f.name}…`);try{items.push(await api("/api/upload?name="+encodeURIComponent(f.name),f))}catch(e){msg(e.message,"err")}}draw();msg("")}
+const prog=(on,pct,label)=>{$("bar").hidden=!on;$("barf").style.width=pct+"%";$("barl").textContent=on?`${pct}%  ${label||""}`:""};
+async function job(path,body){const {job:id}=await api(path,body);for(;;){const j=await (await fetch("/api/job?id="+id)).json();prog(true,j.pct,j.label);if(j.done){if(j.error)throw Error(j.error);return j.result}await new Promise(r=>setTimeout(r,250))}}
+function show(url,label){$("empty").hidden=true;$("view").hidden=false;$("view").src=url+"#toolbar=1&navpanes=0&view=FitH";$("vt").textContent=label}
+function blank(t){$("view").hidden=true;$("view").removeAttribute("src");$("empty").hidden=false;$("empty").innerHTML=t;$("vt").textContent="Nothing to show yet"}
+
+/* ---- files list and per-file headers/footers ---- */
+function draw(){$("list").innerHTML=items.map((f,i)=>`<div class="row ${i===sel?"on":""}" data-s="${i}"><span class="n" data-s="${i}">${esc(f.name)} <small>${f.pages}p${f.top||f.bottom?` · −${f.top||0}%/−${f.bottom||0}%`:""}</small></span><input data-r="${i}" value="${esc(f.range||"")}" placeholder="all pages"><button data-u="${i}">↑</button><button data-d="${i}">↓</button><button data-x="${i}">✕</button></div>`).join("");
+ const f=items[sel];$("top").disabled=$("bot").disabled=$("det").disabled=!f;$("allb").disabled=!f;$("top").value=f?f.top||"":"";$("bot").value=f?f.bottom||"":"";$("sf").textContent=f?`For: ${f.name}`:"Click a file in the list first."}
+$("list").onclick=e=>{const g=k=>e.target.dataset[k];
+ if(g("x")!=null){const i=+g("x");items.splice(i,1);sel=Math.min(sel>i?sel-1:sel,items.length-1);draw();items.length?(sel>=0&&preview()):blank("Add a PDF, or paste a web page address.");return}
+ if(g("u")>0){const i=+g("u");[items[i-1],items[i]]=[items[i],items[i-1]];if(sel===i)sel--;else if(sel===i-1)sel++;draw();return}
+ if(g("d")!=null){const i=+g("d");if(i<items.length-1){[items[i+1],items[i]]=[items[i],items[i+1]];if(sel===i)sel++;else if(sel===i+1)sel--;draw()}return}
+ if(g("s")!=null&&e.target.tagName!=="INPUT"){choose(+g("s"))}};
+$("list").oninput=e=>{if(e.target.dataset.r!=null){items[e.target.dataset.r].range=e.target.value;if(+e.target.dataset.r===sel)later()}};
+function choose(i){if(pg)return msg("Save or cancel the open web page first.","err");sel=i;draw();preview()}
+let pt=null;const later=()=>{clearTimeout(pt);pt=setTimeout(preview,700)};
+async function preview(){const f=items[sel];if(!f||pg)return;$("busy").hidden=false;try{const r=await job("/api/preview",JSON.stringify({item:{id:f.id,range:f.range||"",top:f.top||0,bottom:f.bottom||0}}));if(items[sel]===f){show(r.url,`${f.name} · ${r.pages} pages${f.top||f.bottom?" · headers/footers removed":""}`)}}catch(e){msg(e.message,"err")}prog(false);$("busy").hidden=true}
+$("top").oninput=$("bot").oninput=()=>{const f=items[sel];if(!f)return;f.top=+$("top").value||0;f.bottom=+$("bot").value||0;later();gate()};
+$("det").onclick=async()=>{const f=items[sel];if(!f)return;$("det").disabled=true;msg("Looking for repeated header and footer lines…");try{const r=await job("/api/detect",JSON.stringify({items:[{id:f.id,range:f.range||""}]}));f.top=r.top||0;f.bottom=r.bottom||0;$("detout").textContent=r.found.length?"Found: "+r.found.join(" · "):"Nothing repeated found.";msg("Search finished. Check the preview on the right.","ok");draw();await preview()}catch(e){msg(e.message,"err")}prog(false);$("det").disabled=false;gate()};
+$("allb").onclick=()=>{const f=items[sel];if(!f)return;items.forEach(x=>{x.top=f.top||0;x.bottom=f.bottom||0});draw();msg("Same header/footer sizes set for every file.","ok");gate()};
+async function add(files){for(const f of files){if(!/pdf$/i.test(f.name)){msg(`${f.name} isn't a PDF`,"err");continue}msg(`Reading ${f.name}…`);try{items.push({...await api("/api/upload?name="+encodeURIComponent(f.name),f),top:0,bottom:0});sel=items.length-1}catch(e){msg(e.message,"err")}}draw();msg("");if(!pg)preview()}
 $("drop").onclick=()=>$("pick").click();$("pick").onchange=e=>add(e.target.files);
 $("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("on")};$("drop").ondragleave=()=>$("drop").classList.remove("on");
 $("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("on");add(e.dataTransfer.files)};
-let pg=null;
-function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${c.label}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${c.label} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
-async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl()}catch(e){msg(e.message,"err")}}
-$("grab").onclick=async()=>{const u=$("url").value.trim();if(!u)return;$("grab").disabled=true;msg("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));$("pgt").textContent=`Opened: ${pg.title||u}. Choose what should show, then save.`;drawCtl();$("pgp").hidden=false;msg("Page ready.","ok")}catch(e){msg(e.message,"err")}prog(false);$("grab").disabled=false};
+
+/* ---- opening a web page: live preview, tick/untick, then save as a PDF ---- */
+function drawCtl(){$("ctl").innerHTML=pg.controls.map(c=>c.type==="button"?`<label><button data-click="${c.i}">${esc(c.label)}</button> <small>(button on the page)</small></label>`:`<label><input type="checkbox" data-c="${c.i}" ${c.state?"checked":""}> ${esc(c.label)} <small>${c.type==="checkbox"?"checkbox":"section"}</small></label>`).join("")||"<small>No checkboxes or show/hide sections found on this page.</small>"}
+let rf=false,again=false;
+async function refresh(){if(!pg)return;if(rf){again=true;return}rf=true;$("busy").hidden=false;try{do{again=false;const r=await api("/api/page/preview",JSON.stringify({sid:pg.sid}));if(pg)show(r.url,"Live preview of "+(pg.title||pg.url))}while(again&&pg)}catch(e){msg(e.message,"err")}rf=false;$("busy").hidden=true}
+async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
+async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Tick boxes and open or close sections below; scroll the preview on the right to check.`;drawCtl();$("pgp").hidden=false;show(pg.preview,"Live preview of "+(pg.title||u));msg("Page ready. Choose what should show, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
+$("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
 $("ctl").onclick=e=>{const i=e.target.dataset.click;if(i!=null){const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:"button",v:/^(show|expand)/i.test(c.label)}])}};
 $("pgp").onclick=e=>{const a=e.target.dataset.all;if(!a||!pg)return;const on=a==="tick"||a==="open",sec=a==="open"||a==="close";setOps(pg.controls.filter(c=>sec?(c.type!=="checkbox"):c.type==="checkbox").map(c=>({i:c.i,kind:c.type,v:on})))};
-$("pcan").onclick=async()=>{if(pg)await api("/api/page/cancel",JSON.stringify({sid:pg.sid}));pg=null;$("pgp").hidden=true;msg("")};
-$("psave").onclick=async()=>{$("psave").disabled=true;msg("Creating the PDF…");try{items.push(await job("/api/page/print",JSON.stringify({sid:pg.sid})));pg=null;$("pgp").hidden=true;$("url").value="";draw();msg("Page added to the list.","ok")}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
-let remote=null;
+async function cancelPage(){const s=pg&&pg.sid;pg=null;$("pgp").hidden=true;if(s)await api("/api/page/cancel",JSON.stringify({sid:s})).catch(()=>{});msg("");items.length?preview():blank("Add a PDF, or paste a web page address.")}
+$("pcan").onclick=cancelPage;
+$("psave").onclick=async()=>{$("psave").disabled=true;msg("Saving the page as a PDF…");try{const f=await job("/api/page/print",JSON.stringify({sid:pg.sid}));pg=null;$("pgp").hidden=true;$("url").value="";items.push({...f,top:0,bottom:0});sel=items.length-1;draw();msg("Saved. Now press “Find them automatically” to remove its header and footer, then check the preview. Paste another address for the next page.","ok");prog(false);await preview()}catch(e){msg(e.message,"err")}prog(false);$("psave").disabled=false};
+
+/* ---- naming and the Game Pack destination ---- */
 function dests(){const o=[];for(const[g,es]of Object.entries(remote.games)){if(!es.length)o.push([g,""]);es.forEach(e=>o.push([g,e]))}return o}
 $("load").onclick=async()=>{msg("Reading the repository…");try{remote=await api("/api/remote",JSON.stringify({repo:$("repo").value,branch:$("br").value,token:$("tok").value}));const o=dests();
-$("dest").innerHTML=o.map(([g,e],i)=>`<option value="${i}">${g}${e?" / "+e:" (no edition yet)"}</option>`).join("")+`<option value="new">＋ New Game Pack…</option>`;$("dest").disabled=false;$("up").checked=true;pick();msg("Folders loaded.","ok")}catch(e){msg(e.message,"err")}};
-function paint(){$("path").textContent=$("dest").value==="new"?"A new Game Pack: type its Game and Edition on the left. The folders are created when you upload.":"Uploads to packs/incoming/"+$("game").value+"/"+($("ed").value||"…")+"/"+$("type").value+"/"}
-function pick(){const v=$("dest").value,fresh=v==="new";$("game").readOnly=!fresh;$("ed").readOnly=!fresh;
+$("dest").innerHTML=o.map(([g,e],i)=>`<option value="${i}">${g}${e?" / "+e:" (no edition yet)"}</option>`).join("")+`<option value="new">＋ New Game Pack…</option>`;$("dest").disabled=false;$("up").checked=true;pickDest();msg("Folders loaded.","ok")}catch(e){msg(e.message,"err")}};
+function paint(){$("path").textContent=$("dest").value==="new"?"A new Game Pack: type its Game and Edition above. The folders are created when you upload.":"Uploads to packs/incoming/"+$("game").value+"/"+($("ed").value||"…")+"/"+$("type").value+"/"}
+function pickDest(){const v=$("dest").value,fresh=v==="new";$("game").readOnly=!fresh;$("ed").readOnly=!fresh;
 if(!fresh){const[g,e]=dests()[+v];$("game").value=g;$("ed").value=e;$("ed").readOnly=!!e}else{$("game").value=$("ed").value="";$("game").focus()}paint()}
-$("dest").onchange=pick;for(const id of["type","game","ed"])$(id).addEventListener("input",()=>{if(remote)paint()});$("type").addEventListener("change",()=>{if(remote)paint()});
+$("dest").onchange=pickDest;for(const id of["type","game","ed"])$(id).addEventListener("input",()=>{if(remote)paint()});$("type").addEventListener("change",()=>{if(remote)paint()});
 function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
 $("type").onchange=$("game").oninput=sync;
-const form=m=>({top:$("top").value,bottom:$("bot").value,github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||""})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
-let merged=null,sig="";
-const prog=(on,pct,label)=>{$("bar").hidden=!on;$("barf").style.width=pct+"%";$("barl").textContent=on?`${pct}%  ${label||""}`:""};
-async function job(path,body,done){const {job:id}=await api(path,body);for(;;){const j=await (await fetch("/api/job?id="+id)).json();prog(true,j.pct,j.label);if(j.done){if(j.error)throw Error(j.error);return j.result}await new Promise(r=>setTimeout(r,250))}}
-const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||""]),$("top").value,$("bot").value,$("title").value]);
+const form=m=>({github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||"",top:i.top||0,bottom:i.bottom||0})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
+
+/* ---- merge, then download or upload ---- */
+const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||"",i.top||0,i.bottom||0]),$("title").value]);
 function mode(v){$("sw").dataset.v=v;$("pdl").hidden=v!=="down";$("pup").hidden=v!=="up"}
 $("sw").onclick=e=>{const v=e.target.dataset.s;if(v)mode(v)};
 function gate(){const ok=merged&&sig===signature();$("save").disabled=$("dl").disabled=!ok;if(merged&&!ok)$("mres").textContent="Something changed since the merge: merge again before downloading or uploading."}
 document.addEventListener("input",()=>setTimeout(gate,0));document.addEventListener("click",()=>setTimeout(gate,0));
-$("mg").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("mg").disabled=true;merged=null;gate();prog(true,0,"Starting…");try{const r=await job("/api/merge",JSON.stringify(form("download")));merged=r.merged;sig=signature();$("mres").textContent=`Merged ${r.pages} pages (${r.mb}). Now download it or upload it.`;msg("Merge finished.","ok");gate()}catch(e){msg(e.message,"err");prog(false)}$("mg").disabled=false};
+$("mg").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("mg").disabled=true;merged=null;gate();prog(true,0,"Starting…");try{const r=await job("/api/merge",JSON.stringify(form("download")));merged=r.merged;sig=signature();$("mres").textContent=`Merged ${r.pages} pages (${r.mb}). Now download it or upload it.`;msg("Merge finished.","ok");gate();show(`/api/pdf?path=merged-${r.merged}.pdf`,`Merged: ${r.name} · ${r.pages} pages`)}catch(e){msg(e.message,"err");prog(false)}$("mg").disabled=false};
 $("save").onclick=async()=>{$("save").disabled=true;prog(true,100,"Uploading / saving…");try{const r=await api("/api/save",JSON.stringify({...form("folder"),merged}));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}prog(false);gate()};
-$("det").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("det").disabled=true;msg("Looking for repeated header and footer lines…");prog(true,0,"Starting…");try{const r=await job("/api/detect",JSON.stringify(form("download")));$("top").value=r.top||"";$("bot").value=r.bottom||"";$("detout").textContent=r.found.length?"Found: "+r.found.join(" · "):"Nothing repeated found.";msg("Search finished.","ok")}catch(e){msg(e.message,"err")}prog(false);$("det").disabled=false;gate()};
 $("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify({...form("download"),merged}));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
-fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Web capture needs Chrome or Edge installed; none was found.";sync()});sync();
-</script></html>"""
+fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Opening web pages needs Chrome or Edge installed; none was found.";sync()});sync();draw();
+</script></html>
+"""
 
 def _alert(text):
     try: (Path(__file__).resolve().parent / "pdf-studio-error.txt").write_text(text, "utf-8")
