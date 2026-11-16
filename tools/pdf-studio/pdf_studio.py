@@ -422,7 +422,7 @@ section{background:var(--c);border:1px solid var(--b);border-radius:12px;padding
 .row{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:6px 8px;margin-top:8px}
 .row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row small{color:var(--m)}
 input,select,textarea,button{font:inherit;color:var(--t);background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px}input,select,textarea{width:100%}
-.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
+.row input{width:90px;padding:4px 6px}button{cursor:pointer}.bar{height:12px;border-radius:8px;background:var(--bg);border:1px solid var(--b);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;margin-top:12px;background:var(--bg);border:1px solid var(--b);border-radius:999px;padding:3px;isolation:isolate}.sw i{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--a);transition:transform .25s cubic-bezier(.3,1.3,.5,1)}.sw[data-v=up] i{transform:translateX(100%)}.sw button{border:0;background:transparent;border-radius:999px;font-weight:600}#pdl,#pup{margin-top:10px}[hidden]{display:none!important}button.p{background:var(--a);border-color:var(--a);font-weight:600}button:disabled{opacity:.5}
 label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hint{color:var(--m);font-size:12px;margin-top:3px}
 #msg{grid-column:1/-1;min-height:24px}.err{color:#ff6b6b}.ok{color:#5ddc8b}.cap{display:flex;gap:6px;margin-top:10px}.cap input{flex:1}
 </style><main><h1>PDF Studio<small>merge PDFs, capture web pages, name them for a Game Pack</small></h1>
@@ -443,18 +443,20 @@ label{display:block;margin:10px 0 3px;color:var(--m);font-size:13px}.two{display
 <div style="margin-top:6px"><button id="det">Find them automatically</button> <span class="hint" id="detout"></span></div>
 <div class="hint">The text inside these bands is deleted from the saved PDF, not just covered. Detect looks in the outer 7% of each page for lines repeated on most pages and fills the sizes in. Check the result, then adjust the numbers if real text is too close to the edge.</div>
 <div class="two"><div><label>Version (optional)</label><input id="ver" placeholder="2026-11"></div><div><label>Note (optional)</label><input id="desc"></div></div>
-<details style="margin-top:14px"><summary>Upload to GitHub</summary>
-<label><input type="checkbox" id="up" style="width:auto"> Also upload the saved files to GitHub</label>
+<div style="margin-top:16px"><button class="p" id="mg" style="width:100%">1 · Merge the PDFs</button></div>
+<div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div>
+<div class="hint" id="mres">Merge first; then choose to download it or upload it.</div>
+<div class="sw" id="sw" data-v="down"><i></i><button data-s="down">Download</button><button data-s="up">Upload to GitHub</button></div>
+<div id="pdl"><button class="p" id="dl" style="width:100%" disabled>2 · Download PDF</button></div>
+<div id="pup" hidden>
+<input type="checkbox" id="up" checked hidden>
 <div class="two"><div><label>Repository</label><input id="repo" value="Taptap91/40k-gameforge"></div><div><label>Branch</label><input id="br" value="game-packs"></div></div>
 <label>Token <span id="tkn"></span></label><input id="tok" type="password" autocomplete="off" placeholder="GitHub token with Contents: read and write">
 <label><input type="checkbox" id="rem" style="width:auto"> Remember on this computer</label>
 <div style="margin-top:8px"><button id="load">Load folders from GitHub</button></div>
 <label>Destination <small>(only folders that exist under packs/incoming)</small></label><select id="dest" disabled><option>Load the folders first</option></select>
 <div class="hint" id="path"></div>
-<div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div></details>
-<div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div>
-<div style="margin-top:16px"><button class="p" id="mg" style="width:100%">1 · Merge the PDFs</button></div><div class="hint" id="mres">Merge first; then you can download it or upload it.</div>
-<div style="display:flex;gap:8px;margin-top:8px"><button class="p" id="save" style="flex:1" disabled>2 · Upload / save to Game Pack folder</button><button id="dl" disabled>2 · Download PDF</button></div>
+<div class="hint">Needs a fine-grained token limited to this one repository (GitHub › Settings › Developer settings › Fine-grained tokens › Contents: Read and write). The token only ever goes to github.com.</div><button class="p" id="save" style="width:100%;margin-top:12px" disabled>2 · Upload to GitHub</button></div>
 <div class="hint" id="out"></div></section><div id="msg"></div></main>
 <script>
 const TYPES=__TYPES__,$=id=>document.getElementById(id);let items=[],info={games:{}};
@@ -484,6 +486,8 @@ let merged=null,sig="";
 const prog=(on,pct,label)=>{$("bar").hidden=!on;$("barf").style.width=pct+"%";$("barl").textContent=on?`${pct}%  ${label||""}`:""};
 async function job(path,body,done){const {job:id}=await api(path,body);for(;;){const j=await (await fetch("/api/job?id="+id)).json();prog(true,j.pct,j.label);if(j.done){if(j.error)throw Error(j.error);return j.result}await new Promise(r=>setTimeout(r,250))}}
 const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||""]),$("top").value,$("bot").value,$("title").value]);
+function mode(v){$("sw").dataset.v=v;$("pdl").hidden=v!=="down";$("pup").hidden=v!=="up"}
+$("sw").onclick=e=>{const v=e.target.dataset.s;if(v)mode(v)};
 function gate(){const ok=merged&&sig===signature();$("save").disabled=$("dl").disabled=!ok;if(merged&&!ok)$("mres").textContent="Something changed since the merge: merge again before downloading or uploading."}
 document.addEventListener("input",()=>setTimeout(gate,0));document.addEventListener("click",()=>setTimeout(gate,0));
 $("mg").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("mg").disabled=true;merged=null;gate();prog(true,0,"Starting…");try{const r=await job("/api/merge",JSON.stringify(form("download")));merged=r.merged;sig=signature();$("mres").textContent=`Merged ${r.pages} pages (${r.mb}). Now download it or upload it.`;msg("Merge finished.","ok");gate()}catch(e){msg(e.message,"err");prog(false)}$("mg").disabled=false};
