@@ -62,6 +62,14 @@ ASSETS = APP / "custom" / "assets"
 LISTS = ("labels", "pages", "elements", "actions", "styles", "applied", "locks", "names", "groups", "templates")
 
 
+def support_ok():
+    """True when this RulesForge folder has the files the App Builder needs to show its changes (js/custom.js, loaded by js/main.js)."""
+    try:
+        return (APP / "js" / "custom.js").is_file() and "custom.js" in (APP / "js" / "main.js").read_text("utf-8")
+    except Exception:
+        return False
+
+
 def load_custom():
     try:
         d = json.loads(CUSTOM.read_text("utf-8"))
@@ -195,7 +203,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "16"
+APP_ID = "app-builder"; VERSION = "17"
 SRV = [None]
 
 
@@ -228,7 +236,7 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] == "/api/id":
-            return self.send(200, {"app": APP_ID, "version": VERSION, "folder": str(APP)})
+            return self.send(200, {"app": APP_ID, "version": VERSION, "folder": str(APP), "support": support_ok()})
         if self.path.split("?")[0] == "/api/ping":
             import time; SEEN["last"] = time.time(); SEEN["bye"] = None; return self.send(200, {"ok": True})
         if self.path.split("?")[0] == "/api/bye":
