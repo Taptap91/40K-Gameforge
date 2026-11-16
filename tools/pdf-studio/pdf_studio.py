@@ -177,19 +177,32 @@ class WS:
 
 
 SESSIONS = {}
+AD_HOSTS = """doubleclick.net googlesyndication.com googleadservices.com googletagservices.com adservice.google.com pagead2.googlesyndication.com
+google-analytics.com googletagmanager.com adnxs.com adsrvr.org amazon-adsystem.com criteo.com criteo.net taboola.com outbrain.com pubmatic.com
+rubiconproject.com openx.net casalemedia.com moatads.com scorecardresearch.com quantserve.com quantcount.com connect.facebook.net facebook.com/tr hotjar.com
+ezoic.net ezodn.com ezoiccdn.com mediavine.com adthrive.com sharethrough.com smartadserver.com 33across.com indexww.com advertising.com yieldmo.com
+gumgum.com lijit.com sovrn.com media.net bidswitch.net teads.tv connatix.com adform.net adition.com contextweb.com sitescout.com imrworldwide.com
+chartbeat.com chartbeat.net newrelic.com nr-data.net bugsnag.com sentry.io segment.io mixpanel.com amplitude.com fullstory.com clarity.ms
+cdn.carbonads.com carbonads.net buysellads.com adroll.com liveintent.com id5-sync.com crwdcntrl.net bluekai.com demdex.net everesttech.net
+rlcdn.com tapad.com agkn.com mathtag.com turn.com serving-sys.com flashtalking.com innovid.com tremorhub.com spotxchange.com springserve.com
+primis.tech vidazoo.com vidoomy.com adsafeprotected.com doubleverify.com iasds01.com""".split()
+AD_URLS = ["*://*." + h.split("/")[0] + "/*" if "/" not in h else "*://*." + h + "*" for h in AD_HOSTS] + ["*://" + h.split("/")[0] + "/*" for h in AD_HOSTS if "/" not in h]
+AD_CSS_JS = r"""(()=>{const css='ins.adsbygoogle,[id^="google_ads_iframe"],[id^="div-gpt-ad"],iframe[src*="doubleclick"],iframe[src*="googlesyndication"],iframe[src*="adservice"],[data-ad-slot],[data-google-query-id],.ezoic-ad,[id^="ezoic-pub-ad"],[class*="mediavine-"],#mediavine-settings,[id*="adthrive"],[class*="adthrive"],.adsbygoogle-noablate,[aria-label="Advertisement"],[id^="aswift_"],.carbon-wrap,#carbonads,.grid-ad,.ad-slot,.ad-container,.advertisement,.sticky-ad,.header-ad,.footer-ad{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important}';
+const put=()=>{try{if(document.getElementById('rf-noads'))return;const host=document.head||document.documentElement;if(!host)return;const s=document.createElement('style');s.id='rf-noads';s.textContent=css;host.appendChild(s)}catch(e){}};put();document.addEventListener('DOMContentLoaded',put);new MutationObserver(put).observe(document,{childList:true,subtree:true})})()"""
 SCAN_JS = r"""(()=>{const txt=t=>(t||'').replace(/\s+/g,' ').trim().slice(0,80);
 document.querySelectorAll('[data-rf-c]').forEach(e=>e.removeAttribute('data-rf-c'));
 const label=e=>{if(e.id){const l=document.querySelector('label[for="'+CSS.escape(e.id)+'"]');if(l&&txt(l.textContent))return txt(l.textContent)}
 const p=e.closest('label');if(p&&txt(p.textContent))return txt(p.textContent);if(e.getAttribute('aria-label'))return txt(e.getAttribute('aria-label'));
 const nx=e.nextSibling&&e.nextSibling.textContent;if(txt(nx))return txt(nx);const pv=e.previousSibling&&e.previousSibling.textContent;if(txt(pv))return txt(pv);
 return txt(e.parentElement&&e.parentElement.textContent)||'(unlabelled)'};
-const out=[];const add=(e,type,l,st)=>{if(out.length>=200)return;e.setAttribute('data-rf-c',out.length);out.push({i:out.length,type,label:l,state:st})};
+const cand=[],seen=new Set();const add=(e,type,l,st)=>{if(seen.has(e))return;seen.add(e);cand.push([e,type,l,st])};
 document.querySelectorAll('input[type=checkbox]').forEach(e=>add(e,'checkbox',label(e),e.checked));
 document.querySelectorAll('details').forEach(e=>{const s=e.querySelector('summary');add(e,'details',txt(s&&s.textContent)||'(section)',e.open)});
 document.querySelectorAll('[aria-expanded]').forEach(e=>{if(!e.closest('details'))add(e,'aria',txt(e.textContent)||'(section)',e.getAttribute('aria-expanded')==='true')});
-document.querySelectorAll('button,a,span,div,label,[role=button]').forEach(e=>{if(e.children.length||e.hasAttribute('data-rf-c')||e.hasAttribute('aria-expanded'))return;const t=txt(e.textContent);
+document.querySelectorAll('button,a,span,div,label,[role=button]').forEach(e=>{if(e.children.length||seen.has(e)||e.hasAttribute('aria-expanded'))return;const t=txt(e.textContent);
 if(t&&t.length<40&&/^(show|hide|expand|collapse)\b/i.test(t)&&!e.closest('summary'))add(e,'button',t,null)});
-return out})()"""
+cand.sort((a,b)=>a[0]===b[0]?0:(a[0].compareDocumentPosition(b[0])&4)?-1:1);   // the order they appear on the page
+return cand.slice(0,200).map(([e,type,l,st],i)=>{e.setAttribute('data-rf-c',i);return{i,type,label:l,state:st}})})()"""
 STATE_JS = r"""(()=>[...document.querySelectorAll('[data-rf-c]')].map(e=>({i:+e.getAttribute('data-rf-c'),state:e.matches('input')?e.checked:e.matches('details')?e.open:e.hasAttribute('aria-expanded')?e.getAttribute('aria-expanded')==='true':null})))()"""
 
 
@@ -233,7 +246,11 @@ def open_page(d, progress):
         progress(20, 100, "Connecting…")
         tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=10))
         ws = WS(next(t for t in tabs if t.get("type") == "page")["webSocketDebuggerUrl"]); SESSIONS[sid]["ws"] = ws
-        ws.call("Page.enable"); ws.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 1600, "deviceScaleFactor": 1, "mobile": False})
+        ws.call("Page.enable")
+        if d.get("adblock", True):
+            ws.call("Network.enable"); ws.call("Network.setBlockedURLs", {"urls": AD_URLS})
+            ws.call("Page.addScriptToEvaluateOnNewDocument", {"source": AD_CSS_JS})
+        ws.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 1600, "deviceScaleFactor": 1, "mobile": False})
         progress(30, 100, "Loading the page…")
         ws.call("Page.navigate", {"url": url}, timeout=60)
         end = time.time() + 45
@@ -626,7 +643,7 @@ def watch(srv):
             srv.shutdown(); return
 
 
-APP_ID = "pdf-studio"; VERSION = "10"
+APP_ID = "pdf-studio"; VERSION = "11"
 SRV = [None]
 
 
@@ -737,12 +754,13 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 #vtabs button{padding:3px 10px;font-size:12px}#vtabs button.on{background:var(--a);border-color:var(--a)}#liveview{flex:1;overflow:auto;background:#fff}#liveview .ck{width:100%;background:#f1f1f1}#liveview img{display:block;width:100%;cursor:pointer}#busy{color:#ff9f0a}#view{flex:1;border:0;width:100%;background:#2b2b2e}#empty{flex:1;display:grid;place-items:center;color:var(--m);text-align:center;padding:30px}
 </style>
 <aside>
-<h1>PDF Studio <small>v10 · click the live page, per-file headers/footers</small></h1>
+<h1>PDF Studio <small>v11 · page-order list, ad blocking, per-file headers/footers</small></h1>
 <div id="stat"><div id="msg"></div><div class="bar" id="bar" hidden><i id="barf"></i></div><div class="hint" id="barl"></div></div>
 
 <details class="sec" open><summary>1 · Add a page or PDF</summary>
 <div class="drop" id="drop">Drop PDFs here, or click to choose<input id="pick" type="file" accept="application/pdf" multiple hidden></div>
 <div class="cap"><input id="url" placeholder="…or paste a web page address"><button id="grab">Open</button></div>
+<label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="adb" checked style="width:auto"> Block ads and trackers on web pages</label>
 <div class="hint" id="nb"></div>
 <div id="pgp" hidden class="pgp"><div class="hint" id="pgt"></div>
 <div class="row2"><button data-all="tick">Tick all</button><button data-all="untick">Untick all</button><button data-all="open">Open all sections</button><button data-all="close">Close all sections</button></div>
@@ -843,7 +861,7 @@ $("liveview").onclick=async e=>{const c=e.target.closest(".ck");if(!c||!pg)retur
  $("busy").hidden=false;c.style.outline="2px solid #ff9f0a";setTimeout(()=>c.style.outline="",250);
  try{await api("/api/page/click",JSON.stringify({sid:pg.sid,x,y}));shot(y);api("/api/page/controls",JSON.stringify({sid:pg.sid})).then(j=>{if(pg){pg.controls=j.controls;drawCtl()}}).catch(()=>{})}catch(err){msg(err.message,"err");$("busy").hidden=true}};
 async function setOps(ops){try{const r=await api("/api/page/set",JSON.stringify({sid:pg.sid,ops}));r.states.forEach(s=>{const c=pg.controls.find(x=>x.i===s.i);if(c)c.state=s.state});drawCtl();refresh()}catch(e){msg(e.message,"err")}}
-async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
+async function openPage(){const u=$("url").value.trim();if(!u)return;if(pg)await cancelPage();$("grab").disabled=true;msg("Opening the page…");blank("Opening the page…");try{pg=await job("/api/page/open",JSON.stringify({url:u,adblock:$("adb").checked}));pg.url=u;$("pgt").textContent=`Opened: ${pg.title||u}. Click things on the page itself, or use the list below.`;drawCtl();$("pgp").hidden=false;vmode="live";$("vtabs").hidden=false;[...$("vtabs").children].forEach(b=>b.classList.toggle("on",b.dataset.vt==="live"));await shot();msg("Page ready. Click show/hide buttons right on the page, or use the list on the left, then save it.","ok")}catch(e){pg=null;msg(e.message,"err");items.length?preview():blank("Add a PDF, or paste a web page address.")}prog(false);$("grab").disabled=false}
 $("grab").onclick=openPage;$("url").onkeydown=e=>{if(e.key==="Enter")openPage()};
 $("ctl").onchange=e=>{const i=e.target.dataset.c;if(i==null)return;const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:c.type,v:e.target.checked}])};
 $("ctl").onclick=e=>{const i=e.target.dataset.click;if(i!=null){const c=pg.controls.find(x=>x.i==i);setOps([{i:+i,kind:"button",v:/^(show|expand)/i.test(c.label)}])}};
