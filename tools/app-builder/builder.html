@@ -15,6 +15,7 @@ h3{margin:16px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercas
 .sel{background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:8px;font:12px ui-monospace,monospace;word-break:break-all;color:#9fd0ff}
 .hint{color:var(--m);font-size:12px;margin:4px 0}label.r{display:flex;gap:6px;align-items:flex-start;margin:4px 0;color:var(--t)}label.r input{width:auto;margin-top:2px}
 main{display:flex;flex-direction:column;overflow:hidden;background:#0e0e10;min-height:0}#dbar{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--b);background:var(--c);flex-wrap:wrap}#dbar input[type=number]{width:70px}#dbar select{max-width:210px}#dbar span{color:var(--m)}#wsl{width:150px;padding:0}.scopebar{position:sticky;top:0;z-index:5;background:var(--c);padding:10px 12px 8px;margin:0 -12px 8px;border-bottom:1px solid var(--b)}.scopebar .hint{margin:6px 0 0}.sw2{display:inline-flex;border:1px solid var(--b);border-radius:999px;padding:2px;background:var(--bg)}.sw2 button{border:0;background:none;padding:5px 12px;border-radius:999px;font-size:12px;color:inherit}.sw2 button.on{background:#0a84ff;color:#fff}
+.danger,#edel{background:#d93025!important;border-color:#d93025!important;color:#fff!important}.trash{background:none;border:0;padding:0 4px;color:#d93025;font-size:13px;cursor:pointer}
 #tbar{display:flex;gap:5px;align-items:center;padding:5px 10px;border-bottom:1px solid var(--b);background:var(--c);flex-wrap:wrap}#tbar button{padding:3px 9px;font-size:12px}#tbar button.on{background:#ff9f0a;border-color:#ff9f0a;color:#000}#tbar .hint{margin:0 0 0 8px}.a9{display:grid;grid-template-columns:repeat(3,34px);gap:6px;margin:8px 0;padding:8px;background:var(--bg);border:1px solid var(--b);border-radius:8px;width:max-content}.a9b{width:34px;height:34px;padding:0;position:relative}.a9b i{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px;border-radius:50%;background:#888}.a9b.on{border-color:var(--a)}.a9b.on i{background:var(--a);box-shadow:0 0 0 3px rgba(10,132,255,.35)}#cv{flex:1;overflow:auto;padding:14px;min-height:0}#sizer{margin:0 auto;position:relative}
 #wrap{transform-origin:top left;background:#000;box-shadow:0 0 0 1px var(--b);position:absolute;left:0;top:0}iframe{border:0;display:block;width:100%;height:100%;background:#1c1c1e}
 .ch{display:flex;gap:6px;align-items:center;font:11px ui-monospace,monospace;margin:3px 0}.ch span{flex:1;word-break:break-all}.ch button{padding:1px 6px}
@@ -195,7 +196,7 @@ function install(){doc=$("frame").contentDocument;win=$("frame").contentWindow;
  const stop=e=>{if(edit()){e.stopPropagation();if(e.cancelable)e.preventDefault()}};
  for(const t of["mousedown","mouseup","touchstart","touchend","dblclick","contextmenu","submit"])doc.addEventListener(t,e=>{if(edit()&&!inEd(e))stop(e)},true);
  doc.addEventListener("dblclick",e=>{if(!edit()||inEd(e)||lockedEl(e.target))return;let E=e.target;for(let i=0;i<4&&E&&E!==doc.body;i++){if(E.dataset?.rfEl||textNode(E))break;E=E.parentElement}if(!E||E===doc.body||!(E.dataset?.rfEl||textNode(E)))return;pick(E);startEdit(E,e.clientX,e.clientY)},true);
- doc.addEventListener("keydown",e=>{if(e.key==="Escape"&&tool)armTool(null)},true);
+ doc.addEventListener("keydown",e=>{if(e.key==="Escape"&&tool)armTool(null);else onDeleteKey(e)},true);
  doc.addEventListener("mouseover",e=>{if(!edit()||inEd(e))return;doc.querySelectorAll("[data-rf-h]").forEach(x=>x.removeAttribute("data-rf-h"));if(e.target!==sel&&!e.target.closest("#rf-box"))e.target.setAttribute("data-rf-h","")},true);
  doc.addEventListener("pointerdown",e=>{if(!edit()||inEd(e))return;if(ed)finishEdit(true);if(tool&&!e.target.dataset?.h){stop(e);tdown={x:e.clientX,y:e.clientY,t:e.target,drag:false};return}stop(e);const h=e.target.dataset?.h;
   if(h&&sel&&!lockedEl(sel)){const r=sel.getBoundingClientRect();rs={h,x:e.clientX,y:e.clientY,w:r.width,hh:r.height,left:r.left,top:r.top,T:snapTargets(sel)};return}
@@ -363,7 +364,7 @@ function wire(){const a=$("side");wireTree();
  ed("etx",(d,v)=>d.text=v);ed("est",(d,v)=>d.style=v);ed("esrc",(d,v)=>d.src=v);ed("ealt",(d,v)=>d.alt=v);
  if($("eup"))$("eup").onclick=()=>$("efile").click();
  if($("efile")&&!a.querySelector("[data-fup]"))$("efile").onchange=async e=>{try{const src=await upload(e.target.files[0]);data.elements.find(x=>x.id===sel.dataset.rfEl).src=src;live();commit();render()}catch(x){mark(true,x.message,"err")}};
- if($("edel"))$("edel").onclick=()=>delEl(sel.dataset.rfEl);
+ if($("edel"))$("edel").onclick=()=>removeEl(sel.dataset.rfEl);
  if($("np"))$("np").onclick=()=>{$("scrb").click();scrMenu(null)};
  a.querySelectorAll("[data-pp]").forEach(x=>x.onchange=()=>{const p=data.pages.find(q=>q.id===x.dataset.pp);if(x.value)p.parent=x.value;else delete p.parent;live();commit();render();scrLabel()});
  a.querySelectorAll("[data-pl]").forEach(x=>x.onchange=()=>{const p=data.pages.find(q=>q.id===x.dataset.pl);if(x.checked)delete p.links;else p.links=false;live();commit()});
@@ -489,12 +490,14 @@ const kidsOf=el=>el.tagName==="svg"||el.closest("svg")?[]:[...el.children].filte
 function nameOf(el){const u=uid(el),n=data.names.find(x=>x.sel===u);if(n)return n.name;const d=el.dataset?.rfEl&&data.elements.find(e=>e.id===el.dataset.rfEl);if(d)return`${TYPES[d.type]?.[0].split(" (")[0]||d.type}${d.text?": "+d.text.slice(0,20):""}`;
  if(el.classList.contains("rf-page-body"))return"Page area";const t=textNode(el);if(t)return`“${t.nodeValue.trim().slice(0,24)}”`;const c=[...el.classList].filter(x=>!STATE.test(x))[0];return el.tagName.toLowerCase()+(el.id?"#"+el.id:c?"."+c:"")}
 const isHidden=el=>(data.rules[bucket()][uid(el)]||{}).display==="none";
+function removeEl(id){delEl(id);sel=null;multi=[];selUid=null;commit();render()}
+function onDeleteKey(e){if(e.key!=="Delete"&&e.key!=="Backspace")return;if(ed||mode!=="edit"||!sel||!sel.dataset?.rfEl)return;const t=e.target;if(t&&(t.isContentEditable||/INPUT|TEXTAREA|SELECT/.test(t.tagName)))return;e.preventDefault();removeEl(sel.dataset.rfEl)}
 function toggleHide(el){const u=uid(el),r=data.rules[bucket()];if(isHidden(el)){delete r[u].display;if(!Object.keys(r[u]).length)delete r[u]}else(r[u]=r[u]||{}).display="none";live();commit();render()}
 function toggleLock(els){const us=els.map(uid),on=us.every(u=>data.locks.includes(u));data.locks=on?data.locks.filter(u=>!us.includes(u)):[...new Set([...data.locks,...us])];commit();render()}
 function layersHTML(){const root=doc.querySelector(".app")||doc.body,vis=doc.querySelector(".view:not(.hidden)");layerEls=[];let rows="";openEls.add(root);if(vis)for(let e=vis;e&&e!==root;e=e.parentElement)openEls.add(e);
  if(sel)openEls.add(sel);for(let e=sel;e&&e!==root&&e.parentElement;e=e.parentElement)openEls.add(e.parentElement);
  const walk=(el,d)=>{if(d>14)return;const i=layerEls.push(el)-1,kids=kidsOf(el),open=openEls.has(el),on=sel===el||multi.includes(el);
-  rows+=`<div class="lr ${sel===el&&!multi.length?"on":multi.includes(el)?"many":""} ${isHidden(el)?"off":""}" data-li="${i}" draggable="true" style="padding-left:${d*12+2}px"><span class="tg" data-lt="${i}">${kids.length?(open?"▾":"▸"):"·"}</span><span class="nm" data-ln="${i}">${esc(nameOf(el))}</span><button data-lv="${i}" title="Hide or show">${isHidden(el)?"◌":"●"}</button><button data-lk="${i}" title="Lock or unlock">${lockedEl(el)?"🔒":"🔓"}</button></div>`;
+  rows+=`<div class="lr ${sel===el&&!multi.length?"on":multi.includes(el)?"many":""} ${isHidden(el)?"off":""}" data-li="${i}" draggable="true" style="padding-left:${d*12+2}px"><span class="tg" data-lt="${i}">${kids.length?(open?"▾":"▸"):"·"}</span><span class="nm" data-ln="${i}">${esc(nameOf(el))}</span><button data-lv="${i}" title="Hide or show">${isHidden(el)?"◌":"●"}</button><button data-lk="${i}" title="Lock or unlock">${lockedEl(el)?"🔒":"🔓"}</button>${el.dataset?.rfEl?`<button class="trash" data-ldel="${i}" title="Delete this item">🗑</button>`:""}</div>`;
   if(open){for(const k of kids.slice(0,80))walk(k,d+1);if(kids.length>80)rows+=`<div class="hint" style="padding-left:${d*12+30}px">… ${kids.length-80} more</div>`}};
  walk(root,0);
  const grp=data.groups.map(g=>{const els=g.sels.flatMap(s=>{try{return[...doc.querySelectorAll(s)]}catch{return[]}});const lk=g.sels.length&&g.sels.every(s=>data.locks.includes(s));return`<div class="lr gp" data-gs="${g.id}"><span class="tg">▦</span><span class="nm">${esc(g.name)} <span class="hint">(${g.sels.length})</span></span><button data-gv="${g.id}" title="Hide or show the group">●</button><button data-gl="${g.id}" title="Lock or unlock the group">${lk?"🔒":"🔓"}</button><button data-gu="${g.id}" title="Ungroup">✕</button></div>`}).join("");
@@ -512,6 +515,7 @@ function wireLayers(){const a=$("side");
  a.addEventListener("dragend",()=>{dragFrom=-1;a.querySelectorAll(".lr").forEach(x=>x.classList.remove("dt-before","dt-after","dt-in"))},{once:true});
  a.querySelectorAll("[data-lt]").forEach(t=>t.onclick=()=>{const el=layerEls[+t.dataset.lt];openEls.has(el)?openEls.delete(el):openEls.add(el);renderLayers()});
  a.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>toggleHide(layerEls[+b.dataset.lv]));
+ a.querySelectorAll("[data-ldel]").forEach(b=>b.onclick=e=>{e.stopPropagation();const el=layerEls[+b.dataset.ldel];if(el?.dataset?.rfEl)removeEl(el.dataset.rfEl)});
  a.querySelectorAll("[data-lk]").forEach(b=>b.onclick=()=>toggleLock([layerEls[+b.dataset.lk]]));
  a.querySelectorAll("[data-gs]").forEach(r=>r.onclick=e=>{if(e.target.closest("button"))return;const g=data.groups.find(x=>x.id===r.dataset.gs);if(mode!=="edit")document.querySelector('#modes [data-m="edit"]').click();pickMany(g.sels.flatMap(s=>{try{return[...doc.querySelectorAll(s)]}catch{return[]}}))});
  a.querySelectorAll("[data-gv]").forEach(b=>b.onclick=()=>{const g=data.groups.find(x=>x.id===b.dataset.gv),r=data.rules[bucket()],hid=g.sels.every(s=>(r[s]||{}).display==="none");for(const s of g.sels){if(hid){if(r[s]){delete r[s].display;if(!Object.keys(r[s]).length)delete r[s]}}else(r[s]=r[s]||{}).display="none"}live();commit();render()});
@@ -542,7 +546,7 @@ $("dsel").onchange=e=>{if(!e.target.value)return;const[w,h]=e.target.value.split
 $("dw").onchange=()=>setFrame(+$("dw").value,fh);$("dh").onchange=()=>setFrame(fw,+$("dh").value);
 $("drot").onclick=()=>setFrame(fh,fw);$("wsl").oninput=()=>setFrame(+$("wsl").value,fh,false);$("wsl").onchange=()=>render();$("dz").onchange=e=>{zoom=e.target.value;fit()};
 document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>armTool(b.dataset.tool));
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&tool)armTool(null)});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&tool)armTool(null);else onDeleteKey(e)});
 $("modes").addEventListener("click",()=>{$("tbar").hidden=mode!=="edit";if(mode!=="edit"&&tool)armTool(tool)});
 $("modes").onclick=e=>{const m=e.target.dataset.m;if(!m)return;mode=m;if(win)win.__rfNoActions=m==="edit";[...$("modes").children].forEach(b=>b.classList.toggle("on",b.dataset.m===m));if(doc){doc.body.style.cursor=m==="edit"?"crosshair":"";if(m!=="edit")doc.querySelectorAll("[data-rf-s],[data-rf-h]").forEach(x=>{x.removeAttribute("data-rf-s");x.removeAttribute("data-rf-h")})}if(m!=="edit")sel=null;render()};
 addEventListener("resize",fit);addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="z"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();$("undo").click()}if(e.key==="Escape"&&sel){sel.removeAttribute("data-rf-s");sel=null;render()}});
