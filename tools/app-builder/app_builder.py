@@ -213,6 +213,18 @@ if sys.stderr is None: sys.stderr = open(os.devnull, "w")
 SEEN = {"last": None, "bye": None, "start": __import__("time").time()}
 
 
+def quit_pdf_studio():
+    """Stop a running PDF Studio too, when the App Builder is closed (agreed with the user)."""
+    import time as _t
+    for port in range(8940, 8960):
+        base = f"http://127.0.0.1:{port}"
+        try: info = json.load(urllib.request.urlopen(base + "/api/id", timeout=0.5))
+        except Exception: continue
+        if not isinstance(info, dict) or info.get("app") != "pdf-studio": continue
+        try: urllib.request.urlopen(urllib.request.Request(base + "/api/quit", b"{}", {"X-RF-Quit": "1"}, method="POST"), timeout=2)
+        except Exception: pass
+
+
 def watch(srv):
     import time
     while True:
@@ -220,10 +232,12 @@ def watch(srv):
         now = time.time(); last, bye = SEEN["last"], SEEN["bye"]
         gone = (bye and now - bye > 8) or (last and now - last > 180) or (last is None and now - SEEN["start"] > 90)
         if gone:
+            try: quit_pdf_studio()
+            except Exception: pass
             srv.shutdown(); return
 
 
-APP_ID = "app-builder"; VERSION = "20"
+APP_ID = "app-builder"; VERSION = "21"
 SRV = [None]
 
 
