@@ -825,7 +825,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <div class="two"><div><label>Version (optional)</label><input id="ver" placeholder="2026-11"></div><div><label>Note (optional)</label><input id="desc"></div></div>
 </details>
 
-<details class="sec" open><summary>5 · Merge, then send</summary>
+<details class="sec" open><summary>5 · Send</summary>
 <button class="p" id="mg" style="width:100%">Merge the PDFs</button>
 <div class="hint" id="mres">Merge first; then choose to download it or upload it.</div>
 <div class="sw" id="sw" data-v="down"><i></i><button data-s="down">Download</button><button data-s="up">Upload to GitHub</button></div>
@@ -858,7 +858,7 @@ function show(url,label){$("empty").hidden=true;$("liveview").hidden=true;$("vie
 function blank(t){$("liveview").hidden=true;$("vtabs").hidden=true;$("view").hidden=true;$("view").removeAttribute("src");$("empty").hidden=false;$("empty").innerHTML=t;$("vt").textContent="Nothing to show yet"}
 
 /* ---- files list and per-file headers/footers ---- */
-function draw(){$("list").innerHTML=items.map((f,i)=>`<div class="row ${i===sel?"on":""}" data-s="${i}"><span class="n" data-s="${i}">${esc(f.name)} <small>${f.pages}p${f.top||f.bottom?` · −${f.top||0}%/−${f.bottom||0}%`:""}</small></span><input data-r="${i}" value="${esc(f.range||"")}" placeholder="all pages"><button data-u="${i}">↑</button><button data-d="${i}">↓</button><button data-x="${i}">✕</button></div>`).join("");
+function draw(){$("list").innerHTML=items.map((f,i)=>`<div class="row ${i===sel?"on":""}" data-s="${i}"><span class="n" data-s="${i}">${esc(f.name)} <small>${f.pages}p${f.top||f.bottom?` · −${f.top||0}%/−${f.bottom||0}%`:""}</small></span><input data-r="${i}" value="${esc(f.range||"")}" placeholder="all pages"><button data-u="${i}">↑</button><button data-d="${i}">↓</button><button data-x="${i}">✕</button></div>`).join("");setTimeout(gate,0);
  const f=items[sel];$("top").disabled=$("bot").disabled=$("det").disabled=!f;$("allb").disabled=!f;$("top").value=f?f.top||"":"";$("bot").value=f?f.bottom||"":"";$("sf").textContent=f?`For: ${f.name}`:"Click a file in the list first."}
 $("list").onclick=e=>{const g=k=>e.target.dataset[k];
  if(g("x")!=null){const i=+g("x");items.splice(i,1);sel=Math.min(sel>i?sel-1:sel,items.length-1);draw();items.length?(sel>=0&&preview()):blank("Add a PDF, or paste a web page address.");return}
@@ -927,11 +927,17 @@ const form=m=>({github:$("up").checked&&m==="folder"?{repo:$("repo").value,branc
 const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||"",i.top||0,i.bottom||0]),$("title").value]);
 function mode(v){$("sw").dataset.v=v;$("pdl").hidden=v!=="down";$("pup").hidden=v!=="up"}
 $("sw").onclick=e=>{const v=e.target.dataset.s;if(v)mode(v)};
-function gate(){const ok=merged&&sig===signature();$("save").disabled=$("dl").disabled=!ok;if(merged&&!ok)$("mres").textContent="Something changed since the merge: merge again before downloading or uploading."}
-document.addEventListener("input",()=>setTimeout(gate,0));document.addEventListener("click",()=>setTimeout(gate,0));
+/* A single PDF needs no merge: it is built straight into the save or download. Several PDFs need a merge first. */
+const current=()=>merged&&sig===signature()?merged:null;
+function gate(){const one=items.length===1,ok=one||!!current();$("save").disabled=$("dl").disabled=!(ok&&items.length);
+if(!items.length)$("mres").textContent="Add a PDF first.";
+else if(one)$("mres").textContent="One PDF, so no merge is needed: download it or upload it.";
+else if(merged&&!current())$("mres").textContent="Something changed since the merge: merge again before downloading or uploading.";
+else if(!current())$("mres").textContent="Merge first; then choose to download it or upload it."}
+document.addEventListener("input",()=>setTimeout(gate,0));document.addEventListener("click",()=>setTimeout(gate,0));document.addEventListener("change",()=>setTimeout(gate,0));
 $("mg").onclick=async()=>{if(!items.length)return msg("Add a PDF first.","err");$("mg").disabled=true;merged=null;gate();prog(true,0,"Starting…");try{const r=await job("/api/merge",JSON.stringify(form("download")));merged=r.merged;sig=signature();$("mres").textContent=`Merged ${r.pages} pages (${r.mb}). Now download it or upload it.`;msg("Merge finished.","ok");gate();show(`/api/pdf?path=merged-${r.merged}.pdf`,`Merged: ${r.name} · ${r.pages} pages`)}catch(e){msg(e.message,"err");prog(false)}$("mg").disabled=false};
-$("save").onclick=async()=>{$("save").disabled=true;prog(true,100,"Uploading / saving…");try{const r=await api("/api/save",JSON.stringify({...form("folder"),merged}));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}prog(false);gate()};
-$("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify({...form("download"),merged}));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
+$("save").onclick=async()=>{$("save").disabled=true;prog(true,100,"Uploading / saving…");try{const r=await api("/api/save",JSON.stringify({...form("folder"),merged:current()}));msg(r.uploaded?`Saved ${r.pages} pages and uploaded to ${r.uploaded}. The converter will pick it up in a minute or two.`:`Saved ${r.pages} pages to ${r.saved}. Commit and push it to GitHub; the pack converter does the rest.`,"ok")}catch(e){msg(e.message,"err")}prog(false);gate()};
+$("dl").onclick=async()=>{try{const r=await api("/api/save",JSON.stringify({...form("download"),merged:current()}));const a=document.createElement("a");a.href=r.download;a.download=r.name;a.click();msg("Downloaded.","ok")}catch(e){msg(e.message,"err")}};
 fetch("/api/info").then(r=>r.json()).then(j=>{info=j;$("repo").value=j.repo;$("br").value=j.branch;if(j.hasToken)$("tkn").textContent="(saved: leave blank to use it)";$("games").innerHTML=Object.keys(j.games).map(g=>`<option value="${g}">`).join("");$("out").textContent="Saves into: "+j.out;if(!j.browser)$("nb").textContent="Opening web pages needs Chrome or Edge installed; none was found.";sync()});sync();draw();
 </script></html>
 """
