@@ -216,7 +216,7 @@ function switchHTML(lib, g) {
   return `<div class="cs-list" ${switchOpen ? "" : "hidden"}>${opts}</div>
     <div class="cs-bar">
       <button type="button" class="cs-arrow" data-cs-step="-1" aria-label="Previous game" ${i <= 0 ? "disabled" : ""}>&#8249;</button>
-      <button type="button" class="cs-name" data-cs-toggle aria-expanded="${switchOpen}">${esc(g.game)} <span aria-hidden="true">&#8964;</span></button>
+      <button type="button" class="cs-name" data-cs-toggle aria-expanded="${switchOpen}">${esc(g.game)}</button>
       <button type="button" class="cs-arrow" data-cs-step="1" aria-label="Next game" ${i >= lib.length - 1 ? "disabled" : ""}>&#8250;</button>
     </div>`;
 }
