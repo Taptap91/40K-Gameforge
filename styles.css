@@ -1305,6 +1305,16 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .coll-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--border-strong); border-radius: 9px; }
 .coll-seg button { flex: 1 1 0; min-width: 0; font: inherit; font-size: 12px; padding: 6px 4px; background: none; border: 0; border-radius: 7px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .coll-seg button.on { background: var(--control); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+/* The game name: one floating element that glides between its row and the header. Its text sits in the row
+   and the header only while it's hidden there, so the two never show twice. */
+.cr-float { position: absolute; z-index: 2; display: flex; align-items: center; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; overflow: hidden; transition: left .25s ease, top .25s ease, width .25s ease, height .25s ease, padding-left .25s ease, font-size .25s ease; }
+.cr-float:empty { display: none; }
+.coll-rail.cr-drilled .cr-float { font-size: 14px; }
+.cr-float span { overflow: hidden; text-overflow: ellipsis; }
+.coll-rail:not(.cr-drilled) .coll-rail-item.on > span { visibility: hidden; }
+.coll-rail.cr-drilled .cr-title { visibility: hidden; }
+.cr-back { opacity: 0; transition: opacity .2s ease; }
+.coll-rail.cr-drilled .cr-back { opacity: 1; }
 @media (min-width: 701px) { .coll-panel { display: none; } }
 .coll-rail-item { text-align: left; background: none; border: 0; color: var(--text-2); padding: 9px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .coll-rail-item:hover { background: var(--control); }

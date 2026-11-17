@@ -4,8 +4,8 @@
  * the page swipes between games. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.73";
-import { factionStyle } from "./factions.js?v=8.73";
+import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.74";
+import { factionStyle } from "./factions.js?v=8.74";
 
 const KEY = "rf.collections";
 let selectedId = null;
@@ -272,6 +272,8 @@ export function renderCollections() {
   $("#crGames").innerHTML = railHTML(lib, g);
   $("#crDrill").innerHTML = drillHTML(g, ed, list);
   $("#collRail").classList.toggle("cr-drilled", railDrilled && !!g);
+  $("#crFloat").innerHTML = g ? `<span class="rl-long">${esc(g.game)}</span><span class="rl-short">${esc(shortName(g.game))}</span>` : "";
+  placeRailTitle();
   $("#collPanel").innerHTML = panelHTML(g, ed, list);
   $("#collSwitch").innerHTML = switchHTML(lib, g);
   const cur = list.find(c => c.id === selectedId);
@@ -347,6 +349,26 @@ function updateCollection(id, change) {
   renderCollections();
 }
 
+/** Moves the game name between its row in the game list and its place beside the back arrow. The name is one
+ *  element, so it glides into the header instead of sliding away with the list. */
+function placeRailTitle() {
+  const f = document.getElementById("crFloat");
+  if (!f || !f.innerHTML) return;
+  const drilled = document.getElementById("collRail").classList.contains("cr-drilled");
+  const visible = el => el && el.offsetParent !== null;
+  const head = [...document.querySelectorAll("#crDrill .cr-title")].find(visible);
+  const row = document.querySelector("#crGames .coll-rail-item.on");
+  let box = null;
+  if (drilled && head) box = { left: head.offsetLeft, top: head.offsetTop, width: head.offsetWidth, height: head.offsetHeight, pad: 0 };
+  else if (!drilled && row) box = { left: row.offsetLeft, top: row.offsetTop, width: row.offsetWidth, height: row.offsetHeight, pad: parseFloat(getComputedStyle(row).paddingLeft) };
+  if (!box) return;
+  // The first placement is a jump, not a glide from the corner.
+  const first = !f.style.top;
+  if (first) f.style.transition = "none";
+  Object.assign(f.style, { left: box.left + "px", top: box.top + "px", width: box.width + "px", height: box.height + "px", paddingLeft: box.pad + "px" });
+  if (first) { void f.offsetHeight; f.style.transition = ""; }
+}
+
 /** Taps on the editions, collections and New Collection, from either the rail or the panel. */
 function listClick(e) {
   const add = e.target.closest("[data-newcoll]");
@@ -358,6 +380,7 @@ function listClick(e) {
 }
 
 export function wireCollections() {
+  window.addEventListener("resize", placeRailTitle);
   $("#collPanel").addEventListener("click", listClick);
   $("#collRail").addEventListener("click", e => {
     if (e.target.closest("[data-rail-back]")) { railDrilled = false; return renderCollections(); }
