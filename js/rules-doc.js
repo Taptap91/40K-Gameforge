@@ -64,18 +64,142 @@ const editionLabel = ed => [ed?.version ? `v${ed.version}` : "", ed?.date != nul
 /* ---------- Reading a rules PDF ---------- */
 
 /** Splits a rules PDF into its numbered sections ("DEEP STRIKE 24.09"), with chapters, sub-headings, bullets and tables kept. */
-/** The 40K parser first; if it finds too few rules, retries with Kill Team's numbered headings ("2. READY"). */
-function parseRulesPdfAuto(rawItems) {
-  const strict = parseRulesPdf(rawItems);
-  if (strict.sections.length >= 3) return strict;
-  const relaxed = parseRulesPdf(rawItems, true);
-  return relaxed.sections.length > strict.sections.length ? relaxed : strict;
+/** Heading keys: lower case letters only, without the "2." numbering, so "2. READY" and "Ready" match. */
+const headingKey = s => String(s).split("|")[0].replace(/\s+\d*\s*AP\s*$/i, "").toLowerCase().replace(/^\s*[\d.•]+\s*/, "").replace(/[^a-z]/g, "");
+
+/**
+ * The "Contents" box: the text under the word Contents, read column by column (top to bottom, then left to right).
+ * Large headings in the box are chapters; the lines under them are the entries. Stops at the next large heading or page end.
+ */
+function readContents(items, body) {
+  const head = items.find(i => /^contents$/i.test(i.t.trim()));
+  if (!head) return null;
+  const pageTop = head.y - head.py;
+  const pageBottom = pageTop + (head.ph || 0);
+  const big = body * 1.8;
+  const below = items.filter(i => i.y > head.y + 1 && i.y < pageBottom);
+  const stop = Math.min(...below.filter(i => i.s >= big).map(i => i.y), pageBottom);
+  const box = below.filter(i => i.y < stop && i.s < big);
+  if (!box.length) return null;
+  // Columns: split wherever the gap between left edges is wide (a column starts after a gap of 60pt or more).
+  const xs = [...new Set(box.map(i => Math.round(i.x)))].sort((a, b) => a - b);
+  const splits = [];
+  for (let k = 1; k < xs.length; k++) if (xs[k] - xs[k - 1] > 60) splits.push(xs[k]);
+  const columnOf = i => splits.filter(s => i.x >= s - 2).length;
+  const entries = [];
+  // The chapter carries across columns: a column can start with an entry under the chapter heading in the column before it.
+  let chapter = "", lastBullet = "";
+  const cols = [...new Set(box.map(columnOf))].sort((a, b) => a - b);
+  for (const c of cols) {
+    const colItems = box.filter(i => columnOf(i) === c).sort((a, b) => a.y - b.y || a.x - b.x);
+    const rows = [];
+    for (const it of colItems) {
+      const last = rows[rows.length - 1];
+      if (last && Math.abs(it.y - last.y) <= 3) last.items.push(it);
+      else rows.push({ y: it.y, items: [it] });
+    }
+    for (const row of rows) {
+      row.items.sort((a, b) => a.x - b.x);
+      let text = "";
+      row.items.forEach((it, n) => {
+        const gap = n ? it.x - (row.items[n - 1].x + (row.items[n - 1].w || 0)) : 0;
+        text += (n && gap > 1.5 ? " " : "") + it.t.trim();
+      });
+      text = cleanGlyphs(text).replace(/\s+/g, " ").trim();
+      const size = Math.max(...row.items.map(i => i.s));
+      if (!text || text === "•") continue;
+      if (size >= body * 1.2 && !/^•/.test(text)) {
+        chapter = text; lastBullet = "";
+        entries.push({ num: "", title: text, chapterOf: "", groupOf: "", key: headingKey(text), chapter: true });
+        continue;
+      }
+      const bare = text.replace(/^•\s*/, "").trim();
+      const m = bare.match(/^(\d{1,2})\s*\.?\s*(.+)$/);
+      if (!m) {
+        // A bullet such as "Shoot" or "Fight": its numbered steps below it are nested under it.
+        lastBullet = bare;
+        entries.push({ num: "", title: bare, chapterOf: chapter, groupOf: "", key: headingKey(text) });
+        continue;
+      }
+      entries.push({ num: m[1], title: m[2].trim(), chapterOf: chapter, groupOf: lastBullet, key: headingKey(text) });
+    }
+  }
+  // A chapter whose first subheading is "… Actions" (e.g. "Actions" with "Universal Actions" first) takes that name;
+  // the subheading becomes the chapter box itself. The body is still matched on the original chapter heading.
+  for (const ch of entries.filter(e => e.chapter)) {
+    const first = entries.find(e => !e.chapter && !e.groupOf && e.chapterOf === ch.title);
+    if (!first || first.title === ch.title || !/\bActions$/.test(first.title)) continue;
+    const old = ch.title;
+    ch.title = first.title;
+    entries.splice(entries.indexOf(first), 1);
+    entries.forEach(e => { if (e.chapterOf === old) e.chapterOf = ch.title; });
+  }
+  const boxItems = new Set([head, ...box]);
+  return entries.length ? { entries, boxItems } : null;
 }
 
-function parseRulesPdf(rawItems, killTeamHeadings = false) {
-  const items = dropPageFurniture(rawItems);
+/**
+ * Finds the body lines that are contents headings. Chapters are read in order down the page. Inside a chapter, numbered
+ * sub-headings are followed down the left half in order; when the sequence breaks, the search goes back to the chapter
+ * header and reads the right half from the top. Unnumbered entries are matched the same way.
+ */
+function tocHeadings(lines, entries) {
+  // The body is one column: each chapter's subheadings are found by reading straight down its lines, in contents order.
+  const found = new Map();
+  const keys = l => headingKey(l.text);
+  let from = 0;
+  const chapterLine = [];
+  for (const ch of entries.filter(e => e.chapter)) {
+    let at = -1;
+    for (let i = from; i < lines.length; i++) if (keys(lines[i]) === ch.key) { at = i; break; }
+    if (at < 0) continue;
+    chapterLine.push({ at, e: ch });
+    found.set(at, ch);
+    from = at + 1;
+  }
+  chapterLine.forEach((ch, n) => {
+    const endAt = n + 1 < chapterLine.length ? chapterLine[n + 1].at : lines.length;
+    // Subheadings in order from the chapter heading down; a subheading that isn't found is skipped.
+    let pos = ch.at + 1;
+    for (const kid of entries.filter(e => !e.chapter && e.chapterOf === ch.e.title && !e.groupOf)) {
+      let at = -1;
+      for (let i = pos; i < endAt; i++) if (keys(lines[i]) === kid.key) { at = i; break; }
+      if (at < 0) continue;
+      found.set(at, kid);
+      pos = at + 1;
+      // Numbered steps under this bullet (e.g. Shoot 1-6, Fight 1-4) follow it in order.
+      let sp = at + 1;
+      for (const st of entries.filter(e => e.groupOf === kid.title && e.chapterOf === ch.e.title)) {
+        let j = -1;
+        for (let i = sp; i < endAt; i++) if (keys(lines[i]) === st.key) { j = i; break; }
+        if (j < 0) continue;
+        found.set(j, st);
+        sp = j + 1;
+      }
+    }
+  });
+  return found;
+}
+
+/** The 40K parser first. Then the Contents box (Wahapedia style). Then Kill Team's numbered headings ("2. READY"), if still too few. */
+function parseRulesPdfAuto(rawItems) {
+  const strict = parseRulesPdf(rawItems);
+  const toc = parseRulesPdf(rawItems, "toc");
+  // The contents pass only wins when it finds more numbered rules: 40K contents list chapters without numbers.
+  const numbered = r => r.sections.filter(s => s.num).length;
+  let best = numbered(toc) > numbered(strict) ? toc : strict;
+  if (best.sections.length >= 3) return best;
+  const relaxed = parseRulesPdf(rawItems, "relaxed");
+  return relaxed.sections.length > best.sections.length ? relaxed : best;
+}
+
+function parseRulesPdf(rawItems, mode = null) {
+  let items = dropPageFurniture(rawItems);
   const body = mostCommonSize(items);
+  const toc = mode === "toc" ? readContents(items, body) : null;
+  if (toc) items = items.filter(i => !toc.boxItems.has(i));
   const lines = readingLines(items, 4);
+  const headingAt = toc ? tocHeadings(lines, toc.entries) : new Map();
   const sections = [];
   let part = "", chapter = "", chapterNum = "", cur = null, skipping = false;
   const isUpperish = t => t === t.toUpperCase() && /[A-Z]{2}/.test(t);
@@ -84,7 +208,8 @@ function parseRulesPdf(rawItems, killTeamHeadings = false) {
     sections.push(cur);
     skipping = false;
   };
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const its = line.items;
     const first = its[0];
     const nums = its.filter(i => SECTION_NUM.test(i.t.trim()) && i.s >= body + 1.5);
@@ -92,6 +217,10 @@ function parseRulesPdf(rawItems, killTeamHeadings = false) {
     const titleText = cleanGlyphs(words.map(i => i.t).join(" ")).trim();
     // Collapsed FAQ boxes ("FAQ", "FAQ / ERRATA", with or without the web page's Show button) hold no rules text.
     if (/^(FAQ|ERRATA)(\s*\/\s*(FAQ|ERRATA))?\s*(Show|Hide)?$/i.test(line.text.trim()) || /^(Show|Hide)$/i.test(line.text.trim())) { skipping = false; continue; }
+    // A line that is one of the Contents entries, in contents order: it starts that rule under its contents chapter.
+    const hit = headingAt.get(li);
+    if (hit && hit.chapter) { chapter = hit.title; chapterNum = ""; part = ""; cur = null; continue; }
+    if (hit) { chapter = hit.chapterOf || ""; chapterNum = ""; part = hit.groupOf || ""; start(hit.num, titleCase(hit.title).replace(/\s*\/\s*/g, " / ")); continue; }
     // Part and chapter titles (very large); a chapter has its number at the right ("CORE ABILITIES … 24").
     if (first.b && line.size >= body * 2.5 && isUpperish(titleText.replace(/\d+/g, ""))) {
       const n = its.find(i => /^\d{2}$/.test(i.t.trim()));
@@ -104,7 +233,7 @@ function parseRulesPdf(rawItems, killTeamHeadings = false) {
       continue;
     }
     // Kill Team style ("2. READY"): an uppercase numbered heading. Only used by the Kill Team retry.
-    if (killTeamHeadings && !nums.length && /^\d{1,2}\.\s+[A-Z][A-Z'’\- ]{2,}$/.test(line.text.trim())) {
+    if (mode === "relaxed" && !nums.length && /^\d{1,2}\.\s+[A-Z][A-Z'’\- ]{2,}$/.test(line.text.trim())) {
       start("", titleCase(line.text.trim().replace(/^\d{1,2}\.\s+/, "")));
       continue;
     }
