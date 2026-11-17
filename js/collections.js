@@ -4,7 +4,7 @@
  * "New Collection" button. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openSheet, state, store, toast } from "./core.js?v=8.69";
+import { $, confirmSheet, esc, openSheet, state, store, toast } from "./core.js?v=8.70";
 
 const KEY = "rf.collections";
 let selectedId = null;
@@ -45,7 +45,7 @@ function unitsForFaction(bundleId, faction) {
       const rows = (ds.points || []).filter(p => p.models > 0 && p.points >= 0).sort((a, b) => a.models - b.models);
       if (!rows.length || out.has(ds.name)) continue;
       const first = rows[0];
-      out.set(ds.name, { n: ds.name, pts: Math.round(first.points / first.models), min: first.models, max: rows[rows.length - 1].models });
+      out.set(ds.name, { n: ds.name, pts: first.points / first.models, rows: rows.map(r => ({ models: r.models, points: r.points })), min: first.models, max: rows[rows.length - 1].models });
     }
   }
   return [...out.values()].sort((a, b) => a.n.localeCompare(b.n));
@@ -53,7 +53,20 @@ function unitsForFaction(bundleId, faction) {
 
 const total = u => u.sprue + u.assembled + u.painted;
 const usable = u => u.assembled + u.painted;
-const unitPts = u => total(u) * u.pts;
+/** Points for a unit's models, priced from the Game Pack's unit-cost rows: as many of the largest squad as fit,
+ *  then any leftover models at the smallest squad's per-model rate. Units added before rows were stored fall
+ *  back to the per-model rate. */
+function unitPts(u) {
+  const n = total(u);
+  if (!u.rows?.length) return n * u.pts;
+  let left = n, cost = 0;
+  for (const row of [...u.rows].sort((a, b) => b.models - a.models)) {
+    const k = Math.floor(left / row.models);
+    cost += k * row.points;
+    left -= k * row.models;
+  }
+  return cost + left * u.pts;
+}
 const collPts = c => c.units.reduce((s, u) => s + unitPts(u), 0);
 /** Squads available: A = usable models for full squads, B = usable models for minimum squads. */
 function availText(u) {
@@ -207,7 +220,7 @@ function openAddUnit() {
     <div class="sheet-head"><h2>Add unit</h2><p>${esc(c.faction)} · ${esc(c.edition)}</p></div>
     <div class="sheet-body cm-addlist">${units.length
       ? units.map((u, i) => `<div class="cm-addrow">
-          <div><div class="cm-name">${esc(u.n)}</div><div class="cm-meta">${u.pts} pts per model · squad ${u.min}–${u.max}</div></div>
+          <div><div class="cm-name">${esc(u.n)}</div><div class="cm-meta">${u.rows.map(r => `${r.models} models ${r.points} pts`).join(" · ")}</div></div>
           <button type="button" class="cm-ic" data-add="${i}" data-m="1" title="Add one model">${ICON.one}</button>
           <button type="button" class="cm-ic" data-add="${i}" data-m="min" title="Add a minimum squad">${ICON.three}</button>
         </div>`).join("")
@@ -219,7 +232,7 @@ function openAddUnit() {
     const x = units[+b.dataset.add];
     updateCollection(c.id, coll => {
       let u = coll.units.find(y => y.n === x.n);
-      if (!u) { u = { id: newId("u"), n: x.n, pts: x.pts, min: x.min, max: x.max, sprue: 0, assembled: 0, painted: 0 }; coll.units.push(u); }
+      if (!u) { u = { id: newId("u"), n: x.n, pts: x.pts, rows: x.rows, min: x.min, max: x.max, sprue: 0, assembled: 0, painted: 0 }; coll.units.push(u); }
       u.sprue += b.dataset.m === "min" ? x.min : 1;
     });
   });

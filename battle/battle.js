@@ -3,10 +3,10 @@
  * A record keeps both players' names as they were when the battle was played: your player name (Settings → Player)
  * and, when two devices are synced, your opponent's. Without a name, "You" and "Opponent" are shown.
  */
-import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.69";
-import { factionStyle } from "../js/factions.js?v=8.69";
-import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.69";
-import { pausedBattles } from "./tracker.js?v=8.69";
+import { $, esc, openSheet, settingsTabsHTML, store, toast } from "../js/core.js?v=8.70";
+import { factionStyle } from "../js/factions.js?v=8.70";
+import { renderSetup, resumeSetup, wireSetup } from "./setup.js?v=8.70";
+import { pausedBattles } from "./tracker.js?v=8.70";
 
 /* A battle record:
    { id, date: ms, you: { name, faction, score }, opponent: { name, faction, score }, ...more to come with the battle itself } */
