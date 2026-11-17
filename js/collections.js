@@ -1,15 +1,14 @@
 /* RulesForge · collections.js
- * The Collection page: a panel on the left with one collapsible header per downloaded Game (e.g. "Warhammer 40K"),
- * an edition under it (e.g. "11th Edition"), and under that the collections for that edition, with a
- * "New Collection" button. Picking a collection opens it on the right: add units from that faction, and track
+ * The Collection page: a rail of downloaded Games (tablet and desktop), the editions and collections for the chosen
+ * game beside it, with a "New Collection" button. On a phone the rail becomes a switcher above the bottom bar, and
+ * the page swipes between games. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.71";
-import { factionStyle } from "./factions.js?v=8.71";
+import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.72";
+import { factionStyle } from "./factions.js?v=8.72";
 
 const KEY = "rf.collections";
 let selectedId = null;
-const closed = new Set();   // "g:<game>" and "e:<edition id>" headers the user has folded away
 
 // Collections saved by an earlier build have no units list; give them an empty one so they still open.
 const collections = () => (store.get(KEY, []) || []).map(c => ({ ...c, units: c.units || [] }));
@@ -161,36 +160,105 @@ function collectionMainHTML(c) {
     `;
 }
 
-/* ---------- Panel ---------- */
+/* ---------- Navigation: a game rail beside the editions and collections (tablet and desktop); on a phone, a switcher
+   above the bottom bar, where the page also swipes between games ---------- */
 
-function editionHTML(e) {
-  const items = collections().filter(c => c.bundleId === e.id);
-  return `<details class="coll-ed" data-ed="${esc(e.id)}" ${closed.has("e:" + e.id) ? "" : "open"}>
-    <summary>${esc(e.edition)}</summary>
+const GAME_KEY = "rf.collGame";
+let selGame = store.get(GAME_KEY, null);   // the game the navigation is showing
+const selEd = new Map();                    // game -> the edition picked for it last
+let switchOpen = false;                     // phone: the game list above the switcher is open
+const phoneLayout = () => matchMedia("(max-width: 700px)").matches;
+
+/** A short label for the tablet rail: the number in the name ("40K"), or the initials ("KT" for Kill Team). */
+function shortName(game) {
+  const num = game.match(/\d+\w*/);
+  if (num) return num[0];
+  const words = game.split(/\s+/).filter(w => !/^(of|the|and)$/i.test(w));
+  return words.map(w => w[0]).join("").toUpperCase() || game.slice(0, 3);
+}
+
+/** The game and edition being shown. The first game is the default; the last game picked is remembered. */
+function current(lib) {
+  const g = lib.find(x => x.game === selGame) || lib[0];
+  if (!g) return { g: null, ed: null };
+  selGame = g.game;
+  const ed = g.editions.find(e => e.id === selEd.get(g.game)) || g.editions[0];
+  selEd.set(g.game, ed.id);
+  return { g, ed };
+}
+
+function railHTML(lib, g) {
+  return lib.map(x => `<button type="button" class="coll-rail-item${x === g ? " on" : ""}" data-game="${esc(x.game)}" title="${esc(x.game)}">
+      <span class="rl-long">${esc(x.game)}</span><span class="rl-short">${esc(shortName(x.game))}</span>
+    </button>`).join("") + `<button type="button" class="coll-rail-add" data-go="factions">+ Add game pack</button>`;
+}
+
+/** The editions for the game (as chips when there's more than one), then its collections and New Collection. */
+function panelHTML(g, ed, list) {
+  if (!g) return `<p class="bt-hint">Download a Game Pack to start a collection for that game.</p>`;
+  const items = list.filter(c => c.bundleId === ed.id);
+  const eds = g.editions.length > 1
+    ? `<div class="coll-chips">${g.editions.map(e => `<button type="button" class="coll-chip${e === ed ? " on" : ""}" data-ed="${esc(e.id)}">${esc(e.edition)}</button>`).join("")}</div>`
+    : `<div class="coll-edition">${esc(ed.edition)}</div>`;
+  return `<div class="coll-panel-head">${esc(g.game)}</div>${eds}
     <div class="coll-list">${items.length
       ? items.map(c => `<button type="button" class="coll-item${c.id === selectedId ? " on" : ""}" style="${colourVars(c.faction)}" data-coll="${esc(c.id)}">${esc(c.faction)}</button>`).join("")
       : `<p class="bt-hint">No collections yet.</p>`}</div>
-    <button type="button" class="btn primary coll-add" data-newcoll="${esc(e.id)}">New Collection</button>
-  </details>`;
+    <button type="button" class="btn primary coll-add" data-newcoll="${esc(ed.id)}">New Collection</button>`;
+}
+
+/** The phone switcher: arrows either side of the game name, with every game above it when the list is open. */
+function switchHTML(lib, g) {
+  if (!g) return "";
+  const i = lib.indexOf(g);
+  const opts = [...lib.filter(x => x !== g), g]
+    .map(x => `<button type="button" class="cs-opt${x === g ? " cs-cur" : ""}" data-pick-game="${esc(x.game)}">${esc(x.game)}</button>`).join("");
+  return `<div class="cs-list" ${switchOpen ? "" : "hidden"}>${opts}</div>
+    <div class="cs-bar">
+      <button type="button" class="cs-arrow" data-cs-step="-1" aria-label="Previous game" ${i <= 0 ? "disabled" : ""}>&#8249;</button>
+      <button type="button" class="cs-name" data-cs-toggle aria-expanded="${switchOpen}">${esc(g.game)} <span aria-hidden="true">&#8964;</span></button>
+      <button type="button" class="cs-arrow" data-cs-step="1" aria-label="Next game" ${i >= lib.length - 1 ? "disabled" : ""}>&#8250;</button>
+    </div>`;
+}
+
+function renderSwitchOnly() {
+  const lib = library();
+  $("#collSwitch").innerHTML = switchHTML(lib, current(lib).g);
+}
+
+/** Hides the phone switcher below the screen, or brings it back. Closing it also folds the game list. */
+function setSwitchHidden(on) {
+  if (on && switchOpen) { switchOpen = false; renderSwitchOnly(); }
+  $("#collSwitch").classList.toggle("cs-hidden", on);
+}
+
+function pickGame(game) {
+  selGame = game;
+  store.set(GAME_KEY, game);
+  selectedId = null;
+  switchOpen = false;
+  renderCollections();
+}
+
+function stepGame(dir) {
+  const lib = library();
+  const i = lib.findIndex(x => x.game === selGame);
+  if (i >= 0 && lib[i + dir]) pickGame(lib[i + dir].game);
 }
 
 export function renderCollections() {
   const lib = library();
   const list = collections();
   if (selectedId && !list.some(c => c.id === selectedId)) selectedId = null;
-  if (!lib.length) {
-    $("#collPanel").innerHTML = `<div class="coll-panel-head">Collections</div><p class="bt-hint">Download a Game Pack to start a collection for that game.</p>`;
-  } else {
-    $("#collPanel").innerHTML = `<div class="coll-panel-head">Collections</div>` + lib.map(g => `
-      <details class="coll-game" data-game="${esc(g.game)}" ${closed.has("g:" + g.game) ? "" : "open"}>
-        <summary>${esc(g.game)}</summary>
-        ${g.editions.map(editionHTML).join("")}
-      </details>`).join("");
-  }
+  const { g, ed } = current(lib);
+  if (!g) switchOpen = false;
+  $("#collRail").innerHTML = railHTML(lib, g);
+  $("#collPanel").innerHTML = panelHTML(g, ed, list);
+  $("#collSwitch").innerHTML = switchHTML(lib, g);
   const cur = list.find(c => c.id === selectedId);
   $("#collMain").innerHTML = cur
     ? collectionMainHTML(cur)
-    : `<p class="bt-hint">${lib.length ? "Pick a collection on the left, or start a New Collection under an edition." : "Download a Game Pack to start a collection."}</p>`;
+    : `<p class="bt-hint">${lib.length ? "Pick a collection, or start a New Collection for this edition." : "Download a Game Pack to start a collection."}</p>`;
 }
 
 /* ---------- Pop-ups ---------- */
@@ -262,23 +330,56 @@ function updateCollection(id, change) {
 
 export function wireCollections() {
   const panel = $("#collPanel");
-  // Remember which headers are folded, so re-rendering doesn't open them again.
-  panel.addEventListener("toggle", e => {
-    const d = e.target;
-    const key = d.classList.contains("coll-game") ? "g:" + d.dataset.game : d.classList.contains("coll-ed") ? "e:" + d.dataset.ed : null;
-    if (!key) return;
-    if (d.open) closed.delete(key); else closed.add(key);
-  }, true);
   panel.addEventListener("click", e => {
     const add = e.target.closest("[data-newcoll]");
     if (add) return openNewCollection(add.dataset.newcoll);
+    const ed = e.target.closest("[data-ed]");
+    if (ed) { selEd.set(selGame, ed.dataset.ed); selectedId = null; return renderCollections(); }
     const item = e.target.closest("[data-coll]");
     if (item) { selectedId = item.dataset.coll; renderCollections(); }
   });
+  $("#collRail").addEventListener("click", e => {
+    const g = e.target.closest("[data-game]");
+    if (g) pickGame(g.dataset.game);
+  });
+
+  const view = $("#view-collection");
+  // The phone switcher stops its own taps here, so the outside-tap check below never sees a button that was just redrawn.
+  $("#collSwitch").addEventListener("click", e => {
+    e.stopPropagation();
+    const step = e.target.closest("[data-cs-step]");
+    if (step) return stepGame(+step.dataset.csStep);
+    if (e.target.closest("[data-cs-toggle]")) { switchOpen = !switchOpen; return renderSwitchOnly(); }
+    const pick = e.target.closest("[data-pick-game]");
+    if (pick) pickGame(pick.dataset.pickGame);
+  });
+  // On a phone, a swipe left or right changes game. Swipes that start in a row that scrolls sideways are left alone.
+  let touch = null;
+  view.addEventListener("touchstart", e => {
+    const t = e.touches[0];
+    touch = e.target.closest(".coll-list, .coll-chips, #collSwitch") ? null : { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  view.addEventListener("touchend", e => {
+    if (!touch || !phoneLayout()) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) stepGame(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  // The phone switcher slides away while the page scrolls down, and returns on scrolling up or a tap on the bottom bar.
+  let lastY = 0;
+  view.addEventListener("scroll", e => {
+    const y = e.target.scrollTop || 0;
+    if (y > lastY + 6 && y > 40) setSwitchHidden(true);
+    else if (y < lastY - 6) setSwitchHidden(false);
+    lastY = y;
+  }, true);
+  $(".sidebar").addEventListener("click", () => setSwitchHidden(false));
 
   const main = $("#collMain");
   // The ⋮ menu is attached to the page, outside the main area, so its Delete button is handled here.
-  $("#view-collection").addEventListener("click", async e => {
+  view.addEventListener("click", async e => {
+    if (switchOpen && !e.target.closest("#collSwitch")) { switchOpen = false; renderSwitchOnly(); }
     const del = e.target.closest("[data-cm-delete]");
     if (!del) return;
     const id = del.dataset.cmDelete;

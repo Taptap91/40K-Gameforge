@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, isPhone, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.71";
-import { armyData } from "./army.js?v=8.71";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.71";
-import { factionMatches } from "./search.js?v=8.71";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.71";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.71";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.71";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.71";
-import { libraryHTML } from "./library.js?v=8.71";
+import { $, DB, esc, icon, isPhone, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.72";
+import { armyData } from "./army.js?v=8.72";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.72";
+import { factionMatches } from "./search.js?v=8.72";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.72";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.72";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.72";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.72";
+import { libraryHTML } from "./library.js?v=8.72";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */

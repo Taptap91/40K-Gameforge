@@ -1290,24 +1290,51 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .coll-title { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
 .coll-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-2); }
 .coll-foot { justify-content: space-between; }
+/* Games: a rail on tablet and desktop (its labels shorten on tablet). On a phone the rail is replaced by the switcher. */
+.coll-rail { width: 180px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-right: 1px solid var(--border); background: var(--sidebar); overflow-y: auto; }
+.coll-rail-item { text-align: left; background: none; border: 0; color: var(--text-2); padding: 9px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coll-rail-item:hover { background: var(--control); }
+.coll-rail-item.on { background: var(--control); color: var(--text); font-weight: 600; }
+.coll-rail-add { margin-top: 8px; background: none; border: 0; color: var(--accent); text-align: left; padding: 9px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.rl-short { display: none; }
+/* The panel's heading is the game name, and editions sit as chips under it (or as one label when there's only one). */
+.coll-panel-head { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); padding: 0 4px 6px; }
+.coll-edition { font-size: 13px; color: var(--text-2); padding: 0 4px 10px; }
+.coll-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px 10px; }
+.coll-chip { font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border-strong); background: none; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.coll-chip.on { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); color: var(--text); font-weight: 600; }
+
+/* Phone switcher: floats above the bottom bar, with the game list opening upward. Hidden while the page scrolls down. */
+.cs-switch { display: none; position: fixed; left: 0; right: 0; bottom: calc(70px + env(safe-area-inset-bottom)); flex-direction: column; align-items: center; gap: 8px; padding: 0 12px; z-index: 30; transition: transform .2s ease; }
+.cs-switch.cs-hidden { transform: translateY(calc(100% + 90px)); pointer-events: none; }
+.cs-list { width: min(300px, 100%); background: var(--panel); border: 1px solid var(--border-strong); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.cs-list[hidden] { display: none; }
+.cs-opt { display: block; margin: 0 16px; padding: 12px 0; background: none; border: 0; border-top: 1px solid var(--border); color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.cs-opt:first-child { border-top: 0; }
+.cs-opt.cs-cur { font-weight: 600; }
+.cs-opt:not(.cs-cur) { opacity: .75; }
+.cs-bar { display: flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.cs-arrow { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.cs-arrow:disabled { opacity: .3; cursor: default; }
+.cs-name { min-height: 40px; min-width: 0; padding: 0 8px; border: 0; background: none; color: var(--text); font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+
+@media (min-width: 701px) and (max-width: 1279px) {
+  .coll-rail { width: 112px; padding: 14px 8px; }
+  .coll-rail-item { text-align: center; padding: 9px 4px; }
+  .coll-rail-add { font-size: 12px; padding: 9px 4px; }
+  .rl-long { display: none; }
+  .rl-short { display: inline; }
+}
 @media (max-width: 700px) {
   .coll-wrap { flex-direction: column; }
-  .coll-panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .coll-rail { display: none; }
+  .coll-panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .coll-chips { flex-wrap: nowrap; overflow-x: auto; }
   .coll-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
   .coll-add { width: auto; }
+  .coll-main { padding: 14px 14px 150px; }
+  .cs-switch { display: flex; }
 }
-
-/* Collection panel: game and edition headers fold away; collections sit under the edition. */
-.coll-game > summary, .coll-ed > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text); padding: 6px 4px; border-radius: 6px; user-select: none; }
-.coll-game > summary::-webkit-details-marker, .coll-ed > summary::-webkit-details-marker { display: none; }
-.coll-game > summary::before, .coll-ed > summary::before { content: "▸"; color: var(--text-3); font-size: 11px; width: 10px; transition: transform .15s; }
-.coll-game[open] > summary::before, .coll-ed[open] > summary::before { transform: rotate(90deg); }
-.coll-game > summary { font-size: 14px; }
-.coll-ed > summary { font-size: 13px; color: var(--text-2); padding-left: 14px; }
-.coll-ed { margin-bottom: 4px; }
-.coll-ed .coll-list { padding-left: 14px; }
-.coll-ed .coll-add { width: calc(100% - 14px); margin: 12px 0 0 14px; }
-.coll-game > summary:hover, .coll-ed > summary:hover { background: var(--control); }
 
 /* Collection page: a faction's units, models and stages (js/collections.js) */
 .cm-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
