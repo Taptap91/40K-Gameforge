@@ -18,7 +18,7 @@ const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slic
 
 /** Faction colours and symbol, as the list builder uses them. */
 const colourVars = faction => {
-  const st = factionStyle(faction);
+  const st = factionStyle(faction || "");
   return `--c1:${st.c1};--c2:${st.c2}`;
 };
 
