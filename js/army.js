@@ -1,12 +1,12 @@
 /* RulesForge · army.js
  * Army rules and list legality (battle sizes, detachments, enhancements, attachments), and the list generator.
  */
-import { DB, state, toast, uid } from "./core.js?v=8.70";
-import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.70";
-import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.70";
-import { factionMatches } from "./search.js?v=8.70";
-import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.70";
-import { battleSizes, compareEditions } from "./rules-doc.js?v=8.70";
+import { DB, state, toast, uid } from "./core.js?v=8.71";
+import { detUnique, keywordGrants, tidyDatasheet, viewerDatasheet } from "./datasheets.js?v=8.71";
+import { attackBuffs, loadoutIssues, loadoutOf, loadoutProblem, weaponSummary } from "./loadout.js?v=8.71";
+import { factionMatches } from "./search.js?v=8.71";
+import { keywordList, normName, stripRich, titleCase } from "./text.js?v=8.71";
+import { battleSizes, compareEditions } from "./rules-doc.js?v=8.71";
 
 /* Lists are built from the structured faction data (converted faction PDFs).
    Battle sizes (points, detachment points, enhancement and unit limits) come from the Core Rules in the Library,
