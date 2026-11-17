@@ -12,6 +12,8 @@ packs/incoming/<Game>/<Edition>/Rules/<file>.pdf       Core Rules, an FAQ/balanc
                                                         pack (auto-detected) — anything that isn't a faction
 packs/incoming/<Game>/<Edition>/Factions/<file>.pdf    A codex/battletome for one faction
 packs/incoming/<Game>/<Edition>/Companions/<file>.pdf  An Event Companion: Doubles, Teams, Dominatus…
+packs/incoming/<Game>/<Edition>/Sections/<file>.pdf    Your own section, named in its .json sidecar:
+                                                        {"section": "Kill Team"} gives it its own column
 ```
 
 For example, a Space Marines codex for 40K 11th Edition goes in

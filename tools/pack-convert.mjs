@@ -73,8 +73,8 @@ function parseLocation(pdfPath) {
   if (rel.length !== 4) return null;
   const [game, edition, bucket] = rel;
   const b = bucket.trim().toLowerCase();
-  if (!["rules", "factions", "companions", "event companions", "collections"].includes(b)) return null;
-  return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : b === "collections" ? "Collections" : "Companions" };
+  if (!["rules", "factions", "companions", "event companions", "collections", "sections"].includes(b)) return null;
+  return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : b === "collections" ? "Collections" : b === "sections" ? "Sections" : "Companions" };
 }
 
 function serveRoot(root, port) {
@@ -113,6 +113,8 @@ function getBundle(index, game, edition) {
 function componentKey(entry) {
   if (entry.kind === "faction") return `faction:${entry.faction.trim().toLowerCase()}`;
   if (entry.kind === "core") return "core";
+  // A collection's section is part of its identity: "Kill Team" and "Approved Ops" can each have a "Rules" entry.
+  if (entry.kind === "collection") return `collection:${(entry.section || "").trim().toLowerCase()}:${entry.title.trim().toLowerCase()}`;
   return `${entry.kind}:${entry.title.trim().toLowerCase()}`;
 }
 
@@ -134,8 +136,8 @@ async function main() {
     const pdfName = path.relative(INCOMING, pdfPath);
     const loc = parseLocation(pdfPath);
     if (!loc) {
-      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions|Companions|Collections/${path.basename(pdfPath)}`);
-      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions|Companions|Collections/" });
+      console.warn(`Skipping ${pdfName}: expected packs/incoming/<Game>/<Edition>/Rules|Factions|Companions|Collections|Sections/${path.basename(pdfPath)}`);
+      results.skipped.push({ file: pdfName, reason: "not nested as <Game>/<Edition>/Rules|Factions|Companions|Collections|Sections/" });
       continue;
     }
     const metaPath = pdfPath.replace(/\.(pdf|xlsx)$/i, ".json");
@@ -168,7 +170,10 @@ async function main() {
         results.converted.push(entry);
         continue;
       }
-      const opts = { kind: loc.bucket === "Factions" ? "faction" : loc.bucket === "Companions" ? "companion" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "" };
+      // A Sections file is named by its sidecar's "section" (e.g. "Kill Team"); that name is the column it shows under.
+      const section = loc.bucket === "Sections" ? (meta.section || "").trim() : "";
+      if (loc.bucket === "Sections" && !section) throw new Error('a Sections file needs "section" in its .json, the name its column gets in the Game Pack');
+      const opts = { kind: loc.bucket === "Factions" ? "faction" : loc.bucket === "Companions" ? "companion" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "", section };
       const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, path.basename(pdfPath), opts]);
 
       const title = meta.title || result.title;
@@ -183,6 +188,7 @@ async function main() {
         kind: result.kind,
         title,
         faction: result.kind === "faction" ? (meta.faction || result.faction || title) : undefined,
+        section: result.kind === "collection" ? (result.section || section || undefined) : undefined,
         version: meta.version || new Date().toISOString().slice(0, 10),
         description: meta.description || "",
         file: `${bundle.id}/${fileName}`,

@@ -199,6 +199,20 @@ function sectionChunks(sections) {
 
 /* ---------- Excel ---------- */
 
+/** A Collection workbook for a PDF added as its own Game Pack section (e.g. "Kill Team"): one row per parsed entry,
+ *  and About names the section, which is the column the Game Pack files it under. Reads back with collectionFromWorkbook. */
+function collectionToSheets(doc) {
+  const W = (header, width) => ({ header, width });
+  const ed = doc.edition || {};
+  return [
+    { name: "Entries", columns: [W("Category", 24), W("Name", 34), W("Tags", 24), W("Stats", 30), W("Text", 100)],
+      rows: doc.structured.sections.map(s => [s.chapter || "General", s.title, "", "", s.text || ""]) },
+    { name: "About", columns: [W("Field", 20), W("Value", 90)],
+      rows: [["Kind", "Collection"], ["Title", doc.title], ["Section", doc.section], ["Version", ed.version || ""],
+        ["Date", ed.date != null ? new Date(ed.date).toISOString().slice(0, 10) : ""], ["Made with", "RulesForge"]] },
+  ];
+}
+
 const KIND_NAMES = { core: "Core Rules", updates: "Rules update", companion: "Event Companion" };
 function rulesToSheets(doc) {
   const d = doc.structured, W = (header, width) => ({ header, width });
@@ -307,4 +321,4 @@ function coreAbilityRule(name) {
     || list.find(s => s.title.split("/").map(x => normName(x)).includes(key)) || null;
 }
 
-export { battleSizes, collectionFromWorkbook, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };
+export { battleSizes, collectionFromWorkbook, collectionToSheets, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };

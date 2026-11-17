@@ -29,7 +29,7 @@ except ImportError:
 
 HERE = Path(__file__).resolve().parent
 WORK = Path(tempfile.mkdtemp(prefix="rf-pdfstudio-"))
-TYPES = {"Rules": "Core Rules, rules updates, FAQs", "Factions": "An army or faction", "Companions": "Event Companions (Doubles, Teams…)", "Collections": "Reference PDFs (monsters, spells…)"}
+TYPES = {"Rules": "Core Rules, rules updates, FAQs", "Factions": "An army or faction", "Companions": "Event Companions (Doubles, Teams…)", "Collections": "Reference PDFs (monsters, spells…)", "Sections": "Your own section, named by you (Kill Team, Approved Ops…)"}
 FILES = {}   # id -> {"name", "path", "pages"}
 
 
@@ -620,6 +620,9 @@ def save(d):
     if writer is None: shutil.copyfile(pre, dest)
     else: writer.write(str(dest))
     meta = {"title": title}
+    # A Sections file is named by what the volunteer types (e.g. "Kill Team"); that name is its column in the Game Pack.
+    if typ == "Sections":
+        meta["section"] = (d.get("section", "") or title).strip()
     if typ == "Factions" and d.get("faction", "").strip():
         meta["faction"] = d["faction"].strip()
     if typ == "Rules" and d.get("rulesKind") == "updates":
@@ -817,6 +820,7 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0e0
 <label>Type: where it shows in the Game Pack</label><select id="type"></select>
 <label>Title: what the app calls it</label><input id="title" placeholder="Codex: Space Marines">
 <div id="facw"><label>Faction (for an army)</label><input id="fac" placeholder="Space Marines"></div>
+<div id="secw" hidden><label>Section name: its own column in the Game Pack (blank uses the title)</label><input id="sec" placeholder="Kill Team"></div>
 <div id="kw" hidden><label>Rules kind</label><select id="rk"><option value="core">Core Rules</option><option value="updates">Update / FAQ / errata</option></select></div>
 <div class="two"><div><label>Version (optional)</label><input id="ver" placeholder="2026-11"></div><div><label>Note (optional)</label><input id="desc"></div></div>
 </details>
@@ -915,9 +919,9 @@ function paint(){$("path").textContent=$("dest").value==="new"?"A new Game Pack:
 function pickDest(){const v=$("dest").value,fresh=v==="new";$("game").readOnly=!fresh;$("ed").readOnly=!fresh;
 if(!fresh){const[g,e]=dests()[+v];$("game").value=g;$("ed").value=e;$("ed").readOnly=!!e}else{$("game").value=$("ed").value="";$("game").focus()}paint()}
 $("dest").onchange=pickDest;for(const id of["type","game","ed"])$(id).addEventListener("input",()=>{if(remote)paint()});$("type").addEventListener("change",()=>{if(remote)paint()});
-function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
+function sync(){const t=$("type").value;$("facw").hidden=t!=="Factions";$("secw").hidden=t!=="Sections";$("kw").hidden=t!=="Rules";$("eds").innerHTML=(info.games[$("game").value]||[]).map(e=>`<option value="${e}">`).join("")}
 $("type").onchange=$("game").oninput=sync;
-const form=m=>({github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||"",top:i.top||0,bottom:i.bottom||0})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
+const form=m=>({github:$("up").checked&&m==="folder"?{repo:$("repo").value,branch:$("br").value,token:$("tok").value,remember:$("rem").checked}:null,mode:m,items:items.map(i=>({id:i.id,range:i.range||"",top:i.top||0,bottom:i.bottom||0})),game:$("game").value,edition:$("ed").value,type:$("type").value,title:$("title").value,faction:$("fac").value,section:$("sec").value,rulesKind:$("rk").value,version:$("ver").value,description:$("desc").value});
 
 /* ---- merge, then download or upload ---- */
 const signature=()=>JSON.stringify([items.map(i=>[i.id,i.range||"",i.top||0,i.bottom||0]),$("title").value]);

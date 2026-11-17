@@ -37,7 +37,8 @@ async function loadCatalog(force = false) {
 
 /** The same key tools/pack-convert.mjs uses to match a converted file to the component it replaces, so a
  *  doc installed from a component can be matched back against the catalog to check for updates. */
-const componentKey = c => c.kind === "faction" ? `faction:${(c.faction || "").trim().toLowerCase()}` : c.kind === "core" ? "core" : `${c.kind}:${(c.title || "").trim().toLowerCase()}`;
+const componentKey = c => c.kind === "faction" ? `faction:${(c.faction || "").trim().toLowerCase()}` : c.kind === "core" ? "core"
+  : c.kind === "collection" ? `collection:${(c.section || "").trim().toLowerCase()}:${(c.title || "").trim().toLowerCase()}` : `${c.kind}:${(c.title || "").trim().toLowerCase()}`;
 
 /** Whether a bundle is installed, and whether any of its components has a newer version than what's in
  *  the Library (so the sheet can say "Installed" / "Update" instead of just "Download" every time). `have`

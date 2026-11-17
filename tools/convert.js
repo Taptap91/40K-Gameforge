@@ -20,7 +20,7 @@ import "../js/factions.js?v=8.67";
 import { readPdf } from "../js/pdf-reader.js?v=8.67";
 import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.67";
 import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.67";
-import { collectionFromWorkbook, detectEdition, parseRulesPdf, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.67";
+import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdf, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.67";
 import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.67";
 import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.67";
 
@@ -28,10 +28,19 @@ const PACK_MIN_DATASHEETS = 5;
 
 /** Converts one PDF (a File/Blob) into a pack .xlsx, mirroring js/library.js's importFiles for a single file.
  * `kind` is a hint ("core"/"updates"/"faction"/"points"), same as the picker shown by "Add PDF" —
- * a mission pack is detected automatically and the hint is ignored for it. */
-async function convertPdf(file, { kind = "core", faction = "" } = {}) {
+ * a mission pack is detected automatically and the hint is ignored for it.
+ * `section` (a Sections/ file) makes it a Collection under that name, e.g. "Kill Team": its entries come from the
+ * PDF's rule sections, and no faction or mission-pack detection runs. */
+async function convertPdf(file, { kind = "core", faction = "", section = "" } = {}) {
   const { title, pages } = await readPdf(file, () => {});
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
+  if (section) {
+    const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
+    const parsed = parseRulesPdf(pages.flatMap(p => p.items));
+    if (!parsed.sections.length) throw new Error(`no entries found in this PDF for the section "${section}"`);
+    const blob = await buildXlsx(collectionToSheets({ title, section, edition, structured: parsed }));
+    return { kind: "collection", title, section, edition, faction: "", blob };
+  }
   if (kind !== "companion" && looksLikeMissionPack(pages)) {
     const pack = await parseMissionPack(pages, title);
     const blob = await buildXlsx(missionPackToSheets(pack));
@@ -93,5 +102,5 @@ window.__convertPdf = async (base64, fileName, opts) => {
   const result = await convertPdf(file, opts);
   const xlsxBuffer = await result.blob.arrayBuffer();
   const xlsxBase64 = bytesToBase64(new Uint8Array(xlsxBuffer));
-  return { kind: result.kind, title: result.title, edition: result.edition, faction: result.faction, xlsxBase64 };
+  return { kind: result.kind, title: result.title, edition: result.edition, faction: result.faction, section: result.section, xlsxBase64 };
 };
