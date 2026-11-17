@@ -1308,3 +1308,49 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .coll-ed .coll-list { padding-left: 14px; }
 .coll-ed .coll-add { width: calc(100% - 14px); margin: 6px 0 0 14px; }
 .coll-game > summary:hover, .coll-ed > summary:hover { background: var(--control); }
+
+/* Collection page: a faction's units, models and stages (js/collections.js) */
+.cm-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.cm-top .coll-title { margin: 0; }
+.cm-top .bt-hint { padding: 0; margin: 2px 0 0; }
+.cm-stats { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.cm-stat { background: var(--control); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 110px; }
+.cm-stat b { font-size: 20px; display: block; }
+.cm-stat span { color: var(--text-3); font-size: 12px; }
+.cm-progress { background: var(--control); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.cm-pbar { height: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.cm-pfill { height: 100%; background: #34c759; transition: width .25s ease; }
+.cm-plab { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; color: var(--text-3); font-size: 12px; flex-wrap: wrap; }
+.cm-plab b { color: var(--text); }
+.cm-unit { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.cm-left { flex: 1 1 320px; min-width: 0; }
+.cm-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cm-name { font-weight: 600; font-size: 15px; }
+.cm-del { padding: 0 4px; min-height: 0; }
+.cm-meta { color: var(--text-3); font-size: 12px; margin-top: 2px; }
+.cm-meta b { color: var(--text); }
+.cm-squad { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 12px; align-items: stretch; margin-top: 10px; height: 104px; }
+.cm-side { display: flex; flex-direction: column; gap: 6px; }
+.cm-side .cm-big { flex: 1 1 0; min-width: 76px; }
+.cm-num { font-size: 30px; font-weight: 700; min-width: 70px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.cm-ic { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 40px; padding: 0 8px; background: #2c3240; border: 1px solid #7a8397; border-radius: 8px; color: var(--text); cursor: pointer; font: inherit; }
+.cm-ic svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cm-ic:disabled { opacity: .3; cursor: default; }
+.cm-srow { display: flex; align-items: flex-end; gap: 12px; }
+.cm-allp { height: 40px; margin-bottom: 10px; flex: 0 0 auto; }
+.cm-stages { display: flex; flex-direction: column; width: max-content; padding: 0 14px; background: var(--control); border: 1px solid #7a8397; border-radius: 10px; overflow: hidden; }
+.cm-stage { display: grid; grid-template-columns: 92px 44px 40px 44px; align-items: center; gap: 8px; padding: 10px 0; }
+.cm-stage + .cm-stage { border-top: 1px solid rgba(233,236,242,.22); }
+.cm-lbl { font-weight: 600; }
+.cm-n { text-align: center; font-size: 17px; font-weight: 700; }
+.cm-foot { margin-top: 16px; }
+.cm-addlist { gap: 0; }
+.cm-addrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.cm-addrow .cm-meta { margin-top: 2px; }
+@media (max-width: 520px) {
+  .cm-squad { gap: 6px; height: 96px; }
+  .cm-num { font-size: 24px; min-width: 44px; }
+  .cm-side .cm-big { min-width: 52px; }
+  .cm-stage { grid-template-columns: 76px 40px 30px 40px; padding: 9px 0; gap: 6px; }
+  .cm-stages { padding: 0 10px; width: 100%; }
+}
