@@ -149,7 +149,7 @@ function collectionMainHTML(c) {
     <div class="cm-stats">
       <div class="cm-stat"><b>${collPts(c)}</b><span>Points</span></div>
       <div class="cm-stat"><b>${models}</b><span>Models</span></div>
-      <button type="button" class="btn primary cm-addbtn" id="cmAddUnit" style="${colourVars(c.faction)};background:var(--c1);border-color:var(--c1)">Add unit</button>
+      <button type="button" class="btn primary cm-addbtn" id="cmAddUnit" style="${colourVars(c.faction)};background:var(--c1);border-color:var(--c1)">${ICON.plus}Add unit</button>
       <button type="button" class="btn cm-kebab" data-cm-menu="${esc(c.id)}" title="More" aria-label="More options" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg></button>
     </div>
     <div class="cm-progress">

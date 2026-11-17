@@ -1426,5 +1426,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 
 /* Collection page: Add unit sits beside the Points and Models boxes, the same height; ⋮ menu for delete */
 .cm-stats { align-items: stretch; }
-.cm-stats .cm-addbtn { width: auto; min-width: 120px; min-height: 0; padding: 8px 14px; align-self: stretch; margin: 0; }
+.cm-stats .cm-addbtn { width: auto; min-width: 0; min-height: 0; padding: 8px 18px 8px 14px; align-self: stretch; margin: 0; }
+.cm-addbtn svg { flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .cm-stats .cm-kebab { align-self: stretch; width: 44px; min-width: 44px; min-height: 0; padding: 0; justify-content: center; background: var(--control); border-color: var(--border-strong); color: var(--text); }
