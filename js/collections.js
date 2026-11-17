@@ -226,7 +226,8 @@ function openAddUnit() {
         </div>`).join("")
       : `<p class="bt-hint">No datasheets for this faction were found in the Game Pack.</p>`}</div>
     <div class="sheet-foot"><button class="btn" type="button" data-close>Done</button></div>`);
-  d.addEventListener("click", e => {
+  // Set (not added) so opening this pop-up again doesn't stack a second handler and count each click twice.
+  d.onclick = e => {
     const b = e.target.closest("[data-add]");
     if (!b) return;
     const x = units[+b.dataset.add];
@@ -235,7 +236,7 @@ function openAddUnit() {
       if (!u) { u = { id: newId("u"), n: x.n, pts: x.pts, rows: x.rows, min: x.min, max: x.max, sprue: 0, assembled: 0, painted: 0 }; coll.units.push(u); }
       u.sprue += b.dataset.m === "min" ? x.min : 1;
     });
-  });
+  };
 }
 
 /** Applies a change to one collection, saves it, and redraws the panel and the page. */
