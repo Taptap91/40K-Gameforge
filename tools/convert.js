@@ -20,7 +20,7 @@ import "../js/factions.js?v=8.67";
 import { readPdf } from "../js/pdf-reader.js?v=8.67";
 import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.67";
 import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.67";
-import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdf, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.67";
+import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.67";
 import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.67";
 import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.67";
 
@@ -36,7 +36,7 @@ async function convertPdf(file, { kind = "core", faction = "", section = "" } = 
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
   if (section) {
     const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
-    const parsed = parseRulesPdf(pages.flatMap(p => p.items));
+    const parsed = parseRulesPdfAuto(pages.flatMap(p => p.items));
     if (!parsed.sections.length) throw new Error(`no entries found in this PDF for the section "${section}"`);
     const blob = await buildXlsx(collectionToSheets({ title, section, edition, structured: parsed }));
     return { kind: "collection", title, section, edition, faction: "", blob };
@@ -59,7 +59,7 @@ async function convertPdf(file, { kind = "core", faction = "", section = "" } = 
   else if (kind === "core" || kind === "companion") structured = null;
 
   if (kind === "core" || kind === "updates" || kind === "companion") {
-    const parsed = parseRulesPdf(pages.flatMap(p => p.items));
+    const parsed = parseRulesPdfAuto(pages.flatMap(p => p.items));
     if (parsed.sections.length >= (kind === "companion" ? 1 : 3)) {
       const blob = await buildXlsx(rulesToSheets({ kind, title, edition, structured: parsed }));
       return { kind, title, edition, faction: "", blob };

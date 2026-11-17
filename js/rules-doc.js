@@ -64,7 +64,15 @@ const editionLabel = ed => [ed?.version ? `v${ed.version}` : "", ed?.date != nul
 /* ---------- Reading a rules PDF ---------- */
 
 /** Splits a rules PDF into its numbered sections ("DEEP STRIKE 24.09"), with chapters, sub-headings, bullets and tables kept. */
-function parseRulesPdf(rawItems) {
+/** The 40K parser first; if it finds too few rules, retries with Kill Team's numbered headings ("2. READY"). */
+function parseRulesPdfAuto(rawItems) {
+  const strict = parseRulesPdf(rawItems);
+  if (strict.sections.length >= 3) return strict;
+  const relaxed = parseRulesPdf(rawItems, true);
+  return relaxed.sections.length > strict.sections.length ? relaxed : strict;
+}
+
+function parseRulesPdf(rawItems, killTeamHeadings = false) {
   const items = dropPageFurniture(rawItems);
   const body = mostCommonSize(items);
   const lines = readingLines(items, 4);
@@ -93,6 +101,11 @@ function parseRulesPdf(rawItems) {
       else if (line.size >= body * 3.6) { part = name; chapter = ""; chapterNum = ""; }
       else { chapter = name; chapterNum = ""; }
       cur = null;
+      continue;
+    }
+    // Kill Team style ("2. READY"): an uppercase numbered heading. Only used by the Kill Team retry.
+    if (killTeamHeadings && !nums.length && /^\d{1,2}\.\s+[A-Z][A-Z'’\- ]{2,}$/.test(line.text.trim())) {
+      start("", titleCase(line.text.trim().replace(/^\d{1,2}\.\s+/, "")));
       continue;
     }
     // A numbered rule: bold title with its number beside it.
@@ -321,4 +334,4 @@ function coreAbilityRule(name) {
     || list.find(s => s.title.split("/").map(x => normName(x)).includes(key)) || null;
 }
 
-export { battleSizes, collectionFromWorkbook, collectionToSheets, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, parseRulesPdf, rulesFromWorkbook, rulesToSheets, sectionChunks };
+export { battleSizes, collectionFromWorkbook, collectionToSheets, compareEditions, coreAbilityRule, detectEdition, editionLabel, effectiveRules, isReferenceDoc, isRulesDoc, parseRulesPdf, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets, sectionChunks };
