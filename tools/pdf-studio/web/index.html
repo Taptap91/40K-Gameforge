@@ -32,6 +32,11 @@
   button:disabled { opacity:.45; cursor:not-allowed; }
   .drop { border:2px dashed var(--line); border-radius:12px; padding:34px; text-align:center; color:var(--mute); cursor:pointer; background:#fff; }
   .drop.over { border-color:var(--acc); color:var(--acc); }
+  .urlbox { display:grid; gap:12px; margin-top:12px; }
+  .urlbox input { width:100%; }
+  .urlfoot { display:flex; align-items:center; gap:12px; }
+  button.plus { width:38px; height:38px; padding:0; font-size:22px; line-height:1; border-radius:50%; }
+  #list { margin-top:12px; }
   .row { display:grid; grid-template-columns:1fr 130px auto; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:9px; margin-bottom:8px; background:#fff; }
   .row small { color:var(--mute); }
   .row .mv { display:flex; gap:4px; }
@@ -66,7 +71,12 @@
     <p class="lead">Drop in the PDFs for this file. Put them in reading order, and use page ranges if you only need some pages.</p>
     <div class="drop" id="drop">Drop PDFs here, or <u>choose files</u></div>
     <input type="file" id="pick" accept="application/pdf" multiple hidden>
-    <div id="list" style="margin-top:16px"></div>
+    <div class="urlbox">
+      <div id="urlRows"></div>
+      <div class="urlfoot"><button id="addUrl" class="plus" title="Add a web address (up to 12)">+</button><span class="hint">Web addresses, up to 12.</span></div>
+      <div class="hint" id="urlNote">Web pages can't be captured in this browser version. Open the page, use Print → Save as PDF, then drop that file above. The desktop PDF Studio can capture pages.</div>
+    </div>
+    <div id="list"></div>
     <div class="hint">Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div>
   </div>
 
@@ -476,9 +486,28 @@
     showFields();
     document.querySelector('input[name="dest"][value="download"]').checked = true;
     $("token").value = "";
+    resetUrls();
     showStep(1);
     say("Started over. Everything from this session is cleared.", "ok");
   };
+
+  // ---- web addresses: three to start, up to 12 ----
+  const MAX_URLS = 12;
+  function addUrlRow(value) {
+    const n = document.querySelectorAll("#urlRows input").length;
+    if (n >= MAX_URLS) return;
+    const el = document.createElement("input");
+    el.className = "url"; el.placeholder = "https://…"; el.value = value || "";
+    el.setAttribute("aria-label", "Web address " + (n + 1));
+    $("urlRows").appendChild(el);
+    $("addUrl").disabled = n + 1 >= MAX_URLS;
+  }
+  function resetUrls() {
+    $("urlRows").innerHTML = "";
+    for (let i = 0; i < 3; i++) addUrlRow("");
+    $("addUrl").disabled = false;
+  }
+  $("addUrl").onclick = () => addUrlRow("");
 
   // ---- startup ----
   $("type").innerHTML = Object.entries(TYPES).map(([k, v]) => `<option value="${k}" title="${esc(v)}">${k} · ${esc(v)}</option>`).join("");
@@ -487,6 +516,7 @@
   if (s.branch) $("branch").value = s.branch;
   if (s.token) { $("token").placeholder = "(saved in this browser)"; $("remember").checked = true; }
   showFields();
+  resetUrls();
   showStep(1);
 })();
 </script>
