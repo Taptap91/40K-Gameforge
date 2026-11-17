@@ -6,6 +6,7 @@ import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.67";
 import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.67";
 import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.67";
 import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.67";
+import { renderCollections, wireCollections } from "./collections.js?v=8.67";
 import * as core from "./core.js?v=8.67";
 import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.67";
 import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.67";
@@ -35,12 +36,14 @@ function showView(name) {
   if (!views.includes(name)) name = "factions";
   for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
+  if (name === "collection") renderCollections();
   if (name === "factions") renderFactionsPage();
   if (name === "battle") renderBattlePage();
   $$(".nav-item").forEach(b => b.dataset.view === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   store.set("rf.view", name);
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
 }function wireEvents() {
+  wireCollections();
   $$(".nav-item[data-view]").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
   $("#aiStatusBtn").addEventListener("click", openAISheet);
   // Phones and tablets: the gear in the bottom bar opens settings, starting on the faction colours when there's a faction.

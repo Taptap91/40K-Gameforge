@@ -1275,3 +1275,24 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .map-frame { width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 8px; background: #fff; }
 .map-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .map-frame img[data-board-crop]:not([data-cropped]) { visibility: hidden; }
+
+/* ---------- Collection page: the collections panel beside the page (js/collections.js) ---------- */
+.coll-wrap { display: flex; flex: 1 1 auto; min-height: 0; }
+.coll-panel { width: 240px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-right: 1px solid var(--border); background: var(--sidebar); }
+.coll-panel-head { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding: 0 4px 8px; }
+.coll-list { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; overflow-y: auto; }
+.coll-list .bt-hint { padding: 0 4px; }
+.coll-item { text-align: left; background: none; border: 0; color: var(--text); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+.coll-item:hover { background: var(--control); }
+.coll-item.on { background: var(--control); font-weight: 600; }
+.coll-add { width: 100%; margin-top: 10px; }
+.coll-main { flex: 1 1 auto; min-width: 0; padding: 20px; overflow-y: auto; }
+.coll-title { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+.coll-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-2); }
+.coll-foot { justify-content: space-between; }
+@media (max-width: 700px) {
+  .coll-wrap { flex-direction: column; }
+  .coll-panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .coll-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .coll-add { width: auto; }
+}
