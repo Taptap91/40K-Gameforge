@@ -3,7 +3,7 @@
  * "Add Collection" button. Adding one opens a pop-up that asks which downloaded Game Pack it's for.
  * Collections are saved on this device only.
  */
-import { $, esc, openSheet, state, store } from "./core.js?v=8.67";
+import { $, esc, openSheet, state, store } from "./core.js?v=8.68";
 
 const KEY = "rf.collections";
 let selectedId = null;
