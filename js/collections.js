@@ -4,8 +4,8 @@
  * the page swipes between games. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.72";
-import { factionStyle } from "./factions.js?v=8.72";
+import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.73";
+import { factionStyle } from "./factions.js?v=8.73";
 
 const KEY = "rf.collections";
 let selectedId = null;
@@ -167,6 +167,7 @@ const GAME_KEY = "rf.collGame";
 let selGame = store.get(GAME_KEY, null);   // the game the navigation is showing
 const selEd = new Map();                    // game -> the edition picked for it last
 let switchOpen = false;                     // phone: the game list above the switcher is open
+let railDrilled = false;                    // desktop and tablet: the rail shows one game's editions and collections
 const phoneLayout = () => matchMedia("(max-width: 700px)").matches;
 
 /** A short label for the tablet rail: the number in the name ("40K"), or the initials ("KT" for Kill Team). */
@@ -191,6 +192,21 @@ function railHTML(lib, g) {
   return lib.map(x => `<button type="button" class="coll-rail-item${x === g ? " on" : ""}" data-game="${esc(x.game)}" title="${esc(x.game)}">
       <span class="rl-long">${esc(x.game)}</span><span class="rl-short">${esc(shortName(x.game))}</span>
     </button>`).join("") + `<button type="button" class="coll-rail-add" data-go="factions">+ Add game pack</button>`;
+}
+
+/** Desktop and tablet: one game's editions as a toggle, then its collections and New Collection, under a back arrow. */
+function drillHTML(g, ed, list) {
+  if (!g) return "";
+  const items = list.filter(c => c.bundleId === ed.id);
+  const toggle = g.editions.length > 1
+    ? `<div class="coll-seg" role="group" aria-label="Edition">${g.editions.map(e => `<button type="button" class="${e === ed ? "on" : ""}" data-ed="${esc(e.id)}" aria-pressed="${e === ed}">${esc(e.edition.replace(/\s*edition$/i, ""))}</button>`).join("")}</div>`
+    : `<div class="coll-edition">${esc(ed.edition)}</div>`;
+  return `<div class="cr-head"><button type="button" class="cr-back" data-rail-back aria-label="Back to games">&#8592;</button><span class="cr-title rl-long">${esc(g.game)}</span><span class="cr-title rl-short">${esc(shortName(g.game))}</span></div>
+    ${toggle}
+    <div class="coll-list">${items.length
+      ? items.map(c => `<button type="button" class="coll-item${c.id === selectedId ? " on" : ""}" style="${colourVars(c.faction)}" data-coll="${esc(c.id)}">${esc(c.faction)}</button>`).join("")
+      : `<p class="bt-hint">No collections yet.</p>`}</div>
+    <button type="button" class="btn primary coll-add" data-newcoll="${esc(ed.id)}">New Collection</button>`;
 }
 
 /** The editions for the game (as chips when there's more than one), then its collections and New Collection. */
@@ -252,7 +268,10 @@ export function renderCollections() {
   if (selectedId && !list.some(c => c.id === selectedId)) selectedId = null;
   const { g, ed } = current(lib);
   if (!g) switchOpen = false;
-  $("#collRail").innerHTML = railHTML(lib, g);
+  // The rail's two parts are kept in the page, so sliding between them animates instead of snapping.
+  $("#crGames").innerHTML = railHTML(lib, g);
+  $("#crDrill").innerHTML = drillHTML(g, ed, list);
+  $("#collRail").classList.toggle("cr-drilled", railDrilled && !!g);
   $("#collPanel").innerHTML = panelHTML(g, ed, list);
   $("#collSwitch").innerHTML = switchHTML(lib, g);
   const cur = list.find(c => c.id === selectedId);
@@ -328,19 +347,23 @@ function updateCollection(id, change) {
   renderCollections();
 }
 
+/** Taps on the editions, collections and New Collection, from either the rail or the panel. */
+function listClick(e) {
+  const add = e.target.closest("[data-newcoll]");
+  if (add) return openNewCollection(add.dataset.newcoll);
+  const ed = e.target.closest("[data-ed]");
+  if (ed) { selEd.set(selGame, ed.dataset.ed); selectedId = null; return renderCollections(); }
+  const item = e.target.closest("[data-coll]");
+  if (item) { selectedId = item.dataset.coll; renderCollections(); }
+}
+
 export function wireCollections() {
-  const panel = $("#collPanel");
-  panel.addEventListener("click", e => {
-    const add = e.target.closest("[data-newcoll]");
-    if (add) return openNewCollection(add.dataset.newcoll);
-    const ed = e.target.closest("[data-ed]");
-    if (ed) { selEd.set(selGame, ed.dataset.ed); selectedId = null; return renderCollections(); }
-    const item = e.target.closest("[data-coll]");
-    if (item) { selectedId = item.dataset.coll; renderCollections(); }
-  });
+  $("#collPanel").addEventListener("click", listClick);
   $("#collRail").addEventListener("click", e => {
+    if (e.target.closest("[data-rail-back]")) { railDrilled = false; return renderCollections(); }
     const g = e.target.closest("[data-game]");
-    if (g) pickGame(g.dataset.game);
+    if (g) { railDrilled = true; return pickGame(g.dataset.game); }
+    listClick(e);
   });
 
   const view = $("#view-collection");
