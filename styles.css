@@ -1354,3 +1354,20 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .cm-stage { grid-template-columns: 76px 40px 30px 40px; padding: 9px 0; gap: 6px; }
   .cm-stages { padding: 0 10px; width: 100%; }
 }
+
+/* Collection page: faction colours, banner, and symbol (as the list builder shows them) */
+.coll-item[style] { background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 30%, var(--window)), color-mix(in srgb, var(--c1) 12%, var(--window))); border: 1px solid color-mix(in srgb, var(--c1) 45%, transparent); }
+.coll-item[style]:hover { border-color: var(--c1); }
+.coll-item.on[style] { font-weight: 600; box-shadow: inset 4px 0 0 var(--c2); }
+.coll-panel { user-select: none; }
+.cm-banner { position: relative; display: flex; align-items: center; min-height: 110px; padding: 18px 20px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 30%, var(--window)) 0%, color-mix(in srgb, var(--c1) 12%, var(--window)) 55%, color-mix(in srgb, var(--c2) 14%, var(--window)) 100%); overflow: hidden; }
+.cm-banner::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; background: linear-gradient(180deg, var(--c1), var(--c2)); }
+.cm-banner-text { flex: 1; min-width: 0; padding-right: 100px; }
+.cm-banner-name { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text); }
+.cm-banner-sub { margin-top: 4px; font-size: 14px; color: var(--text-2); }
+.cm-banner-mark { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c1) 55%, transparent)); pointer-events: none; }
+.cm-topbar { margin-bottom: 12px; }
+.cm-addbtn { width: 100%; background: var(--c1); border-color: var(--c1); color: #fff; min-height: 44px; }
+.cm-addbtn:hover { filter: brightness(1.1); }
+.cm-unit { position: relative; }
+.cm-unit::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 4px; border-radius: 0 12px 12px 0; background: linear-gradient(180deg, var(--c1), var(--c2)); }

@@ -5,14 +5,22 @@
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
 import { $, confirmSheet, esc, openSheet, state, store, toast } from "./core.js?v=8.70";
+import { factionStyle } from "./factions.js?v=8.70";
 
 const KEY = "rf.collections";
 let selectedId = null;
 const closed = new Set();   // "g:<game>" and "e:<edition id>" headers the user has folded away
 
-const collections = () => store.get(KEY, []) || [];
+// Collections saved by an earlier build have no units list; give them an empty one so they still open.
+const collections = () => (store.get(KEY, []) || []).map(c => ({ ...c, units: c.units || [] }));
 const saveCollections = list => store.set(KEY, list);
 const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/** Faction colours and symbol, as the list builder uses them. */
+const colourVars = faction => {
+  const st = factionStyle(faction);
+  return `--c1:${st.c1};--c2:${st.c2}`;
+};
 
 /** Downloaded Game Packs as game → editions. Each downloaded pack is one edition, and its factions come from the
  *  faction documents it installed. */
@@ -95,7 +103,7 @@ const ICON = {
   three: '<svg viewBox="0 0 24 24"><circle cx="6" cy="8" r="2"/><circle cx="12" cy="6.2" r="2.2"/><circle cx="18" cy="8" r="2"/><path d="M2.5 19v-3.5a3 3 0 0 1 6 0V19M9 19v-6.5a3.3 3.3 0 0 1 6 0V19M15.5 19v-3.5a3 3 0 0 1 6 0V19"/></svg>',
 };
 
-function unitHTML(u) {
+function unitHTML(u, faction) {
   const t = total(u);
   const stage = k => `<div class="cm-stage">
       <span class="cm-lbl">${k[0].toUpperCase() + k.slice(1)}</span>
@@ -103,7 +111,7 @@ function unitHTML(u) {
       <span class="cm-n">${u[k]}</span>
       <button type="button" class="cm-ic" data-uid="${u.id}" data-stage="${k}" data-dir="fwd" title="Pull one model in: from Sprue first, then Assembled" ${canFwd(u, k) ? "" : "disabled"}>${ICON.plus}</button>
     </div>`;
-  return `<div class="cm-unit">
+  return `<div class="cm-unit" style="${colourVars(faction)}">
     <div class="cm-left">
       <div class="cm-head"><span class="cm-name">${esc(u.n)}</span><button type="button" class="btn plain danger cm-del" data-del="${u.id}">Remove unit</button></div>
       <div class="cm-meta">${unitPts(u)} pts · <b>${availText(u)}</b> squads available</div>
@@ -130,13 +138,17 @@ function collectionMainHTML(c) {
   const models = c.units.reduce((s, u) => s + total(u), 0);
   const sum = k => c.units.reduce((s, u) => s + u[k], 0);
   const pct = models ? Math.round(sum("painted") / models * 1000) / 10 : 0;
+  const st = factionStyle(c.faction);
   return `
-    <div class="cm-top">
-      <div>
-        <h2 class="coll-title">${esc(c.faction)}</h2>
-        <p class="bt-hint">${esc(c.game)} · ${esc(c.edition)}</p>
+    <div class="cm-banner" style="${colourVars(c.faction)}">
+      <div class="cm-banner-text">
+        <h2 class="cm-banner-name">${esc(c.faction)}</h2>
+        <div class="cm-banner-sub">${esc(c.game)} · ${esc(c.edition)}</div>
       </div>
-      <button type="button" class="btn primary" id="cmAddUnit">Add unit</button>
+      ${st.img ? `<img class="cm-banner-mark" src="${esc(st.img)}" alt="">` : ""}
+    </div>
+    <div class="cm-topbar">
+      <button type="button" class="btn primary cm-addbtn" id="cmAddUnit" style="${colourVars(c.faction)};background:var(--c1);border-color:var(--c1)">Add unit</button>
     </div>
     <div class="cm-stats">
       <div class="cm-stat"><b>${collPts(c)}</b><span>Points</span></div>
@@ -146,7 +158,7 @@ function collectionMainHTML(c) {
       <div class="cm-pbar"><div class="cm-pfill" style="width:${pct}%"></div></div>
       <div class="cm-plab"><span><b>${sum("sprue")}</b> on Sprue</span><span><b>${sum("assembled")}</b> Assembled</span><span><b>${sum("painted")}</b> Painted</span></div>
     </div>
-    ${c.units.length ? c.units.map(unitHTML).join("") : `<p class="bt-hint">No units yet. Click “Add unit”.</p>`}
+    ${c.units.length ? c.units.map(u => unitHTML(u, c.faction)).join("") : `<p class="bt-hint">No units yet. Click “Add unit”.</p>`}
     <div class="cm-foot"><button type="button" class="btn plain danger" id="cmDelColl">Delete collection</button></div>`;
 }
 
@@ -157,7 +169,7 @@ function editionHTML(e) {
   return `<details class="coll-ed" data-ed="${esc(e.id)}" ${closed.has("e:" + e.id) ? "" : "open"}>
     <summary>${esc(e.edition)}</summary>
     <div class="coll-list">${items.length
-      ? items.map(c => `<button type="button" class="coll-item${c.id === selectedId ? " on" : ""}" data-coll="${esc(c.id)}">${esc(c.faction)}</button>`).join("")
+      ? items.map(c => `<button type="button" class="coll-item${c.id === selectedId ? " on" : ""}" style="${colourVars(c.faction)}" data-coll="${esc(c.id)}">${esc(c.faction)}</button>`).join("")
       : `<p class="bt-hint">No collections yet.</p>`}</div>
     <button type="button" class="btn primary coll-add" data-newcoll="${esc(e.id)}">New Collection</button>
   </details>`;
