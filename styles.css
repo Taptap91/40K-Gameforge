@@ -1296,3 +1296,15 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .coll-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
   .coll-add { width: auto; }
 }
+
+/* Collection panel: game and edition headers fold away; collections sit under the edition. */
+.coll-game > summary, .coll-ed > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text); padding: 6px 4px; border-radius: 6px; user-select: none; }
+.coll-game > summary::-webkit-details-marker, .coll-ed > summary::-webkit-details-marker { display: none; }
+.coll-game > summary::before, .coll-ed > summary::before { content: "▸"; color: var(--text-3); font-size: 11px; width: 10px; transition: transform .15s; }
+.coll-game[open] > summary::before, .coll-ed[open] > summary::before { transform: rotate(90deg); }
+.coll-game > summary { font-size: 14px; }
+.coll-ed > summary { font-size: 13px; color: var(--text-2); padding-left: 14px; }
+.coll-ed { margin-bottom: 4px; }
+.coll-ed .coll-list { padding-left: 14px; }
+.coll-ed .coll-add { width: calc(100% - 14px); margin: 6px 0 0 14px; }
+.coll-game > summary:hover, .coll-ed > summary:hover { background: var(--control); }
