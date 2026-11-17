@@ -4,7 +4,7 @@
  * "New Collection" button. New Collection asks which faction of that edition to collect.
  * Collections are saved on this device only.
  */
-import { $, esc, openSheet, state, store, toast } from "./core.js?v=8.68";
+import { $, esc, openSheet, state, store, toast } from "./core.js?v=8.69";
 
 const KEY = "rf.collections";
 let selectedId = null;
