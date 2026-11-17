@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RulesForge PDF Studio</title>
+<style>
+  :root { --ink:#1d1d1f; --mute:#6b6b70; --line:#d9d9de; --acc:#2d6cdf; --ok:#1f8a4c; --bad:#b42318; --bg:#f6f6f8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:18px 24px; background:#fff; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--mute); font-size:13px; }
+  main { max-width:960px; margin:0 auto; padding:20px; display:grid; gap:16px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
+  section h2 { margin:0 0 10px; font-size:16px; }
+  label { display:block; font-size:13px; color:var(--mute); margin:8px 0 3px; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fff; }
+  textarea { min-height:60px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+  button { font:inherit; padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .row { display:grid; grid-template-columns:1fr 110px auto; gap:8px; align-items:center; padding:8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; background:#fbfbfc; }
+  .row small { color:var(--mute); }
+  .row .mv { display:flex; gap:4px; }
+  .row .mv button { padding:5px 9px; }
+  .drop { border:2px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--mute); cursor:pointer; }
+  .drop.over { border-color:var(--acc); color:var(--acc); }
+  .hint { color:var(--mute); font-size:13px; margin-top:8px; }
+  .msg { margin-top:10px; padding:10px 12px; border-radius:8px; display:none; }
+  .msg.show { display:block; }
+  .msg.ok { background:#e8f6ee; color:var(--ok); }
+  .msg.err { background:#fdecea; color:var(--bad); }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  #viewer { width:100%; height:520px; border:1px solid var(--line); border-radius:8px; margin-top:12px; display:none; }
+  .warn { background:#fff7e6; color:#8a5a00; border:1px solid #f5d28a; padding:12px; border-radius:8px; display:none; }
+  .warn.show { display:block; }
+  .hidden { display:none !important; }
+  details summary { cursor:pointer; font-weight:600; }
+  @media (max-width:640px) { .two,.three { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>RulesForge PDF Studio</h1>
+  <p>Runs in your browser. Merge PDFs, name them for a Game Pack, then download them or send them to GitHub. Nothing is uploaded unless you press Upload.</p>
+</header>
+<main>
+  <div class="warn" id="browserWarn">PDF Studio needs Google Chrome or Microsoft Edge. Please open this page in one of them.</div>
+
+  <section>
+    <h2>1 · Pieces</h2>
+    <div class="drop" id="drop">Drop PDFs here, or <u>choose files</u></div>
+    <input type="file" id="pick" accept="application/pdf" multiple hidden>
+    <div id="list" style="margin-top:12px"></div>
+    <div class="hint">Merged top to bottom. ↑ ↓ reorder. Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div>
+  </section>
+
+  <section>
+    <h2>2 · Name it</h2>
+    <div class="two">
+      <div><label>Game</label><input id="game" list="games" placeholder="Kill Team"><datalist id="games"></datalist></div>
+      <div><label>Edition</label><input id="edition" list="editions" placeholder="Core"><datalist id="editions"></datalist></div>
+    </div>
+    <div class="two">
+      <div><label>Type</label><select id="type"></select></div>
+      <div><label>Title (the name the app shows)</label><input id="title" placeholder="Kill Team Core Rules"></div>
+    </div>
+    <div class="two">
+      <div id="facw" class="hidden"><label>Faction</label><input id="faction" placeholder="Space Marines"></div>
+      <div id="secw" class="hidden"><label>Section name: its own column in the Game Pack (blank uses the title)</label><input id="section" placeholder="Kill Team"></div>
+    </div>
+    <div class="two">
+      <div id="kindw" class="hidden"><label><input type="checkbox" id="updates" style="width:auto"> This is an update or FAQ</label></div>
+      <div><label>Version (optional)</label><input id="version" placeholder="1.2"></div>
+    </div>
+    <label>Note (optional)</label><textarea id="description" placeholder="Anything the app should show about this file"></textarea>
+  </section>
+
+  <section>
+    <h2>3 · Merge (only when there are several PDFs), then send</h2>
+    <div class="actions">
+      <button class="primary" id="merge">Merge the PDFs</button>
+    </div>
+    <div class="hint" id="mres">Add a PDF first.</div>
+    <iframe id="viewer" title="Preview"></iframe>
+
+    <div class="actions">
+      <button id="dl" disabled>Download PDF + details file</button>
+    </div>
+
+    <details style="margin-top:14px">
+      <summary>Upload to GitHub</summary>
+      <div class="two" style="margin-top:10px">
+        <div><label>Repository (owner/name)</label><input id="repo" value="Taptap91/40k-gameforge"></div>
+        <div><label>Branch</label><input id="branch" value="game-packs"></div>
+      </div>
+      <label>GitHub token (fine-grained, this repository only, Contents: Read and write)</label>
+      <input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="remember" style="width:auto"> Remember the token in this browser only</label>
+      <div class="actions">
+        <button id="loadFolders">Load folders from GitHub</button>
+        <button class="primary" id="upload" disabled>Upload to GitHub</button>
+      </div>
+      <div class="hint">The file goes to <code>packs/incoming/&lt;Game&gt;/&lt;Edition&gt;/&lt;Type&gt;/</code>. The pack converter picks it up after you upload.</div>
+    </details>
+  </section>
+
+  <div class="msg" id="msg"></div>
+</main>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script>
+(() => {
+  "use strict";
+  const { PDFDocument } = PDFLib;
+  const $ = id => document.getElementById(id);
+  const TYPES = {
+    Rules: "Core Rules, rules updates, FAQs",
+    Factions: "An army or faction",
+    Companions: "Event Companions (Doubles, Teams…)",
+    Collections: "Reference PDFs (monsters, spells…)",
+    Sections: "Your own section, named by you (Kill Team, Approved Ops…)"
+  };
+  const GITHUB = "https://api.github.com";
+  const KEY = "rf-pdfstudio-github";
+
+  let items = [];          // { name, bytes, pages, range }
+  let sel = -1;
+  let merged = null;       // { bytes, sig } once a merge has run
+  let sigNow = () => JSON.stringify([items.map(i => [i.name, i.range || "", i.pages]), $("title").value]);
+
+  // ---- browser check: the page needs Chrome or Edge (both report "Chrome/") ----
+  const chromeBased = /Chrome\//.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent);
+  if (!chromeBased) {
+    $("browserWarn").classList.add("show");
+    document.querySelectorAll("button").forEach(b => b.disabled = true);
+  }
+
+  // ---- helpers ----
+  const safe = s => s.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim() || "Untitled";
+  const say = (text, kind) => { const m = $("msg"); m.textContent = text; m.className = "msg show " + (kind || "ok"); };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // "1-5, 8, 12-" -> 0-based page indexes (same rule as the desktop studio)
+  function parseRange(text, n) {
+    if (!text || !text.trim()) return [...Array(n).keys()];
+    const out = [];
+    for (const part of text.split(",")) {
+      const p = part.trim(); if (!p) continue;
+      const m = p.match(/^(\d*)\s*-\s*(\d*)$/) || p.match(/^(\d+)$/) && [p, p, p];
+      if (!m) throw new Error(`"${p}" isn't a page range. Use numbers like 1-5 or 8.`);
+      const a = m[1] ? +m[1] : 1, b = m[2] ? +m[2] : n;
+      for (let i = Math.max(1, a); i <= Math.min(n, b); i++) out.push(i - 1);
+    }
+    if (!out.length) throw new Error("That page range has no pages in this file.");
+    return out;
+  }
+
+  const sizeText = bytes => bytes.length < 1048576 ? Math.round(bytes.length / 1024) + " KB" : (bytes.length / 1048576).toFixed(1) + " MB";
+
+  function draw() {
+    $("list").innerHTML = items.map((f, i) => `
+      <div class="row" data-i="${i}" style="${i === sel ? "border-color:var(--acc)" : ""}">
+        <div>${esc(f.name)} <small>${f.pages} pages</small></div>
+        <input data-r="${i}" value="${esc(f.range || "")}" placeholder="all pages">
+        <div class="mv"><button data-u="${i}" title="Move up">↑</button><button data-d="${i}" title="Move down">↓</button><button data-x="${i}" title="Remove">✕</button></div>
+      </div>`).join("");
+    $("type").value = $("type").value || "Rules";
+    showFields();
+    gate();
+  }
+
+  function showFields() {
+    const t = $("type").value;
+    $("facw").classList.toggle("hidden", t !== "Factions");
+    $("secw").classList.toggle("hidden", t !== "Sections");
+    $("kindw").classList.toggle("hidden", t !== "Rules");
+  }
+
+  // ---- files ----
+  async function addFiles(fileList) {
+    for (const f of fileList) {
+      if (!/\.pdf$/i.test(f.name)) { say(`${f.name} isn't a PDF`, "err"); continue; }
+      try {
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+        items.push({ name: f.name, bytes, pages: doc.getPageCount(), range: "" });
+      } catch (e) { say(`${f.name} couldn't be read: ${e.message}`, "err"); }
+    }
+    draw();
+  }
+
+  $("drop").onclick = () => $("pick").click();
+  $("pick").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+  ["dragenter", "dragover"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+  ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+  $("drop").addEventListener("drop", e => addFiles(e.dataTransfer.files));
+
+  $("list").addEventListener("click", e => {
+    const t = e.target;
+    if (t.dataset.x !== undefined) items.splice(+t.dataset.x, 1);
+    else if (t.dataset.u !== undefined) { const i = +t.dataset.u; if (i > 0) [items[i - 1], items[i]] = [items[i], items[i - 1]]; }
+    else if (t.dataset.d !== undefined) { const i = +t.dataset.d; if (i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]]; }
+    else return;
+    merged = null; draw();
+  });
+  $("list").addEventListener("input", e => {
+    if (e.target.dataset.r !== undefined) { items[+e.target.dataset.r].range = e.target.value; merged = null; gate(); }
+  });
+
+  // ---- building the output ----
+  async function build(list, title) {
+    const out = await PDFDocument.create();
+    for (const it of list) {
+      const src = await PDFDocument.load(it.bytes, { ignoreEncryption: true });
+      const idx = parseRange(it.range, src.getPageCount());
+      const pages = await out.copyPages(src, idx);
+      pages.forEach(p => out.addPage(p));
+    }
+    if (!out.getPageCount()) throw new Error("Nothing to save: add at least one PDF.");
+    out.setTitle(title);
+    return await out.save();
+  }
+
+  function details(title) {
+    const t = $("type").value;
+    const meta = { title };
+    if (t === "Sections") meta.section = $("section").value.trim() || title;
+    if (t === "Factions" && $("faction").value.trim()) meta.faction = $("faction").value.trim();
+    if (t === "Rules" && $("updates").checked) meta.kind = "updates";
+    if ($("version").value.trim()) meta.version = $("version").value.trim();
+    if ($("description").value.trim()) meta.description = $("description").value.trim();
+    return meta;
+  }
+
+  function need() {
+    const title = $("title").value.trim();
+    if (!items.length) throw new Error("Add a PDF first.");
+    if (!title) throw new Error("Give the file a title first: it's what the app will call it.");
+    return title;
+  }
+
+  // The file to save: the merge when several PDFs, or the single PDF built straight away.
+  async function finalBytes(title) {
+    if (items.length === 1) return await build(items, title);
+    if (merged && merged.sig === sigNow()) return merged.bytes;
+    throw new Error("Merge the PDFs first, then save.");
+  }
+
+  function gate() {
+    const title = $("title").value.trim();
+    const one = items.length === 1;
+    const ok = items.length && (one || (merged && merged.sig === sigNow()));
+    $("dl").disabled = !ok;
+    $("upload").disabled = !ok;
+    $("merge").disabled = items.length < 2;
+    if (!items.length) $("mres").textContent = "Add a PDF first.";
+    else if (one) $("mres").textContent = "One PDF, so no merge is needed: download it or upload it.";
+    else if (merged && merged.sig !== sigNow()) $("mres").textContent = "Something changed since the merge: merge again before downloading or uploading.";
+    else if (!merged) $("mres").textContent = "Merge first; then choose to download it or upload it.";
+    else $("mres").textContent = `Merged ${merged.pages} pages (${sizeText(merged.bytes)}). Now download it or upload it.`;
+  }
+
+  $("merge").onclick = async () => {
+    try {
+      $("merge").disabled = true;
+      const title = need();
+      const bytes = await build(items, title);
+      const doc = await PDFDocument.load(bytes);
+      merged = { bytes, sig: sigNow(), pages: doc.getPageCount() };
+      showPreview(bytes);
+      say("Merge finished.", "ok");
+    } catch (e) { say(e.message, "err"); }
+    gate();
+  };
+
+  function showPreview(bytes) {
+    const v = $("viewer");
+    if (v.dataset.url) URL.revokeObjectURL(v.dataset.url);
+    v.dataset.url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    v.src = v.dataset.url; v.style.display = "block";
+  }
+
+  function download(bytes, name, type) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([bytes], { type }));
+    a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  $("dl").onclick = async () => {
+    try {
+      const title = need();
+      const bytes = await finalBytes(title);
+      download(bytes, `${safe(title)}.pdf`, "application/pdf");
+      download(new TextEncoder().encode(JSON.stringify(details(title), null, 2)), `${safe(title)}.json`, "application/json");
+      say("Downloaded. Your browser may ask to allow two downloads; allow them.", "ok");
+    } catch (e) { say(e.message, "err"); }
+  };
+
+  // ---- GitHub ----
+  function ghSettings() {
+    const repo = $("repo").value.trim(), branch = $("branch").value.trim() || "game-packs", token = $("token").value.trim() || (saved().token || "");
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) throw new Error("Fill in the repository (owner/name) and a GitHub token first.");
+    return { repo, branch, token };
+  }
+  function saved() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { return {}; } }
+
+  async function gh(cfg, path, opts = {}) {
+    const res = await fetch(`${GITHUB}/repos/${cfg.repo}/contents/${path}${opts.query || ""}`, {
+      method: opts.method || "GET",
+      headers: { Authorization: `Bearer ${cfg.token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+    if (res.status === 404 && opts.allow404) return null;
+    if (!res.ok) {
+      let msg = ""; try { msg = (await res.json()).message || ""; } catch (e) {}
+      const hint = { 401: "GitHub didn't accept the token (wrong, expired, or revoked).", 403: "The token isn't allowed to write to this repository (it needs Contents: Read and write).", 404: "GitHub can't find that repository or branch with this token." }[res.status] || "";
+      throw new Error(`GitHub said ${res.status}: ${msg} ${hint}`.trim());
+    }
+    return res.json();
+  }
+
+  function b64(bytes) {
+    let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+
+  async function put(cfg, path, bytes, message) {
+    const existing = await gh(cfg, path + "?ref=" + encodeURIComponent(cfg.branch), { allow404: true });
+    const body = { message, content: b64(bytes), branch: cfg.branch };
+    if (existing && existing.sha) body.sha = existing.sha;
+    return gh(cfg, encodeURI(path), { method: "PUT", body });
+  }
+
+  $("upload").onclick = async () => {
+    try {
+      $("upload").disabled = true;
+      const title = need();
+      const cfg = ghSettings();
+      const t = $("type").value, game = $("game").value.trim(), edition = $("edition").value.trim();
+      if (!game || !edition || !TYPES[t]) throw new Error("Pick the Game, Edition and Type so it lands in the right Game Pack.");
+      const bytes = await finalBytes(title);
+      const base = `packs/incoming/${safe(game)}/${safe(edition)}/${t}/${safe(title)}`;
+      const json = new TextEncoder().encode(JSON.stringify(details(title), null, 2));
+      if ($("remember").checked) localStorage.setItem(KEY, JSON.stringify({ repo: cfg.repo, branch: cfg.branch, token: cfg.token }));
+      const msg = `Add ${title} (${t})`;
+      await put(cfg, base + ".json", json, msg);   // details first, so they are there when the PDF triggers the converter
+      await put(cfg, base + ".pdf", bytes, msg);
+      say(`Uploaded to ${cfg.repo} (${cfg.branch}) at ${base}.pdf. The converter will pick it up in a minute or two.`, "ok");
+    } catch (e) { say(e.message, "err"); }
+    gate();
+  };
+
+  $("loadFolders").onclick = async () => {
+    try {
+      const cfg = ghSettings();
+      const games = {};
+      for (const g of (await gh(cfg, "packs/incoming?ref=" + encodeURIComponent(cfg.branch), { allow404: true })) || []) {
+        if (g.type !== "dir") continue;
+        games[g.name] = ((await gh(cfg, encodeURI(`packs/incoming/${g.name}`) + "?ref=" + encodeURIComponent(cfg.branch))) || []).filter(e => e.type === "dir").map(e => e.name);
+      }
+      $("games").innerHTML = Object.keys(games).map(g => `<option value="${esc(g)}">`).join("");
+      window.__editions = games;
+      $("editions").innerHTML = (games[$("game").value.trim()] || []).map(e => `<option value="${esc(e)}">`).join("");
+      say(`Found ${Object.keys(games).length} Game Pack folders.`, "ok");
+    } catch (e) { say(e.message, "err"); }
+  };
+  $("game").addEventListener("input", () => {
+    const eds = (window.__editions || {})[$("game").value.trim()] || [];
+    $("editions").innerHTML = eds.map(e => `<option value="${esc(e)}">`).join("");
+  });
+
+  // ---- startup ----
+  $("type").innerHTML = Object.entries(TYPES).map(([k, v]) => `<option value="${k}" title="${esc(v)}">${k} · ${esc(v)}</option>`).join("");
+  $("type").onchange = () => { showFields(); };
+  const s = saved();
+  if (s.repo) $("repo").value = s.repo;
+  if (s.branch) $("branch").value = s.branch;
+  if (s.token) { $("token").placeholder = "(saved in this browser)"; $("remember").checked = true; }
+  ["title", "faction", "section", "version", "description", "game", "edition", "type", "updates", "repo", "branch", "token"].forEach(id => $(id).addEventListener("input", () => { merged = merged && merged.sig === sigNow() ? merged : null; gate(); }));
+  $("type").addEventListener("change", () => { showFields(); gate(); });
+  draw();
+  gate();
+})();
+</script>
+</body>
+</html>
