@@ -27,13 +27,18 @@
     </div>
     <nav>
       <div class="nav-label">Play</div>
-      <button class="nav-item" data-view="rules" aria-current="page">
+      <!-- Ask Rules is hidden for now (its page and code are kept). To bring it back, remove style="display:none" here and in js/main.js. -->
+      <button class="nav-item" data-view="rules" aria-current="page" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Ask Rules
       </button>
-      <button class="nav-item" data-view="lists">
+      <button class="nav-item" data-view="lists" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
         Army Lists
+      </button>
+      <button class="nav-item" data-view="collection">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
+        Collection
       </button>
       <button class="nav-item" data-view="battle">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 17.5 21 6V3h-3L6.5 14.5"/><path d="m11 19-6-6M8 16l-4 4M5 21l-2-2"/></svg>
@@ -81,6 +86,14 @@
       <header class="toolbar"><h1 id="listsTitle">Army Lists</h1><div class="spacer"></div><div id="listsToolbar" class="lb-toolbar"></div></header>
       <div class="scroll">
         <div class="content" id="listsHost"></div>
+      </div>
+    </section>
+
+    <!-- ================= COLLECTION ================= -->
+    <section class="view hidden" id="view-collection">
+      <header class="toolbar"><h1>Collection</h1></header>
+      <div class="scroll">
+        <div class="content"><p style="padding:40px 0;text-align:center;color:var(--muted,#8a93a6)">Your collection is coming soon.</p></div>
       </div>
     </section>
 

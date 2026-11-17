@@ -27,7 +27,9 @@ function renderAll() {
 }
 
 function showView(name) {
-  const views = ["rules", "lists", "factions", "battle"];
+  // Ask Rules is hidden for now: anything that would open it goes to Army Lists instead.
+  if (name === "rules") name = "lists";
+  const views = ["rules", "lists", "collection", "factions", "battle"];
   // Library now lives in Factions: it's the Game Packs page's own home screen.
   if (name === "library") { name = "factions"; setTimeout(() => goHome(), 0); }
   if (!views.includes(name)) name = "factions";
@@ -181,7 +183,7 @@ if (document.getElementById("view-rules")) (async function init() {
   }
   buildIndex();
   renderAll();
-  showView(store.get("rf.view", "rules"));
+  showView(store.get("rf.view", "lists"));
   askForAccountOnce();   // the very first time the app is opened: Settings → Account, to add a username
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   AI.resume();
