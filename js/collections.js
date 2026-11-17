@@ -4,7 +4,7 @@
  * "New Collection" button. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openSheet, state, store, toast } from "./core.js?v=8.71";
+import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.71";
 import { factionStyle } from "./factions.js?v=8.71";
 
 const KEY = "rf.collections";
@@ -147,19 +147,18 @@ function collectionMainHTML(c) {
       </div>
       ${st.img ? `<img class="cm-banner-mark" src="${esc(st.img)}" alt="">` : ""}
     </div>
-    <div class="cm-topbar">
-      <button type="button" class="btn primary cm-addbtn" id="cmAddUnit" style="${colourVars(c.faction)};background:var(--c1);border-color:var(--c1)">Add unit</button>
-    </div>
     <div class="cm-stats">
       <div class="cm-stat"><b>${collPts(c)}</b><span>Points</span></div>
       <div class="cm-stat"><b>${models}</b><span>Models</span></div>
+      <button type="button" class="btn primary cm-addbtn" id="cmAddUnit" style="${colourVars(c.faction)};background:var(--c1);border-color:var(--c1)">Add unit</button>
+      <button type="button" class="btn cm-kebab" data-cm-menu="${esc(c.id)}" title="More" aria-label="More options" aria-haspopup="menu"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="5" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="19" r="2" fill="currentColor"/></svg></button>
     </div>
     <div class="cm-progress">
       <div class="cm-pbar"><div class="cm-pfill" style="width:${pct}%"></div></div>
       <div class="cm-plab"><span><b>${sum("sprue")}</b> on Sprue</span><span><b>${sum("assembled")}</b> Assembled</span><span><b>${sum("painted")}</b> Painted</span></div>
     </div>
     ${c.units.length ? c.units.map(u => unitHTML(u, c.faction)).join("") : `<p class="bt-hint">No units yet. Click “Add unit”.</p>`}
-    <div class="cm-foot"><button type="button" class="btn plain danger" id="cmDelColl">Delete collection</button></div>`;
+    `;
 }
 
 /* ---------- Panel ---------- */
@@ -278,15 +277,22 @@ export function wireCollections() {
   });
 
   const main = $("#collMain");
-  main.addEventListener("click", async e => {
+  // The ⋮ menu is attached to the page, outside the main area, so its Delete button is handled here.
+  $("#view-collection").addEventListener("click", async e => {
+    const del = e.target.closest("[data-cm-delete]");
+    if (!del) return;
+    const id = del.dataset.cmDelete;
+    if (!(await confirmSheet("Delete this collection?", "Its units and counts are removed from this device.", "Delete"))) return;
+    saveCollections(collections().filter(c => c.id !== id));
+    if (selectedId === id) selectedId = null;
+    renderCollections();
+  });
+
+  main.addEventListener("click", e => {
     const cur = selectedId;
     if (e.target.closest("#cmAddUnit")) return openAddUnit();
-    if (e.target.closest("#cmDelColl")) {
-      if (!(await confirmSheet("Delete this collection?", "Its units and counts are removed from this device.", "Delete"))) return;
-      saveCollections(collections().filter(c => c.id !== cur));
-      selectedId = null;
-      return renderCollections();
-    }
+    const menu = e.target.closest("[data-cm-menu]");
+    if (menu) return openPopMenu(menu, "cm:" + menu.dataset.cmMenu, `<button type="button" role="menuitem" class="danger" data-cm-delete="${esc(menu.dataset.cmMenu)}">Delete collection</button>`);
     const del = e.target.closest("[data-del]");
     if (del) return updateCollection(cur, c => { c.units = c.units.filter(u => u.id !== del.dataset.del); });
     const b = e.target.closest("button[data-uid]");
