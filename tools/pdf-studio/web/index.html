@@ -7,59 +7,72 @@
 <style>
   :root { --ink:#1d1d1f; --mute:#6b6b70; --line:#d9d9de; --acc:#2d6cdf; --ok:#1f8a4c; --bad:#b42318; --bg:#f6f6f8; }
   * { box-sizing: border-box; }
+  html, body { height:100%; }
   body { margin:0; font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--ink); background:var(--bg); }
-  header { padding:18px 24px; background:#fff; border-bottom:1px solid var(--line); }
-  header h1 { margin:0; font-size:20px; }
-  header p { margin:4px 0 0; color:var(--mute); font-size:13px; }
-  main { max-width:960px; margin:0 auto; padding:20px; display:grid; gap:16px; }
-  section { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
-  section h2 { margin:0 0 10px; font-size:16px; }
-  label { display:block; font-size:13px; color:var(--mute); margin:8px 0 3px; }
-  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fff; }
-  textarea { min-height:60px; }
-  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
-  button { font:inherit; padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .app { min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:14px 24px; background:#fff; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:18px; }
+  .steps { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--mute); }
+  .dot { width:26px; height:26px; border-radius:50%; border:2px solid var(--line); display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+  .dot.on { border-color:var(--acc); color:var(--acc); }
+  .dot.done { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .stage { flex:1; display:none; flex-direction:column; padding:28px 24px; max-width:1040px; width:100%; margin:0 auto; }
+  .stage.active { display:flex; }
+  .stage h2 { margin:0 0 6px; font-size:24px; }
+  .stage > p.lead { margin:0 0 18px; color:var(--mute); }
+  footer { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  footer .right { display:flex; gap:10px; flex-wrap:wrap; }
+  label { display:block; font-size:13px; color:var(--mute); margin:10px 0 4px; }
+  input, select, textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:#fff; }
+  textarea { min-height:70px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  button { font:inherit; padding:10px 16px; border-radius:9px; border:1px solid var(--line); background:#fff; cursor:pointer; }
   button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  button.danger { color:var(--bad); }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  .row { display:grid; grid-template-columns:1fr 110px auto; gap:8px; align-items:center; padding:8px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; background:#fbfbfc; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:34px; text-align:center; color:var(--mute); cursor:pointer; background:#fff; }
+  .drop.over { border-color:var(--acc); color:var(--acc); }
+  .row { display:grid; grid-template-columns:1fr 130px auto; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:9px; margin-bottom:8px; background:#fff; }
   .row small { color:var(--mute); }
   .row .mv { display:flex; gap:4px; }
-  .row .mv button { padding:5px 9px; }
-  .drop { border:2px dashed var(--line); border-radius:10px; padding:18px; text-align:center; color:var(--mute); cursor:pointer; }
-  .drop.over { border-color:var(--acc); color:var(--acc); }
-  .hint { color:var(--mute); font-size:13px; margin-top:8px; }
-  .msg { margin-top:10px; padding:10px 12px; border-radius:8px; display:none; }
+  .row .mv button { padding:5px 10px; }
+  .hint { color:var(--mute); font-size:13px; margin-top:10px; }
+  .msg { margin:12px 0 0; padding:10px 12px; border-radius:8px; display:none; }
   .msg.show { display:block; }
   .msg.ok { background:#e8f6ee; color:var(--ok); }
   .msg.err { background:#fdecea; color:var(--bad); }
-  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-  #viewer { width:100%; height:520px; border:1px solid var(--line); border-radius:8px; margin-top:12px; display:none; }
-  .warn { background:#fff7e6; color:#8a5a00; border:1px solid #f5d28a; padding:12px; border-radius:8px; display:none; }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; margin-top:14px; }
+  .choice { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .choice label.card { margin:0; border:2px solid var(--line); border-radius:12px; padding:16px; cursor:pointer; color:var(--ink); background:#fff; }
+  .choice label.card.on { border-color:var(--acc); }
+  .choice label.card b { display:block; font-size:16px; margin-bottom:4px; }
+  .choice input[type=radio] { width:auto; margin-right:6px; }
+  #viewer { width:100%; flex:1; min-height:420px; border:1px solid var(--line); border-radius:10px; margin-top:14px; background:#fff; }
+  .warn { background:#fff7e6; color:#8a5a00; border:1px solid #f5d28a; padding:14px; border-radius:10px; display:none; margin-bottom:16px; }
   .warn.show { display:block; }
   .hidden { display:none !important; }
-  details summary { cursor:pointer; font-weight:600; }
-  @media (max-width:640px) { .two,.three { grid-template-columns:1fr; } }
+  @media (max-width:640px) { .two, .choice { grid-template-columns:1fr; } .stage { padding:20px 16px; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>RulesForge PDF Studio</h1>
-  <p>Runs in your browser. Merge PDFs, name them for a Game Pack, then download them or send them to GitHub. Nothing is uploaded unless you press Upload.</p>
-</header>
-<main>
-  <div class="warn" id="browserWarn">PDF Studio needs Google Chrome or Microsoft Edge. Please open this page in one of them.</div>
+<div class="app">
+  <header>
+    <h1>RulesForge PDF Studio</h1>
+    <div class="steps" id="steps"></div>
+  </header>
 
-  <section>
-    <h2>1 · Pieces</h2>
+  <div class="stage" data-step="1">
+    <h2>Add your PDFs</h2>
+    <p class="lead">Drop in the PDFs for this file. Put them in reading order, and use page ranges if you only need some pages.</p>
     <div class="drop" id="drop">Drop PDFs here, or <u>choose files</u></div>
     <input type="file" id="pick" accept="application/pdf" multiple hidden>
-    <div id="list" style="margin-top:12px"></div>
-    <div class="hint">Merged top to bottom. ↑ ↓ reorder. Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div>
-  </section>
+    <div id="list" style="margin-top:16px"></div>
+    <div class="hint">Pages is optional: <b>1-5, 8, 12-</b> keeps just those pages.</div>
+  </div>
 
-  <section>
-    <h2>2 · Name it</h2>
+  <div class="stage" data-step="2">
+    <h2>Name it</h2>
+    <p class="lead">Tell RulesForge where this belongs and what to call it.</p>
     <div class="two">
       <div><label>Game</label><input id="game" list="games" placeholder="Kill Team"><datalist id="games"></datalist></div>
       <div><label>Edition</label><input id="edition" list="editions" placeholder="Core"><datalist id="editions"></datalist></div>
@@ -73,43 +86,58 @@
       <div id="secw" class="hidden"><label>Section name: its own column in the Game Pack (blank uses the title)</label><input id="section" placeholder="Kill Team"></div>
     </div>
     <div class="two">
-      <div id="kindw" class="hidden"><label><input type="checkbox" id="updates" style="width:auto"> This is an update or FAQ</label></div>
+      <div id="kindw" class="hidden"><label style="display:flex;gap:8px;align-items:center;margin-top:30px"><input type="checkbox" id="updates" style="width:auto"> This is an update or FAQ</label></div>
       <div><label>Version (optional)</label><input id="version" placeholder="1.2"></div>
     </div>
-    <label>Note (optional)</label><textarea id="description" placeholder="Anything the app should show about this file"></textarea>
-  </section>
+    <label>Note (optional)</label>
+    <textarea id="description" placeholder="Anything the app should show about this file"></textarea>
+  </div>
 
-  <section>
-    <h2>3 · Merge (only when there are several PDFs), then send</h2>
-    <div class="actions">
-      <button class="primary" id="merge">Merge the PDFs</button>
+  <div class="stage" data-step="3">
+    <h2>Merge</h2>
+    <p class="lead" id="mergeLead">Put several PDFs together into one file.</p>
+    <div id="mergeBox">
+      <div><button class="primary" id="merge">Merge the PDFs</button></div>
     </div>
-    <div class="hint" id="mres">Add a PDF first.</div>
+    <div class="hint" id="mres"></div>
     <iframe id="viewer" title="Preview"></iframe>
+  </div>
 
-    <div class="actions">
-      <button id="dl" disabled>Download PDF + details file</button>
+  <div class="stage" data-step="4">
+    <h2>Send it</h2>
+    <p class="lead">Choose where the finished file goes.</p>
+    <div class="choice" id="choice">
+      <label class="card on" data-c="download"><input type="radio" name="dest" value="download" checked><b>Download to my computer</b>Saves the PDF and its details file to this computer.</label>
+      <label class="card" data-c="upload"><input type="radio" name="dest" value="upload"><b>Upload to GitHub</b>Sends it to the Game Pack folder in the repository.</label>
     </div>
-
-    <details style="margin-top:14px">
-      <summary>Upload to GitHub</summary>
-      <div class="two" style="margin-top:10px">
+    <div class="panel hidden" id="ghPanel">
+      <div class="two">
         <div><label>Repository (owner/name)</label><input id="repo" value="Taptap91/40k-gameforge"></div>
         <div><label>Branch</label><input id="branch" value="game-packs"></div>
       </div>
       <label>GitHub token (fine-grained, this repository only, Contents: Read and write)</label>
       <input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
-      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="remember" style="width:auto"> Remember the token in this browser only</label>
-      <div class="actions">
-        <button id="loadFolders">Load folders from GitHub</button>
-        <button class="primary" id="upload" disabled>Upload to GitHub</button>
-      </div>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="remember" style="width:auto"> Remember the token in this browser only</label>
+      <div style="margin-top:12px"><button id="loadFolders">Load folders from GitHub</button></div>
       <div class="hint">The file goes to <code>packs/incoming/&lt;Game&gt;/&lt;Edition&gt;/&lt;Type&gt;/</code>. The pack converter picks it up after you upload.</div>
-    </details>
-  </section>
+    </div>
+    <div class="hint" id="sendHint"></div>
+  </div>
 
   <div class="msg" id="msg"></div>
-</main>
+
+  <footer>
+    <div class="right">
+      <button id="restart" class="danger">Start over</button>
+    </div>
+    <div class="right">
+      <button id="back">Back</button>
+      <button class="primary" id="next">Next</button>
+      <button class="primary hidden" id="finish">Download</button>
+    </div>
+  </footer>
+  <div class="warn" id="browserWarn">PDF Studio needs Google Chrome or Microsoft Edge. Please open this page in one of them.</div>
+</div>
 
 <script src="vendor/pdf-lib.min.js"></script>
 <script>
@@ -126,23 +154,30 @@
   };
   const GITHUB = "https://api.github.com";
   const KEY = "rf-pdfstudio-github";
+  const STEP_NAMES = ["Pieces", "Name", "Merge", "Send"];
+  const LAST = STEP_NAMES.length;
 
   let items = [];          // { name, bytes, pages, range }
-  let sel = -1;
-  let merged = null;       // { bytes, sig } once a merge has run
-  let sigNow = () => JSON.stringify([items.map(i => [i.name, i.range || "", i.pages]), $("title").value]);
+  let merged = null;       // { bytes, sig, pages } once a merge has run
+  let step = 1;
+  let previewUrl = null;
+
+  const sigNow = () => JSON.stringify([items.map(i => [i.name, i.range || "", i.pages]), $("title").value]);
 
   // ---- browser check: the page needs Chrome or Edge (both report "Chrome/") ----
   const chromeBased = /Chrome\//.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent);
   if (!chromeBased) {
     $("browserWarn").classList.add("show");
-    document.querySelectorAll("button").forEach(b => b.disabled = true);
+    document.querySelectorAll("button, input").forEach(b => b.disabled = true);
   }
 
   // ---- helpers ----
   const safe = s => s.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim() || "Untitled";
   const say = (text, kind) => { const m = $("msg"); m.textContent = text; m.className = "msg show " + (kind || "ok"); };
+  const clearSay = () => { $("msg").className = "msg"; $("msg").textContent = ""; };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const sizeText = bytes => bytes.length < 1048576 ? Math.round(bytes.length / 1024) + " KB" : (bytes.length / 1048576).toFixed(1) + " MB";
+  const dest = () => document.querySelector('input[name="dest"]:checked').value;
 
   // "1-5, 8, 12-" -> 0-based page indexes (same rule as the desktop studio)
   function parseRange(text, n) {
@@ -150,7 +185,7 @@
     const out = [];
     for (const part of text.split(",")) {
       const p = part.trim(); if (!p) continue;
-      const m = p.match(/^(\d*)\s*-\s*(\d*)$/) || p.match(/^(\d+)$/) && [p, p, p];
+      const m = p.match(/^(\d*)\s*-\s*(\d*)$/) || (p.match(/^(\d+)$/) && [p, p, p]);
       if (!m) throw new Error(`"${p}" isn't a page range. Use numbers like 1-5 or 8.`);
       const a = m[1] ? +m[1] : 1, b = m[2] ? +m[2] : n;
       for (let i = Math.max(1, a); i <= Math.min(n, b); i++) out.push(i - 1);
@@ -159,25 +194,46 @@
     return out;
   }
 
-  const sizeText = bytes => bytes.length < 1048576 ? Math.round(bytes.length / 1024) + " KB" : (bytes.length / 1048576).toFixed(1) + " MB";
-
-  function draw() {
-    $("list").innerHTML = items.map((f, i) => `
-      <div class="row" data-i="${i}" style="${i === sel ? "border-color:var(--acc)" : ""}">
-        <div>${esc(f.name)} <small>${f.pages} pages</small></div>
-        <input data-r="${i}" value="${esc(f.range || "")}" placeholder="all pages">
-        <div class="mv"><button data-u="${i}" title="Move up">↑</button><button data-d="${i}" title="Move down">↓</button><button data-x="${i}" title="Remove">✕</button></div>
-      </div>`).join("");
-    $("type").value = $("type").value || "Rules";
-    showFields();
-    gate();
+  // ---- steps ----
+  function showStep(n) {
+    step = n;
+    document.querySelectorAll(".stage").forEach(s => s.classList.toggle("active", +s.dataset.step === n));
+    $("steps").innerHTML = STEP_NAMES.map((name, i) => {
+      const k = i + 1;
+      const cls = k === n ? "dot on" : (k < n ? "dot done" : "dot");
+      return `<span class="${cls}">${k}</span>`;
+    }).join("") + `<span style="margin-left:6px">Step ${n} of ${LAST}: ${STEP_NAMES[n - 1]}</span>`;
+    $("back").classList.toggle("hidden", n === 1);
+    $("next").classList.toggle("hidden", n === LAST);
+    $("finish").classList.toggle("hidden", n !== LAST);
+    $("restart").classList.toggle("hidden", n === 1);
+    clearSay();
+    if (n === 3) enterMerge();
+    if (n === 4) enterSend();
+    refreshFinish();
+    window.scrollTo(0, 0);
   }
 
-  function showFields() {
-    const t = $("type").value;
-    $("facw").classList.toggle("hidden", t !== "Factions");
-    $("secw").classList.toggle("hidden", t !== "Sections");
-    $("kindw").classList.toggle("hidden", t !== "Rules");
+  function enterMerge() {
+    const single = items.length === 1;
+    $("mergeBox").classList.toggle("hidden", single);
+    $("mergeLead").textContent = single
+      ? "Only one PDF, so there is nothing to merge. It goes forward exactly as it is."
+      : "Put the PDFs together into one file. Check the preview, then continue.";
+    $("mres").textContent = single ? "" : (merged && merged.sig === sigNow() ? `Merged ${merged.pages} pages (${sizeText(merged.bytes)}).` : "Not merged yet.");
+    if (single) build(items, "Preview").then(previewBytes).catch(e => say(e.message, "err")); // the single file, with its page range
+    else if (merged && merged.sig === sigNow()) previewBytes(merged.bytes);
+    else $("viewer").removeAttribute("src");
+  }
+
+  function enterSend() {
+    const up = dest() === "upload";
+    $("ghPanel").classList.toggle("hidden", !up);
+    $("finish").textContent = up ? "Upload to GitHub" : "Download PDF + details";
+    $("sendHint").textContent = up
+      ? "Uploading saves the PDF and its details file into the Game Pack folder on GitHub."
+      : "Downloading saves the PDF and a details file (.json) to your computer.";
+    document.querySelectorAll(".choice .card").forEach(c => c.classList.toggle("on", c.dataset.c === dest()));
   }
 
   // ---- files ----
@@ -190,7 +246,18 @@
         items.push({ name: f.name, bytes, pages: doc.getPageCount(), range: "" });
       } catch (e) { say(`${f.name} couldn't be read: ${e.message}`, "err"); }
     }
-    draw();
+    merged = null;
+    drawList();
+  }
+
+  function drawList() {
+    $("list").innerHTML = items.map((f, i) => `
+      <div class="row" data-i="${i}">
+        <div>${esc(f.name)} <small>${f.pages} pages</small></div>
+        <input data-r="${i}" value="${esc(f.range || "")}" placeholder="all pages">
+        <div class="mv"><button data-u="${i}" title="Move up">↑</button><button data-d="${i}" title="Move down">↓</button><button data-x="${i}" title="Remove">✕</button></div>
+      </div>`).join("");
+    refreshFinish();
   }
 
   $("drop").onclick = () => $("pick").click();
@@ -205,10 +272,10 @@
     else if (t.dataset.u !== undefined) { const i = +t.dataset.u; if (i > 0) [items[i - 1], items[i]] = [items[i], items[i - 1]]; }
     else if (t.dataset.d !== undefined) { const i = +t.dataset.d; if (i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]]; }
     else return;
-    merged = null; draw();
+    merged = null; drawList();
   });
   $("list").addEventListener("input", e => {
-    if (e.target.dataset.r !== undefined) { items[+e.target.dataset.r].range = e.target.value; merged = null; gate(); }
+    if (e.target.dataset.r !== undefined) { items[+e.target.dataset.r].range = e.target.value; merged = null; }
   });
 
   // ---- building the output ----
@@ -236,81 +303,98 @@
     return meta;
   }
 
-  function need() {
-    const title = $("title").value.trim();
-    if (!items.length) throw new Error("Add a PDF first.");
-    if (!title) throw new Error("Give the file a title first: it's what the app will call it.");
-    return title;
-  }
-
-  // The file to save: the merge when several PDFs, or the single PDF built straight away.
+  // The file to send: the merge when several PDFs, or the single PDF built straight away.
   async function finalBytes(title) {
     if (items.length === 1) return await build(items, title);
     if (merged && merged.sig === sigNow()) return merged.bytes;
-    throw new Error("Merge the PDFs first, then save.");
+    throw new Error("Merge the PDFs first, then send.");
   }
 
-  function gate() {
-    const title = $("title").value.trim();
-    const one = items.length === 1;
-    const ok = items.length && (one || (merged && merged.sig === sigNow()));
-    $("dl").disabled = !ok;
-    $("upload").disabled = !ok;
-    $("merge").disabled = items.length < 2;
-    if (!items.length) $("mres").textContent = "Add a PDF first.";
-    else if (one) $("mres").textContent = "One PDF, so no merge is needed: download it or upload it.";
-    else if (merged && merged.sig !== sigNow()) $("mres").textContent = "Something changed since the merge: merge again before downloading or uploading.";
-    else if (!merged) $("mres").textContent = "Merge first; then choose to download it or upload it.";
-    else $("mres").textContent = `Merged ${merged.pages} pages (${sizeText(merged.bytes)}). Now download it or upload it.`;
-  }
-
-  $("merge").onclick = async () => {
-    try {
-      $("merge").disabled = true;
-      const title = need();
-      const bytes = await build(items, title);
-      const doc = await PDFDocument.load(bytes);
-      merged = { bytes, sig: sigNow(), pages: doc.getPageCount() };
-      showPreview(bytes);
-      say("Merge finished.", "ok");
-    } catch (e) { say(e.message, "err"); }
-    gate();
-  };
-
-  function showPreview(bytes) {
-    const v = $("viewer");
-    if (v.dataset.url) URL.revokeObjectURL(v.dataset.url);
-    v.dataset.url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-    v.src = v.dataset.url; v.style.display = "block";
+  function previewBytes(bytes) {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    $("viewer").src = previewUrl;
   }
 
   function download(bytes, name, type) {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([bytes], { type }));
-    a.download = name; document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
 
-  $("dl").onclick = async () => {
+  // ---- validation for Next ----
+  function canGoNext() {
+    if (step === 1) {
+      if (!items.length) throw new Error("Add at least one PDF first.");
+    }
+    if (step === 2) {
+      if (!$("title").value.trim()) throw new Error("Give the file a title first: it's what the app will call it.");
+      if (!$("type").value) throw new Error("Pick a type.");
+    }
+    if (step === 3) {
+      if (items.length > 1 && !(merged && merged.sig === sigNow())) throw new Error("Merge the PDFs before continuing.");
+    }
+  }
+
+  function refreshFinish() {
+    const ok = items.length > 0 && (items.length === 1 || (merged && merged.sig === sigNow()));
+    $("finish").disabled = !(ok && $("title").value.trim());
+  }
+
+  $("next").onclick = () => {
+    try { canGoNext(); showStep(Math.min(LAST, step + 1)); }
+    catch (e) { say(e.message, "err"); }
+  };
+  $("back").onclick = () => showStep(Math.max(1, step - 1));
+
+  $("merge").onclick = async () => {
     try {
-      const title = need();
-      const bytes = await finalBytes(title);
-      download(bytes, `${safe(title)}.pdf`, "application/pdf");
-      download(new TextEncoder().encode(JSON.stringify(details(title), null, 2)), `${safe(title)}.json`, "application/json");
-      say("Downloaded. Your browser may ask to allow two downloads; allow them.", "ok");
+      $("merge").disabled = true;
+      const title = $("title").value.trim() || "Merged";
+      const bytes = await build(items, title);
+      const doc = await PDFDocument.load(bytes);
+      merged = { bytes, sig: sigNow(), pages: doc.getPageCount() };
+      previewBytes(bytes);
+      $("mres").textContent = `Merged ${merged.pages} pages (${sizeText(bytes)}).`;
+      say("Merge finished.", "ok");
     } catch (e) { say(e.message, "err"); }
+    $("merge").disabled = false;
+    refreshFinish();
   };
 
+  // ---- send ----
+  $("finish").onclick = async () => {
+    try {
+      $("finish").disabled = true;
+      const title = $("title").value.trim();
+      if (!title) throw new Error("Give the file a title first.");
+      if (dest() === "upload") await uploadNow(title);
+      else await downloadNow(title);
+    } catch (e) { say(e.message, "err"); }
+    refreshFinish();
+  };
+
+  async function downloadNow(title) {
+    const bytes = await finalBytes(title);
+    download(bytes, `${safe(title)}.pdf`, "application/pdf");
+    download(new TextEncoder().encode(JSON.stringify(details(title), null, 2)), `${safe(title)}.json`, "application/json");
+    say("Downloaded. Your browser may ask to allow two downloads; allow them.", "ok");
+  }
+
+  document.querySelectorAll('input[name="dest"]').forEach(r => r.addEventListener("change", enterSend));
+
   // ---- GitHub ----
+  function saved() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { return {}; } }
   function ghSettings() {
-    const repo = $("repo").value.trim(), branch = $("branch").value.trim() || "game-packs", token = $("token").value.trim() || (saved().token || "");
+    const repo = $("repo").value.trim(), branch = $("branch").value.trim() || "game-packs";
+    const token = $("token").value.trim() || (saved().token || "");
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) throw new Error("Fill in the repository (owner/name) and a GitHub token first.");
     return { repo, branch, token };
   }
-  function saved() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { return {}; } }
 
   async function gh(cfg, path, opts = {}) {
-    const res = await fetch(`${GITHUB}/repos/${cfg.repo}/contents/${path}${opts.query || ""}`, {
+    const res = await fetch(`${GITHUB}/repos/${cfg.repo}/contents/${path}`, {
       method: opts.method || "GET",
       headers: { Authorization: `Bearer ${cfg.token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
       body: opts.body ? JSON.stringify(opts.body) : undefined
@@ -330,30 +414,25 @@
   }
 
   async function put(cfg, path, bytes, message) {
-    const existing = await gh(cfg, path + "?ref=" + encodeURIComponent(cfg.branch), { allow404: true });
+    const existing = await gh(cfg, encodeURI(path) + "?ref=" + encodeURIComponent(cfg.branch), { allow404: true });
     const body = { message, content: b64(bytes), branch: cfg.branch };
     if (existing && existing.sha) body.sha = existing.sha;
     return gh(cfg, encodeURI(path), { method: "PUT", body });
   }
 
-  $("upload").onclick = async () => {
-    try {
-      $("upload").disabled = true;
-      const title = need();
-      const cfg = ghSettings();
-      const t = $("type").value, game = $("game").value.trim(), edition = $("edition").value.trim();
-      if (!game || !edition || !TYPES[t]) throw new Error("Pick the Game, Edition and Type so it lands in the right Game Pack.");
-      const bytes = await finalBytes(title);
-      const base = `packs/incoming/${safe(game)}/${safe(edition)}/${t}/${safe(title)}`;
-      const json = new TextEncoder().encode(JSON.stringify(details(title), null, 2));
-      if ($("remember").checked) localStorage.setItem(KEY, JSON.stringify({ repo: cfg.repo, branch: cfg.branch, token: cfg.token }));
-      const msg = `Add ${title} (${t})`;
-      await put(cfg, base + ".json", json, msg);   // details first, so they are there when the PDF triggers the converter
-      await put(cfg, base + ".pdf", bytes, msg);
-      say(`Uploaded to ${cfg.repo} (${cfg.branch}) at ${base}.pdf. The converter will pick it up in a minute or two.`, "ok");
-    } catch (e) { say(e.message, "err"); }
-    gate();
-  };
+  async function uploadNow(title) {
+    const cfg = ghSettings();
+    const t = $("type").value, game = $("game").value.trim(), edition = $("edition").value.trim();
+    if (!game || !edition || !TYPES[t]) throw new Error("Go back to Name it: fill in the Game, Edition and Type so it lands in the right Game Pack.");
+    const bytes = await finalBytes(title);
+    const base = `packs/incoming/${safe(game)}/${safe(edition)}/${t}/${safe(title)}`;
+    const json = new TextEncoder().encode(JSON.stringify(details(title), null, 2));
+    if ($("remember").checked) localStorage.setItem(KEY, JSON.stringify({ repo: cfg.repo, branch: cfg.branch, token: cfg.token }));
+    const msg = `Add ${title} (${t})`;
+    await put(cfg, base + ".json", json, msg);   // details first, so they are there when the PDF triggers the converter
+    await put(cfg, base + ".pdf", bytes, msg);
+    say(`Uploaded to ${cfg.repo} (${cfg.branch}) at ${base}.pdf. The converter will pick it up in a minute or two.`, "ok");
+  }
 
   $("loadFolders").onclick = async () => {
     try {
@@ -363,8 +442,8 @@
         if (g.type !== "dir") continue;
         games[g.name] = ((await gh(cfg, encodeURI(`packs/incoming/${g.name}`) + "?ref=" + encodeURIComponent(cfg.branch))) || []).filter(e => e.type === "dir").map(e => e.name);
       }
-      $("games").innerHTML = Object.keys(games).map(g => `<option value="${esc(g)}">`).join("");
       window.__editions = games;
+      $("games").innerHTML = Object.keys(games).map(g => `<option value="${esc(g)}">`).join("");
       $("editions").innerHTML = (games[$("game").value.trim()] || []).map(e => `<option value="${esc(e)}">`).join("");
       say(`Found ${Object.keys(games).length} Game Pack folders.`, "ok");
     } catch (e) { say(e.message, "err"); }
@@ -374,17 +453,41 @@
     $("editions").innerHTML = eds.map(e => `<option value="${esc(e)}">`).join("");
   });
 
+  // ---- field visibility ----
+  function showFields() {
+    const t = $("type").value;
+    $("facw").classList.toggle("hidden", t !== "Factions");
+    $("secw").classList.toggle("hidden", t !== "Sections");
+    $("kindw").classList.toggle("hidden", t !== "Rules");
+  }
+  $("type").addEventListener("change", showFields);
+  ["title"].forEach(id => $(id).addEventListener("input", refreshFinish));
+
+  // ---- start over: back to the first step, with the files, preview and naming cleared ----
+  $("restart").onclick = () => {
+    if (!confirm("Start over? This clears the PDFs, the merged file, and the names you typed.")) return;
+    items = []; merged = null;
+    $("list").innerHTML = "";
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    $("viewer").removeAttribute("src");
+    ["game", "edition", "title", "faction", "section", "version", "description"].forEach(id => $(id).value = "");
+    $("updates").checked = false;
+    $("type").value = "Rules";
+    showFields();
+    document.querySelector('input[name="dest"][value="download"]').checked = true;
+    $("token").value = "";
+    showStep(1);
+    say("Started over. Everything from this session is cleared.", "ok");
+  };
+
   // ---- startup ----
   $("type").innerHTML = Object.entries(TYPES).map(([k, v]) => `<option value="${k}" title="${esc(v)}">${k} · ${esc(v)}</option>`).join("");
-  $("type").onchange = () => { showFields(); };
   const s = saved();
   if (s.repo) $("repo").value = s.repo;
   if (s.branch) $("branch").value = s.branch;
   if (s.token) { $("token").placeholder = "(saved in this browser)"; $("remember").checked = true; }
-  ["title", "faction", "section", "version", "description", "game", "edition", "type", "updates", "repo", "branch", "token"].forEach(id => $(id).addEventListener("input", () => { merged = merged && merged.sig === sigNow() ? merged : null; gate(); }));
-  $("type").addEventListener("change", () => { showFields(); gate(); });
-  draw();
-  gate();
+  showFields();
+  showStep(1);
 })();
 </script>
 </body>
