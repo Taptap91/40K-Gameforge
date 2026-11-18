@@ -37,8 +37,8 @@
  *  Rule 7  The theme travels with the faction's Excel file (About sheet: faction, colours, symbol), so a pack shared as
  *          Excel looks the same as the PDF it came from.
  */
-import { KNOWN_FACTIONS } from "./core.js?v=8.67";
-import { normName } from "./text.js?v=8.67";
+import { KNOWN_FACTIONS } from "./core.js?v=8.74";
+import { normName } from "./text.js?v=8.74";
 
 const PACK_RULES_VERSION = 1;
 const KIT_DIR = "factions/";
@@ -235,7 +235,7 @@ function packFaction({ datasheets = [], title = "", fileName = "", typed = "" })
 
 /* Rule 4: colours. */
 const hslHex = (h, s, l) => { s /= 100; l /= 100; const f = n => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, "0"); }; return `#${f(0)}${f(8)}${f(4)}`; };
-function nameColours(f) { let h = 0; for (const ch of f) h = (h * 31 + ch.charCodeAt(0)) % 360; return [hslHex(h, 60, 52), hslHex((h + 45) % 360, 55, 60)]; }
+function nameColours(f) { let h = 0; for (const ch of String(f ?? "")) h = (h * 31 + ch.charCodeAt(0)) % 360; return [hslHex(h, 60, 52), hslHex((h + 45) % 360, 55, 60)]; }
 const hex = (r, g, b) => "#" + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
 
 /** The two most common strong colours in a symbol, or null when it's plain (white, black or grey). */

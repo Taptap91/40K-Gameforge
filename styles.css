@@ -1275,3 +1275,157 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .map-frame { width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 8px; background: #fff; }
 .map-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .map-frame img[data-board-crop]:not([data-cropped]) { visibility: hidden; }
+
+/* ---------- Collection page: the collections panel beside the page (js/collections.js) ---------- */
+.coll-wrap { display: flex; flex: 1 1 auto; min-height: 0; }
+.coll-panel { width: 240px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 14px; border-right: 1px solid var(--border); background: var(--sidebar); }
+.coll-panel-head { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding: 0 4px 8px; }
+.coll-list { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; overflow-y: auto; }
+.coll-list .bt-hint { padding: 0 4px; }
+.coll-item { text-align: left; background: none; border: 0; color: var(--text); padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+.coll-item:hover { background: var(--control); }
+.coll-item.on { background: var(--control); font-weight: 600; }
+.coll-add { width: 100%; margin-top: 10px; }
+.coll-main { flex: 1 1 auto; min-width: 0; padding: 20px; overflow-y: auto; }
+.coll-title { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+.coll-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-2); }
+.coll-foot { justify-content: space-between; }
+/* Games: a rail on tablet and desktop (its labels shorten on tablet). On a phone the rail is replaced by the switcher. */
+/* The rail has two layers: the game list, and (once a game is picked) that game's editions and collections. Picking a
+   game slides the list out to the left and the game's view in from the right. */
+.coll-rail { width: 180px; flex: none; position: relative; overflow: hidden; border-right: 1px solid var(--border); background: var(--sidebar); }
+.cr-games, .cr-drill { position: absolute; inset: 0; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; transition: transform .25s ease; }
+.cr-drill { gap: 10px; transform: translateX(105%); }
+.coll-rail.cr-drilled .cr-games { transform: translateX(-105%); }
+.coll-rail.cr-drilled .cr-drill { transform: translateX(0); }
+.cr-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cr-back { flex: none; width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--text); font-size: 18px; line-height: 1; cursor: pointer; }
+.cr-back:hover { background: var(--control); }
+.cr-title { min-width: 0; font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coll-seg { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--border-strong); border-radius: 9px; }
+.coll-seg button { flex: 1 1 0; min-width: 0; font: inherit; font-size: 12px; padding: 6px 4px; background: none; border: 0; border-radius: 7px; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.coll-seg button.on { background: var(--control); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+/* The game name: one floating element that glides between its row and the header. Its text sits in the row
+   and the header only while it's hidden there, so the two never show twice. */
+.cr-float { position: absolute; z-index: 2; display: flex; align-items: center; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; overflow: hidden; transition: left .25s ease, top .25s ease, width .25s ease, height .25s ease, padding-left .25s ease, font-size .25s ease; }
+.cr-float:empty { display: none; }
+.coll-rail.cr-drilled .cr-float { font-size: 14px; }
+.cr-float span { overflow: hidden; text-overflow: ellipsis; }
+.coll-rail:not(.cr-drilled) .coll-rail-item.on > span { visibility: hidden; }
+.coll-rail.cr-drilled .cr-title { visibility: hidden; }
+.cr-back { opacity: 0; transition: opacity .2s ease; }
+.coll-rail.cr-drilled .cr-back { opacity: 1; }
+@media (min-width: 701px) { .coll-panel { display: none; } }
+.coll-rail-item { text-align: left; background: none; border: 0; color: var(--text-2); padding: 9px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coll-rail-item:hover { background: var(--control); }
+.coll-rail-item.on { background: var(--control); color: var(--text); font-weight: 600; }
+.coll-rail-add { margin-top: 8px; background: none; border: 0; color: var(--accent); text-align: left; padding: 9px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.rl-short { display: none; }
+/* The panel's heading is the game name, and editions sit as chips under it (or as one label when there's only one). */
+.coll-panel-head { font-size: 15px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); padding: 0 4px 6px; }
+.coll-edition { font-size: 13px; color: var(--text-2); padding: 0 4px 10px; }
+.coll-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px 10px; }
+.coll-chip { font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border-strong); background: none; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.coll-chip.on { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); color: var(--text); font-weight: 600; }
+
+/* Phone switcher: floats above the bottom bar, with the game list opening upward. Hidden while the page scrolls down. */
+.cs-switch { display: none; position: fixed; left: 0; right: 0; bottom: calc(70px + env(safe-area-inset-bottom)); flex-direction: column; align-items: center; gap: 8px; padding: 0 12px; z-index: 30; transition: transform .2s ease; }
+.cs-switch.cs-hidden { transform: translateY(calc(100% + 90px)); pointer-events: none; }
+.cs-list { width: min(300px, 100%); background: var(--panel); border: 1px solid var(--border-strong); border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.cs-list[hidden] { display: none; }
+.cs-opt { display: block; margin: 0 16px; padding: 12px 0; background: none; border: 0; border-top: 1px solid var(--border); color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.cs-opt:first-child { border-top: 0; }
+.cs-opt.cs-cur { font-weight: 600; }
+.cs-opt:not(.cs-cur) { opacity: .75; }
+.cs-bar { display: flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.cs-arrow { width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.cs-arrow:disabled { opacity: .3; cursor: default; }
+.cs-name { min-height: 40px; min-width: 0; padding: 0 8px; border: 0; background: none; color: var(--text); font: inherit; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+
+@media (min-width: 701px) and (max-width: 1279px) {
+  .coll-rail { width: 112px; }
+  .cr-games, .cr-drill { padding: 14px 8px; }
+  .coll-rail-item { text-align: center; padding: 9px 4px; }
+  .coll-rail-add { font-size: 12px; padding: 9px 4px; }
+  .rl-long { display: none; }
+  .rl-short { display: inline; }
+}
+@media (max-width: 700px) {
+  .coll-wrap { flex-direction: column; }
+  .coll-rail { display: none; }
+  .coll-panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .coll-chips { flex-wrap: nowrap; overflow-x: auto; }
+  .coll-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .coll-add { width: auto; }
+  .coll-main { padding: 14px 14px 150px; }
+  .cs-switch { display: flex; }
+}
+
+/* Collection page: a faction's units, models and stages (js/collections.js) */
+.cm-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.cm-top .coll-title { margin: 0; }
+.cm-top .bt-hint { padding: 0; margin: 2px 0 0; }
+.cm-stats { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.cm-stat { background: var(--control); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 110px; }
+.cm-stat b { font-size: 20px; display: block; }
+.cm-stat span { color: var(--text-3); font-size: 12px; }
+.cm-progress { background: var(--control); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.cm-pbar { height: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.cm-pfill { height: 100%; background: #34c759; transition: width .25s ease; }
+.cm-plab { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; color: var(--text-3); font-size: 12px; flex-wrap: wrap; }
+.cm-plab b { color: var(--text); }
+.cm-unit { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.cm-left { flex: 1 1 320px; min-width: 0; }
+.cm-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cm-name { font-weight: 600; font-size: 15px; }
+.cm-del { padding: 0 4px; min-height: 0; }
+.cm-meta { color: var(--text-3); font-size: 12px; margin-top: 2px; }
+.cm-meta b { color: var(--text); }
+.cm-squad { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 12px; align-items: stretch; margin-top: 10px; height: 104px; }
+.cm-side { display: flex; flex-direction: column; gap: 6px; }
+.cm-side .cm-big { flex: 1 1 0; min-width: 76px; }
+.cm-num { font-size: 30px; font-weight: 700; min-width: 70px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.cm-ic { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 40px; padding: 0 8px; background: #2c3240; border: 1px solid #7a8397; border-radius: 8px; color: var(--text); cursor: pointer; font: inherit; }
+.cm-ic svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cm-ic:disabled { opacity: .3; cursor: default; }
+.cm-srow { display: flex; align-items: flex-end; gap: 12px; }
+.cm-allp { height: 40px; margin-bottom: 10px; flex: 0 0 auto; }
+.cm-stages { display: flex; flex-direction: column; width: max-content; padding: 0 14px; background: var(--control); border: 1px solid #7a8397; border-radius: 10px; overflow: hidden; }
+.cm-stage { display: grid; grid-template-columns: 92px 44px 40px 44px; align-items: center; gap: 8px; padding: 10px 0; }
+.cm-stage + .cm-stage { border-top: 1px solid rgba(233,236,242,.22); }
+.cm-lbl { font-weight: 600; }
+.cm-n { text-align: center; font-size: 17px; font-weight: 700; }
+.cm-foot { margin-top: 16px; }
+.cm-addlist { gap: 0; }
+.cm-addrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.cm-addrow .cm-meta { margin-top: 2px; }
+@media (max-width: 520px) {
+  .cm-squad { gap: 6px; height: 96px; }
+  .cm-num { font-size: 24px; min-width: 44px; }
+  .cm-side .cm-big { min-width: 52px; }
+  .cm-stage { grid-template-columns: 76px 40px 30px 40px; padding: 9px 0; gap: 6px; }
+  .cm-stages { padding: 0 10px; width: 100%; }
+}
+
+/* Collection page: faction colours, banner, and symbol (as the list builder shows them) */
+.coll-item[style] { background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 30%, var(--window)), color-mix(in srgb, var(--c1) 12%, var(--window))); border: 1px solid color-mix(in srgb, var(--c1) 45%, transparent); }
+.coll-item[style]:hover { border-color: var(--c1); }
+.coll-item.on[style] { font-weight: 600; box-shadow: inset 4px 0 0 var(--c2); }
+.coll-panel { user-select: none; }
+.cm-banner { position: relative; display: flex; align-items: center; min-height: 110px; padding: 18px 20px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(100deg, color-mix(in srgb, var(--c1) 30%, var(--window)) 0%, color-mix(in srgb, var(--c1) 12%, var(--window)) 55%, color-mix(in srgb, var(--c2) 14%, var(--window)) 100%); overflow: hidden; }
+.cm-banner::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 12px 0 0 12px; background: linear-gradient(180deg, var(--c1), var(--c2)); }
+.cm-banner-text { flex: 1; min-width: 0; padding-right: 100px; }
+.cm-banner-name { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text); }
+.cm-banner-sub { margin-top: 4px; font-size: 14px; color: var(--text-2); }
+.cm-banner-mark { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c1) 55%, transparent)); pointer-events: none; }
+.cm-topbar { margin-bottom: 12px; }
+.cm-addbtn { width: 100%; background: var(--c1); border-color: var(--c1); color: #fff; min-height: 44px; }
+.cm-addbtn:hover { filter: brightness(1.1); }
+.cm-unit { position: relative; }
+.cm-unit::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 4px; border-radius: 0 12px 12px 0; background: linear-gradient(180deg, var(--c1), var(--c2)); }
+
+/* Collection page: Add unit sits beside the Points and Models boxes, the same height; ⋮ menu for delete */
+.cm-stats { align-items: stretch; }
+.cm-stats .cm-addbtn { width: auto; min-width: 0; min-height: 0; padding: 8px 18px 8px 14px; align-self: stretch; margin: 0; }
+.cm-addbtn svg { flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.cm-stats .cm-kebab { align-self: stretch; width: 44px; min-width: 44px; min-height: 0; padding: 0; justify-content: center; background: var(--control); border-color: var(--border-strong); color: var(--text); }

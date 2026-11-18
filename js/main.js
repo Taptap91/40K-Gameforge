@@ -1,21 +1,22 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import "./map-crop.js?v=8.67";
-import "./custom.js?v=8.67";
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.67";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.67";
-import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.67";
-import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.67";
-import * as core from "./core.js?v=8.67";
-import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.67";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.67";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.67";
-import { buildIndex } from "./search.js?v=8.67";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.67";
-import { fixApostrophes } from "./text.js?v=8.67";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.67";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.67";
+import "./map-crop.js?v=8.74";
+import "./custom.js?v=8.74";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.74";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.74";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.74";
+import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.74";
+import { renderCollections, wireCollections } from "./collections.js?v=8.74";
+import * as core from "./core.js?v=8.74";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.74";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.74";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.74";
+import { buildIndex } from "./search.js?v=8.74";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.74";
+import { fixApostrophes } from "./text.js?v=8.74";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.74";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.74";
 
 function renderAll() {
   renderScope();
@@ -28,18 +29,22 @@ function renderAll() {
 }
 
 function showView(name) {
-  const views = ["rules", "lists", "factions", "battle"];
+  // Ask Rules is hidden for now: anything that would open it goes to Army Lists instead.
+  if (name === "rules") name = "lists";
+  const views = ["rules", "lists", "collection", "factions", "battle"];
   // Library now lives in Factions: it's the Game Packs page's own home screen.
   if (name === "library") { name = "factions"; setTimeout(() => goHome(), 0); }
   if (!views.includes(name)) name = "factions";
   for (const v of views) $("#view-" + v).classList.toggle("hidden", v !== name);
   if (name === "lists") renderListsPage();
+  if (name === "collection") renderCollections();
   if (name === "factions") renderFactionsPage();
   if (name === "battle") renderBattlePage();
   $$(".nav-item").forEach(b => b.dataset.view === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   store.set("rf.view", name);
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
 }function wireEvents() {
+  wireCollections();
   $$(".nav-item[data-view]").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
   $("#aiStatusBtn").addEventListener("click", openAISheet);
   // Phones and tablets: the gear in the bottom bar opens settings, starting on the faction colours when there's a faction.
@@ -182,7 +187,7 @@ if (document.getElementById("view-rules")) (async function init() {
   }
   buildIndex();
   renderAll();
-  showView(store.get("rf.view", "rules"));
+  showView(store.get("rf.view", "lists"));
   askForAccountOnce();   // the very first time the app is opened: Settings → Account, to add a username
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   AI.resume();
