@@ -29,18 +29,38 @@ function readingLines(items, tol = 6) {
   }
   return lines.filter(l => l.text);
 }let pdfjs = null;
+async function getPdfJs() {
+  if (!pdfjs) {
+    pdfjs = await import(PDFJS_URL);
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  }
+  return pdfjs;
+}
+
 async function readPdf(file, onPage) {
   if (!pdfjs) {
     pdfjs = await import(PDFJS_URL);
     pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
   }
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-  const pages = [], bookIcons = [];
+  const pages = [], bookIcons = [], tags = [];
   const fontInfo = new Map();   // font id → { b: bold, i: italic }, looked up once per font
   let offset = 0;   // pages are laid end to end, so layouts that cross page breaks still line up
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
+    // RulesForge tags saved by PDF Studio: annotations whose note starts with "RF:" (flags are note icons, boxes are squares).
+    try {
+      const annots = await page.getAnnotations();
+      for (const a of annots) {
+        const note = String(a.contentsObj?.str || a.contents || "");
+        const m = /^RF:(\w+)/.exec(note);
+        if (!m || !a.rect) continue;
+        const [x1, y1, x2, y2] = a.rect, top = page.view[3] - y2, bottom = page.view[3] - y1;
+        const shape = a.subtype === "Square" ? "box" : "flag";
+        tags.push({ page: n, k: m[1], shape, x0: x1 - page.view[0], y0: top, x1: x2 - page.view[0], y1: bottom });
+      }
+    } catch {}
     const pageHeight = (page.view[3] - page.view[1]) || 792;
     const pageWidth = (page.view[2] - page.view[0]) || 612;
     // Bold and italic come from the font names; fonts load the first time a page uses them.
@@ -116,7 +136,7 @@ async function readPdf(file, onPage) {
     const meta = await pdf.getMetadata();
     if (meta?.info?.Title?.trim()) title = meta.info.Title.trim();
   } catch {}
-  return { title, pageCount: pdf.numPages, pages, bookIcons };
+  return { title, pageCount: pdf.numPages, pages, bookIcons, tags, doc: pdf };
 }
 
 /** Small images in a page's "Books" table, each paired with the name printed to its right: [{ name, image }]. */
@@ -235,4 +255,4 @@ function iconToPng(img) {
   return out.toDataURL("image/png");
 }
 
-export { mostCommonSize, readingLines, readPdf };
+export { mostCommonSize, readingLines, readPdf, getPdfJs };

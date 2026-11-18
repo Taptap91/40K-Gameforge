@@ -183,6 +183,11 @@ async function main() {
       const fileName = `${slugify(result.kind === "faction" ? (meta.faction || result.faction || title) : title)}.xlsx`;
       const xlsxBytes = Buffer.from(result.xlsxBase64, "base64");
       await writeFile(path.join(bundleDir, fileName), xlsxBytes);
+      // Images cropped from tagged PDFs sit beside the workbook, in images/ (the rules text names them).
+      for (const im of result.images || []) {
+        await mkdir(path.join(bundleDir, path.dirname(im.name)), { recursive: true });
+        await writeFile(path.join(bundleDir, im.name), Buffer.from(im.base64, "base64"));
+      }
 
       const entry = {
         kind: result.kind,

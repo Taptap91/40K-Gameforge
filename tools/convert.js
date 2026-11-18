@@ -17,10 +17,11 @@
 // so without this it can hit a "Cannot access 'DATASHEET_GROUPS' before initialization" TDZ error. Importing
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
 import "../js/factions.js?v=8.74";
-import { readPdf } from "../js/pdf-reader.js?v=8.74";
+import { getPdfJs, readPdf } from "../js/pdf-reader.js?v=8.74";
 import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.74";
 import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.74";
 import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.74";
+import { taggedRules, exportTagImages } from "../js/tagged-rules.js?v=8.74";
 import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.74";
 import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.74";
 
@@ -32,8 +33,19 @@ const PACK_MIN_DATASHEETS = 5;
  * `section` (a Sections/ file) makes it a Collection under that name, e.g. "Kill Team": its entries come from the
  * PDF's rule sections, and no faction or mission-pack detection runs. */
 async function convertPdf(file, { kind = "core", faction = "", section = "" } = {}) {
-  const { title, pages } = await readPdf(file, () => {});
+  const { title, pages, tags = [], doc } = await readPdf(file, () => {});
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
+  // A PDF that PDF Studio has tagged: the tags say where headings, body text and images are, so use them instead of guessing.
+  if (tags.length && (kind === "core" || kind === "updates" || section)) {
+    const parsed = taggedRules(pages, tags, title);
+    if (parsed.sections.length >= 1) {
+      const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
+      const images = await exportTagImages(doc, parsed.images, await getPdfJs());
+      if (section) return { kind: "collection", title, section, edition, faction: "", images, blob: await buildXlsx(collectionToSheets({ title, section, edition, structured: parsed })) };
+      const k = kind === "updates" ? "updates" : "core";
+      return { kind: k, title, edition, faction: "", images, blob: await buildXlsx(rulesToSheets({ kind: k, title, edition, structured: parsed })) };
+    }
+  }
   if (section) {
     const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
     const parsed = parseRulesPdfAuto(pages.flatMap(p => p.items));
@@ -102,5 +114,7 @@ window.__convertPdf = async (base64, fileName, opts) => {
   const result = await convertPdf(file, opts);
   const xlsxBuffer = await result.blob.arrayBuffer();
   const xlsxBase64 = bytesToBase64(new Uint8Array(xlsxBuffer));
-  return { kind: result.kind, title: result.title, edition: result.edition, faction: result.faction, section: result.section, xlsxBase64 };
+  const images = [];
+  for (const im of result.images || []) images.push({ name: im.name, base64: bytesToBase64(new Uint8Array(await im.blob.arrayBuffer())) });
+  return { kind: result.kind, title: result.title, edition: result.edition, faction: result.faction, section: result.section, xlsxBase64, images };
 };
