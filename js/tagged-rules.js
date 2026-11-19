@@ -467,22 +467,46 @@ function iou(a, b) {
 /** Trims blank (white or fully transparent) margins off a crop, but only when that keeps most of the area. */
 function trimBlank(img, w, h) {
   const d = img.data; let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  // the page's own background colour (the commonest colour on the outer ring) is what gets trimmed, white or not
+  const ring = new Map(), at = (x, y) => (y * w + x) * 4;
+  const see = (x, y) => { const i = at(x, y), k = (d[i] >> 3) + "," + (d[i + 1] >> 3) + "," + (d[i + 2] >> 3); const r = ring.get(k) || { n: 0, r: d[i], g: d[i + 1], b: d[i + 2] }; r.n++; ring.set(k, r); };
+  for (let x = 0; x < w; x++) { see(x, 0); see(x, h - 1); }
+  for (let y = 0; y < h; y++) { see(0, y); see(w - 1, y); }
+  const bg = [...ring.values()].sort((a, b) => b.n - a.n)[0];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = (y * w + x) * 4;
-    const ink = d[i + 3] > 8 && (d[i] + d[i + 1] + d[i + 2]) / 3 < 242;
+    const ink = d[i + 3] > 8 && (Math.abs(d[i] - bg.r) > 22 || Math.abs(d[i + 1] - bg.g) > 22 || Math.abs(d[i + 2] - bg.b) > 22);
     if (ink) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   }
   if (x1 < 0) return { w, h, data: img };
-  const pad = 3;
+  const pad = 0;
   x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
   const nw = x1 - x0 + 1, nh = y1 - y0 + 1;
-  if (nw * nh > 0.85 * w * h) return { w, h, data: img };
-  const cropped = new ImageData(nw, nh);
-  for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
-    const si = ((y + y0) * w + (x + x0)) * 4, di = (y * nw + x) * 4;
-    cropped.data[di] = d[si]; cropped.data[di + 1] = d[si + 1]; cropped.data[di + 2] = d[si + 2]; cropped.data[di + 3] = d[si + 3];
+  let cropped = img, cw = w, ch = h;
+  if (nw * nh < w * h) {
+    cropped = new ImageData(nw, nh); cw = nw; ch = nh;
+    for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+      const si = ((y + y0) * w + (x + x0)) * 4, di = (y * nw + x) * 4;
+      cropped.data[di] = d[si]; cropped.data[di + 1] = d[si + 1]; cropped.data[di + 2] = d[si + 2]; cropped.data[di + 3] = d[si + 3];
+    }
   }
-  return { w: nw, h: nh, data: cropped };
+  // A shaped icon (a cone, a badge) sits on the page colour: when nearly all of its outer ring is page colour, the page colour joined to the edge is made see-through, so no rectangle shows around it.
+  const c = cropped.data, near = i => Math.abs(c[i] - bg.r) <= 20 && Math.abs(c[i + 1] - bg.g) <= 20 && Math.abs(c[i + 2] - bg.b) <= 20;
+  let ringN = 0, ringBg = 0;
+  for (let x = 0; x < cw; x++) for (const y of [0, ch - 1]) { ringN++; if (near((y * cw + x) * 4)) ringBg++; }
+  for (let y = 1; y < ch - 1; y++) for (const x of [0, cw - 1]) { ringN++; if (near((y * cw + x) * 4)) ringBg++; }
+  if (ringN && ringBg / ringN >= 0.8) {
+    const seen = new Uint8Array(cw * ch), stack = [];
+    const push = (x, y) => { const k = y * cw + x; if (!seen[k] && near(k * 4)) { seen[k] = 1; stack.push(k); } };
+    for (let x = 0; x < cw; x++) { push(x, 0); push(x, ch - 1); }
+    for (let y = 0; y < ch; y++) { push(0, y); push(cw - 1, y); }
+    while (stack.length) {
+      const k = stack.pop(), x = k % cw, y = (k / cw) | 0;
+      c[k * 4 + 3] = 0;
+      if (x > 0) push(x - 1, y); if (x < cw - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < ch - 1) push(x, y + 1);
+    }
+  }
+  return { w: cw, h: ch, data: cropped };
 }
 
 export { taggedRules, exportTagImages };
