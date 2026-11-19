@@ -22,6 +22,13 @@ const ruleLabelHTML = s => s.num
   : esc(softenCaps(displayTitle(s)));
 
 /** Sections grouped by chapter, keeping the document's own order. */
+/** What a rule's search matches: its title, chapter and full text, without the pack's picture markers or colour/bold markup
+ *  (so searching "image" or "side" doesn't light up every rule that has a picture). */
+const MARKUP = /\[(?:image|side|icon): [^\]]*\]|\[\/side\]|\{c:#[0-9a-f]{6}\||[{}*]/gi;
+function ruleSearchText(s) {
+  return Object.entries(s || {}).filter(([k, v]) => typeof v === "string" && k !== "rich").map(([, v]) => v).join(" ").replace(MARKUP, " ").replace(/\s+/g, " ").toLowerCase();
+}
+
 function sectionsGrouped(doc) {
   const groups = [];
   const byChapter = new Map();
@@ -54,7 +61,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
   const groups = sectionsGrouped(doc);
   // data-search covers the rule's full text, not just its title, so a search finds a word buried in
   // the body even when the heading itself doesn't mention it.
-  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-fp-chapter="${esc(s.chapter || "")}" data-search="${esc(JSON.stringify(s).toLowerCase())}">
+  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-fp-chapter="${esc(s.chapter || "")}" data-search="${esc(ruleSearchText(s))}">
     <span class="fp-iname">${ruleLabelHTML(s)}</span></button>`;
   return groups.map(g => {
     const head = g.items.find(isChapterRow), kids = g.items.filter(s => s !== head);
@@ -63,7 +70,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
     const open = openCh ? openCh.has(g.chapter) : g.items.some(s => ruleKey(s) === selKey);
     const title = `<span class="lb-grp-title">${esc(softenCaps(g.chapter))} · ${kids.length}</span>`;
     const summary = head
-      ? `<summary class="fp-grp-click${ruleKey(head) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(head))}" data-fp-chapter="${esc(g.chapter)}" data-fp-head>${title}</summary>`
+      ? `<summary class="fp-grp-click${ruleKey(head) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(head))}" data-fp-chapter="${esc(g.chapter)}" data-fp-head data-search="${esc(ruleSearchText(head))}">${title}</summary>`
       : `<summary>${title}</summary>`;
     return `<details class="fp-grp"${open ? " open" : ""}>${summary}<div class="fp-items">${kids.map(item).join("")}</div></details>`;
   }).join("") + `<div class="fp-empty fp-search-none" hidden>Nothing matches your search.</div>`;

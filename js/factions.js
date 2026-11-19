@@ -33,11 +33,12 @@ function applySearch(root, query) {
   let shown = 0;
   for (const el of root.querySelectorAll("[data-search]")) {
     const hit = !q || el.dataset.search.includes(q);
+    if (el.tagName === "SUMMARY") { el.dataset.hit = hit ? "1" : ""; if (hit) shown++; continue; }   // a section's own heading row: it stays put, its match only keeps the section in view
     (el.closest(".fp-detwrap") || el).hidden = !hit;
     if (hit) shown++;
   }
   for (const g of root.querySelectorAll(".fp-grp, .fp-sgrp")) {
-    const any = [...g.querySelectorAll("[data-search]")].some(el => !(el.closest(".fp-detwrap") || el).hidden);
+    const any = [...g.querySelectorAll("[data-search]")].some(el => el.tagName === "SUMMARY" ? el.dataset.hit === "1" : !(el.closest(".fp-detwrap") || el).hidden);
     g.hidden = !any;
     if (q && any && g.tagName === "DETAILS") g.open = true;
   }
