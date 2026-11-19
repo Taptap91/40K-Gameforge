@@ -17,6 +17,18 @@ const LEVELS = { h1: 2, h2: 3, h3: 4 };
 const safeName = s => String(s || "rules").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "rules";
 
 /** Lines of text on each page, top to bottom, in the same coordinates the tags use. */
+/** A line's text with its bold and italic runs marked (**bold**, *italic*), or "" when it has none. */
+function richOf(runs, noBold) {
+  const out = [];
+  runs.forEach(r => {
+    const t = r.t.trim(); if (!t) return;
+    const b = !noBold && r.b, last = out[out.length - 1];
+    if (last && last.b === b && last.i === r.i) last.t += " " + t; else out.push({ t, b, i: r.i });
+  });
+  if (!out.some(o => o.b || o.i)) return "";
+  return out.map(o => { const m = o.b && o.i ? "***" : o.b ? "**" : o.i ? "*" : ""; return m + o.t + m; }).join(" ");
+}
+
 function taggedLines(pages) {
   const items = dropPageFurniture(pages.flatMap(p => p.items.map(i => ({ ...i, page: p.number }))));
   const lines = [];
@@ -28,12 +40,13 @@ function taggedLines(pages) {
       same.text += (same.text && !/\s$/.test(same.text) ? " " : "") + it.t.trim();
       same.x1 = Math.max(same.x1, x1);
       same.size = Math.max(same.size, it.s || 0);
-      same.chars.push({ n: it.t.length, b: !!it.b });
-    } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b }] });
+      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it });
+    } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b, i: !!it.it }], runs: [{ t: it.t, b: !!it.b, i: !!it.it }] });
   });
   lines.forEach(l => {
     const total = l.chars.reduce((n, c) => n + c.n, 0), bold = l.chars.reduce((n, c) => n + (c.b ? c.n : 0), 0);
     l.bold = total > 0 && bold / total > 0.6;
+    l.italic = total > 0 && l.chars.reduce((n, c) => n + (c.i ? c.n : 0), 0) / total > 0.8;
     l.cx = (l.x0 + l.x1) / 2; l.cy = l.py + l.size * 0.5;
   });
   lines.sort((a, b) => a.page - b.page || a.py - b.py || a.x0 - b.x0);
@@ -181,13 +194,23 @@ function taggedRules(pages, tagsIn, title = "") {
 
   // One walk in reading order: headings open sections, body lines and image placeholders go into the open one.
   const events = [];
+  // when most of the book's text is set in a bold face, bold says nothing, so it is not marked
+  const boldHeavy = lines.length > 0 && lines.filter(l => l.bold).length > lines.length * 0.5;
   lines.forEach(l => {
     if (skipLines.has(l) || l.ignore) return;
-    if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py });
-    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, para: paraBoxes.some(b => inside(l, b)) });
+    if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size });
+    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, para: paraBoxes.some(b => inside(l, b)) });
   });
   images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
+  // Rows read left to right: a number or heading that sits on the same row as its label (a callout "1" beside "Type of operative")
+  // comes first when it is the one on the left, even if its text sits a few points lower or higher on the page.
+  const sz = e => e.size || 10, short = e => e.kind === "head" || (e.kind === "body" && e.text.trim().length <= 4);
+  for (let pass = 0; pass < 3; pass++) for (let i = 0; i + 1 < events.length; i++) {
+    const a = events[i], b = events[i + 1];
+    if (a.page !== b.page || a.x0 === undefined || b.x0 === undefined || a.kind === "image" || b.kind === "image") continue;
+    if (Math.abs(a.cy - b.cy) < 0.9 * Math.max(sz(a), sz(b)) && b.x0 < a.x0 && b.x1 <= a.x0 + 4 && (short(a) || short(b)) && a.x0 - b.x1 < 150) { events[i] = b; events[i + 1] = a; }
+  }
 
   // H1 = a section (its own box in the app), H2 = a rule nested under it, H3 = a sub-heading inside the text above.
   // A section's own text is whatever sits between its heading and its first H2. The heading that repeats the document's
@@ -216,7 +239,7 @@ function taggedRules(pages, tagsIn, title = "") {
       else (rule || chap || (newChap(""), chap)).lines.push({ t: (clean(e.text).num ? clean(e.text).num + ". " : "") + clean(e.text).title, b: true });
     } else {
       const to = rule || chap || (newChap(""), chap.pre = true, chap);
-      to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, b: false, g: e.kind === "image" ? null : e });
+      to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, r: e.kind === "image" ? "" : e.rich, b: false, g: e.kind === "image" ? null : e });
     }
   });
   // The widest line in each column of each page: a line much shorter than that ends its paragraph.
@@ -226,7 +249,7 @@ function taggedRules(pages, tagsIn, title = "") {
   const out = rows
     .map(r => {
       const text = r.lines.map(l => l.t).join("\n");
-      const rich = r.lines.some(l => l.b) ? r.lines.map(l => (l.b ? `**${l.t}**` : l.t)).join("\n") : "";
+      const rich = r.lines.some(l => l.b || l.r) ? r.lines.map(l => (l.b ? `**${l.t}**` : l.r || l.t)).join("\n") : "";
       return { num: r.num, title: r.title, chapter: r.chapter, part: "", cp: "", text, rich };
     })
     .filter(r => r.text.trim());
@@ -241,6 +264,11 @@ const ENDS = /[.!?:;)"”’]$/;
 function paragraphs(lines, widest, colKey) {
   const out = []; let cur = null;
   const flush = () => { if (cur) { out.push(cur); cur = null; } };
+  const join = (c, l) => {
+    const glue = /-$/.test(c.t) && !/ -$/.test(c.t) ? "" : " ";
+    if (c.r || l.r) c.r = ((c.r || c.t) + glue + (l.r || l.t)).replace(/(\*{1,3}) \1(?=\S)/g, " ");   // one run of bold or italic across a line break
+    c.t += glue + l.t;
+  };
   const joins = (p, l) => {
     const a = p.last.g, b = l.g;
     if (a.page !== b.page) return !ENDS.test(p.t);
@@ -248,6 +276,7 @@ function paragraphs(lines, widest, colKey) {
     if (gap < -2) return !ENDS.test(p.t);                          // jumped up: the next column
     if (gap > 1.7 * Math.max(a.size, b.size)) return false;        // a visible gap
     if (Math.abs(a.size - b.size) > 1.2) return false;
+    if (!!a.italic !== !!b.italic) return false;               // an italic note stands apart from what is before it
     if (b.x0 < p.first.g.x0 - 10) return false;                    // outdent
     if (/:$/.test(p.t)) return false;
     const full = a.x1 - a.x0 >= 0.85 * (widest.get(colKey(a)) || 0);
@@ -257,20 +286,20 @@ function paragraphs(lines, widest, colKey) {
   lines.forEach(l => {
     if (!l.g || l.b) { flush(); out.push(l); return; }
     const m = BULLET.exec(l.t);
-    if (m) { flush(); cur = { t: "• " + l.t.slice(m[0].length), b: false, last: l, first: l, n: 1, bullet: true }; return; }
-    if (cur && !cur.bullet && joins(cur, l)) { cur.t += (/-$/.test(cur.t) && !/ -$/.test(cur.t) ? "" : " ") + l.t; cur.last = l; cur.n++; return; }
-    if (cur && cur.bullet && l.g.x0 > cur.first.g.x0 + 4 && joins(cur, l)) { cur.t += " " + l.t; cur.last = l; cur.n++; return; }   // a bullet's wrapped line
-    flush(); cur = { t: l.t, b: false, last: l, first: l, n: 1 };
+    if (m) { flush(); cur = { t: "• " + l.t.slice(m[0].length), r: l.r ? "• " + l.r.replace(/^\**\s*[•◦▪▫■□●○◆◇‣⁃∙·]\s*/, "") : "", b: false, last: l, first: l, n: 1, bullet: true }; return; }
+    if (cur && !cur.bullet && joins(cur, l)) { join(cur, l); cur.last = l; cur.n++; return; }
+    if (cur && cur.bullet && l.g.x0 > cur.first.g.x0 + 4 && joins(cur, l)) { join(cur, l); cur.last = l; cur.n++; return; }   // a bullet's wrapped line
+    flush(); cur = { t: l.t, r: l.r || "", b: false, last: l, first: l, n: 1 };
   });
   flush();
   // one-line items right after a line ending in ":" are a list
   for (let i = 0; i < out.length; i++) {
     if (!out[i].g && out[i].last && /:$/.test(out[i].t) && !/^(Q|A):/.test(out[i].t)) {
       let j = i + 1; while (j < out.length && out[j].last && out[j].n <= 3 && out[j].t.length < 130 && !out[j].bullet && !/^(Q|A):/.test(out[j].t)) j++;
-      if (j - i - 1 >= 2) for (let k = i + 1; k < j; k++) out[k].t = "• " + out[k].t;
+      if (j - i - 1 >= 2) for (let k = i + 1; k < j; k++) { out[k].t = "• " + out[k].t; if (out[k].r) out[k].r = "• " + out[k].r; }
     }
   }
-  return out.map(o => ({ t: o.t, b: o.b }));
+  return out.map(o => ({ t: o.t, b: o.b, r: o.r || "" }));
 }
 
 /** Crops every image box from the page to the image's real placed bounds, trimmed of blank margins, as PNG. */

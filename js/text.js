@@ -78,7 +78,7 @@ function itemize(lines) {
   }
   return out;
 }
-const stripRich = s => String(s || "").replace(/\*\*/g, "");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
+const stripRich = s => String(s || "").replace(/\*\*/g, "").replace(/(^|[^*])\*([^*\s][^*\n]*?)\*(?!\*)/g, "$1$2");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
 /** Keywords printed in capitals ("DEATH GUARD INFANTRY model only") shown with capital first letters ("Death Guard Infantry"). */
 const KEEP_CAPS = new Set(["CP", "OC", "AP", "WS", "BS", "HQ", "VP", "DP", "FNP", "OK", "II", "III", "IV", "AM", "PM"]);
 const softenCaps = s => fixApostrophes(s).replace(/(?<![\w’'])[A-Z][A-Z’'-]+(?:(?:\s+|\s*\/\s*)[A-Z][A-Z’'-]+)*(?![\w’'])/g,
@@ -88,12 +88,12 @@ const softenCaps = s => fixApostrophes(s).replace(/(?<![\w’'])[A-Z][A-Z’'-]+
 const capWords = s => String(s ?? "").replace(/(^|[\s(\/–-])([a-z])([\w’']*)/g, (m, a, c, rest) => a + ((a === " " && SMALL_WORDS.has(c + rest)) ? c : c.toUpperCase()) + rest);
 
 function richHTML(text) {
-  const inline = t => esc(softenCaps(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const inline = t => esc(softenCaps(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>");
   let html = "", list = false;
   for (const line of String(text || "").split("\n").filter(l => l.trim())) {
     if (line.startsWith("• ")) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(line.slice(2))}</li>`; continue; }
     if (list) { html += "</ul>"; list = false; }
-    html += `<p>${inline(line)}</p>`;
+    html += /^\*[^*].*[^*]\*$/.test(line.trim()) ? `<p class="rf-note">${inline(line)}</p>` : `<p>${inline(line)}</p>`;   // a wholly italic line is a note
   }
   return html + (list ? "</ul>" : "");
 }

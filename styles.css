@@ -1432,3 +1432,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .cm-stats .cm-kebab { align-self: stretch; width: 44px; min-width: 44px; min-height: 0; padding: 0; justify-content: center; background: var(--control); border-color: var(--border-strong); color: var(--text); }
 
 .fp-text .fp-img { display: block; max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; }
+
+.fp-text li { margin: 0 0 .8em; }
+.fp-text ul { margin: .6em 0 1em; }
+.fp-text .rf-note { margin-top: 1.1em; }
