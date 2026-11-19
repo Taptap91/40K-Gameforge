@@ -11,7 +11,7 @@
  * Output has the same shape as parseRulesPdfAuto, so rulesToSheets can write it as a normal rules workbook. */
 import { dropPageFurniture } from "./faction-parser.js";
 
-// H1 chapter, H2 rule, H3 step. The PDF title comes from file metadata, so it is never a heading.
+// H1 = a section, H2 = a rule inside it, H3 = a sub-heading inside the text. The PDF title comes from file metadata, so it is never a heading.
 // Internal depths start at 2 so the section logic below is unchanged.
 const LEVELS = { h1: 2, h2: 3, h3: 4 };
 const safeName = s => String(s || "rules").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "rules";
@@ -189,46 +189,43 @@ function taggedRules(pages, tagsIn, title = "") {
   images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
 
-  const sections = [], last = {};
-  let cur = null;
-  // "1.INITIATIVE" becomes number 1, title "Initiative"; SHOUTING titles are put into Title Case
+  // H1 = a section (its own box in the app), H2 = a rule nested under it, H3 = a sub-heading inside the text above.
+  // A section's own text is whatever sits between its heading and its first H2. The heading that repeats the document's
+  // own title (or text before any heading) is called "Introduction".
   const clean = raw => {
     const m = /^(\d+)\s*\.\s*(\S.*)$/.exec(raw);
     let t = (m ? m[2] : raw).replace(/\s+\d+\s*(ap|cp)$/i, "");
     if (!/[a-z]/.test(t)) t = t.toLowerCase().replace(/(^|[\s(\-])([a-z])/g, (_, a, b) => a + b.toUpperCase());
     return { num: m ? m[1] : "", title: t };
   };
-  const open = (title, level) => {
-    // H1 is the document title. H2 is a chapter, H3 a rule inside it, H4 a step of the rule (its Part is that H3).
-    const chapter = level >= 3 ? last[2] || last[1] || "" : "";
-    const part = level === 4 ? last[3] || "" : "";
-    const c = clean(title);
-    cur = { num: c.num, title: c.title, chapter, part, cp: "", lines: [], level };
-    sections.push(cur);
+  const sameName = (a, b) => normTitle(a) && normTitle(a) === normTitle(b);
+  const rows = [];
+  let chap = null, rule = null;
+  const newChap = raw => {
+    const c = clean(raw);
+    const name = !raw || sameName(c.title, title) ? "Introduction" : c.title;
+    rule = null;
+    const again = name === "Introduction" && rows.find(r => r.chapter === name && r.title === name);   // text before the title heading and the title heading itself are one Introduction
+    if (again) { chap = again; if (again.pre && again.lines.map(l => l.t).join(" ").length < 60) again.lines = []; again.pre = false; return; }   // a few stray words above the title are page chrome (dates, numbers)
+    chap = { num: c.num, title: name, chapter: name, lines: [] }; rows.push(chap);
   };
   events.forEach(e => {
     if (e.kind === "head") {
-      last[e.level] = clean(e.text).title;
-      for (let l = e.level + 1; l <= 4; l++) delete last[l];
-      open(e.text, e.level);
+      if (e.level === 2) newChap(e.text);
+      else if (e.level === 3) { const c = clean(e.text); rule = { num: c.num, title: c.title, chapter: chap ? chap.title : "", lines: [] }; rows.push(rule); }
+      else (rule || chap || (newChap(""), chap)).lines.push({ t: (clean(e.text).num ? clean(e.text).num + ". " : "") + clean(e.text).title, b: true });
     } else {
-      if (!cur) open(title || "Introduction", 1);
-      if (e.kind === "image") cur.lines.push(`[image: ${e.name}]`);
-      else cur.lines.push(e.text);
+      const to = rule || chap || (newChap(""), chap.pre = true, chap);
+      to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, b: false });
     }
   });
-  // chapters (H2) and the title (H1) only group the rules under them; they are rows only when nothing sits below them
-  // A heading is a row when it is an H3/H4, or an H2 with nothing deeper under it (some books only use one level of headings).
-  sections.forEach((sec, i) => {
-    sec.leaf = true;
-    for (let j = i + 1; j < sections.length && sections[j].level > sec.level; j++) sec.leaf = false;
-  });
-  const deepRows = sections.filter(s => s.level >= 3 && s.lines.length).length;
-  const flat = deepRows < 3;   // a book with only one or two levels of headings: its H2 headings are the rows
-  const out = sections
-    .filter(s => flat ? (s.level >= 2 && s.leaf) || s.level >= 3 : s.level >= 3)
-    .map(s => ({ num: s.num, title: s.title, chapter: s.chapter, part: s.part, cp: "", text: s.lines.join("\n"), rich: "" }))
-    .filter(s => s.text.trim());
+  const out = rows
+    .map(r => {
+      const text = r.lines.map(l => l.t).join("\n");
+      const rich = r.lines.some(l => l.b) ? r.lines.map(l => (l.b ? `**${l.t}**` : l.t)).join("\n") : "";
+      return { num: r.num, title: r.title, chapter: r.chapter, part: "", cp: "", text, rich };
+    })
+    .filter(r => r.text.trim());
   return { sections: out, battleSizes: [], images, missed: missed.length };
 }
 

@@ -138,7 +138,7 @@ function openBundleFromLibrary(bundleId) {
 /** A Rules box (Core Rules or an Update) inside a Game Pack's sections opens its own full-page view:
  *  numbered rules on the left, the selected one's text on the right. */
 function openRulesFromLibrary(docId) {
-  fUI.back = fUI.bundle; fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false; fUI.search = "";
+  fUI.back = fUI.bundle; fUI.rulesDoc = docId; fUI.ruleSel = null; fUI.chOpen = null; fUI.bundle = null; fUI.mission = null; fUI.open = false; fUI.home = false; fUI.search = "";
   renderFactionsPage();
 }
 const bundleDocs = bundleId => state.docs.filter(d => d.pack?.bundleId === bundleId);
@@ -381,7 +381,7 @@ function renderFactionsPage() {
     if (!fUI.ruleSel || !flat.some(s => ruleKey(s) === fUI.ruleSel)) fUI.ruleSel = flat[0] ? ruleKey(flat[0]) : null;
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
     host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" || doc.kind === "collection" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
-        <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel)}</div>
+        <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel, fUI.chOpen)}</div>
         <div class="fp-right" id="fpRight">${rulesRightHTML(sel)}</div>
       </div>`;
     host.classList.add("fp-has-wide");
@@ -589,6 +589,12 @@ function wireFactionsPage() {
     }
     const rl = e.target.closest("[data-fp-rule]");
     if (rl) {
+      // A section header opens its dropdown (and shows its own text); clicking it again closes it. Picking a rule keeps its section open.
+      if (rl.hasAttribute("data-fp-head")) e.preventDefault();
+      if (!fUI.chOpen) fUI.chOpen = new Set([view.querySelector(".fp-left [data-fp-chapter].on, .fp-left .fp-grp-click.on")?.dataset.fpChapter].filter(Boolean));
+      const ch = rl.dataset.fpChapter;
+      if (rl.hasAttribute("data-fp-head")) { if (fUI.ruleSel === rl.dataset.fpRule && fUI.chOpen.has(ch)) fUI.chOpen.delete(ch); else fUI.chOpen.add(ch); }
+      else if (ch) fUI.chOpen.add(ch);
       fUI.ruleSel = rl.dataset.fpRule;
       fUI.open = isPhone();
       const left = view.querySelector(".fp-left"), keep = left?.scrollTop;

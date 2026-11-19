@@ -622,6 +622,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-grp { margin-top: 10px; }
 .fp-grp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 0 6px; }
 .fp-grp > summary::-webkit-details-marker { display: none; }
+.fp-grp > summary.on .lb-grp-title { font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
 .fp-grp > summary::before { content: "▾"; width: 16px; text-align: center; font-size: 16px; line-height: 1; color: var(--text); transition: transform .15s; }
 .fp-grp:not([open]) > summary::before { transform: rotate(-90deg); }
 .fp-items { display: flex; flex-direction: column; gap: 4px; }

@@ -45,20 +45,33 @@ function rulesBannerHTML(doc) {
     <div class="fp-banner-name">${esc(game)}</div>${edition ? `<div class="fp-banner-kicker">${esc(edition)}</div>` : ""}</div></div>`;
 }
 
-function rulesLeftHTML(doc, selKey) {
+/** A section's own row (its heading repeated as a rule) carries the text that sits between the heading and its first sub-rule. */
+const isChapterRow = s => !!s.chapter && s.title === s.chapter && !s.num;
+
+/** openCh: the sections whose dropdown is open (null = just the one holding the selected rule). A section with sub-rules is a
+ *  dropdown whose header is itself clickable (it shows the section's own text); one without is a plain item. */
+function rulesLeftHTML(doc, selKey, openCh = null) {
   const groups = sectionsGrouped(doc);
   // data-search covers the rule's full text, not just its title, so a search finds a word buried in
   // the body even when the heading itself doesn't mention it.
-  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-search="${esc(JSON.stringify(s).toLowerCase())}">
+  const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-fp-chapter="${esc(s.chapter || "")}" data-search="${esc(JSON.stringify(s).toLowerCase())}">
     <span class="fp-iname">${ruleLabelHTML(s)}</span></button>`;
-  return groups.map(g => g.chapter
-    ? `<details class="fp-grp" open><summary><span class="lb-grp-title">${esc(g.chapter)} · ${g.items.length}</span></summary><div class="fp-items">${g.items.map(item).join("")}</div></details>`
-    : `<div class="fp-items">${g.items.map(item).join("")}</div>`).join("") + `<div class="fp-empty fp-search-none" hidden>Nothing matches your search.</div>`;
+  return groups.map(g => {
+    const head = g.items.find(isChapterRow), kids = g.items.filter(s => s !== head);
+    if (!g.chapter) return `<div class="fp-items">${g.items.map(item).join("")}</div>`;
+    if (head && !kids.length) return `<div class="fp-items">${item(head)}</div>`;
+    const open = openCh ? openCh.has(g.chapter) : g.items.some(s => ruleKey(s) === selKey);
+    const title = `<span class="lb-grp-title">${esc(softenCaps(g.chapter))} · ${kids.length}</span>`;
+    const summary = head
+      ? `<summary class="fp-grp-click${ruleKey(head) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(head))}" data-fp-chapter="${esc(g.chapter)}" data-fp-head>${title}</summary>`
+      : `<summary>${title}</summary>`;
+    return `<details class="fp-grp"${open ? " open" : ""}>${summary}<div class="fp-items">${kids.map(item).join("")}</div></details>`;
+  }).join("") + `<div class="fp-empty fp-search-none" hidden>Nothing matches your search.</div>`;
 }
 
 function rulesRightHTML(section) {
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
-  return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
+  return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
     <div class="fv-rich fp-text">${richHTML(section.rich || section.text)}</div>`;
 }
 
