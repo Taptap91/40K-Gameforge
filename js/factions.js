@@ -382,7 +382,7 @@ function renderFactionsPage() {
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
     host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" || doc.kind === "collection" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel, fUI.chOpen)}</div>
-        <div class="fp-right" id="fpRight">${rulesRightHTML(sel)}</div>
+        <div class="fp-right" id="fpRight">${rulesRightHTML(sel, doc)}</div>
       </div>`;
     host.classList.add("fp-has-wide");
     applyAccent(host, "");
