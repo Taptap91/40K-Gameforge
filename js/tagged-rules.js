@@ -302,6 +302,14 @@ function taggedRules(pages, tagsIn, title = "") {
     if (again) { chap = again; if (again.pre && again.lines.map(l => l.t).join(" ").length < 60) again.lines = []; again.pre = false; return; }   // a few stray words above the title are page chrome (dates, numbers)
     chap = { num: c.num, title: name, chapter: name, lines: [] }; rows.push(chap);
   };
+  // A group holding one picture and some text is shown side by side: the picture on the left, the text to its right.
+  const sides = new Map();
+  events.forEach(e => { if (e.grp) { if (!sides.has(e.grp)) sides.set(e.grp, []); sides.get(e.grp).push(e); } });
+  sides.forEach((m, k) => {
+    const imgs = m.filter(e => e.kind === "image");
+    if (imgs.length !== 1 || m.length < 2 || m.some(e => e.kind === "head")) { sides.delete(k); return; }
+    m.side = { img: imgs[0], first: m[0], last: m[m.length - 1] };
+  });
   events.forEach(e => {
     if (e.kind === "head") {
       if (e.level === 2) newChap(e.text);
@@ -309,6 +317,13 @@ function taggedRules(pages, tagsIn, title = "") {
       else (rule || chap || (newChap(""), chap)).lines.push({ t: (clean(e.text).num ? clean(e.text).num + ". " : "") + clean(e.text).title, b: true });
     } else {
       const to = rule || chap || (newChap(""), chap.pre = true, chap);
+      const sd = e.grp && sides.get(e.grp) && sides.get(e.grp).side;
+      if (sd) {
+        if (e === sd.first) to.lines.push({ t: `[side: ${sd.img.name}]`, r: "", b: false, g: null });
+        if (e.kind !== "image") to.lines.push({ t: e.text, r: e.rich, b: false, g: e });
+        if (e === sd.last) to.lines.push({ t: "[/side]", r: "", b: false, g: null });
+        return;
+      }
       to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, r: e.kind === "image" ? "" : e.rich, b: false, g: e.kind === "image" ? null : e });
     }
   });

@@ -1438,3 +1438,17 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .rf-note { margin-top: 1.1em; }
 .fp-text .rf-icon { height: 1.05em; width: auto; vertical-align: -0.15em; margin: 0 .04em; }
 .fp-text .rf-col { color: color-mix(in srgb, var(--rf-c) 78%, var(--text, currentColor)); }
+
+/* Q:/A: boxes: the colour of the rule boxes on the left, but not clickable */
+.fp-text .rf-qa { margin: 12px 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.fp-text .rf-qa p { margin: 0 0 .6em; }
+.fp-text .rf-qa p:last-child { margin-bottom: 0; }
+.fp-text .rf-lab { font-weight: 800; }
+.fp-text .rf-lab-q { color: var(--text); }
+.fp-text .rf-lab-a { color: #f15c23; }
+/* a picture with its text to the right (a group box with an image and text in it) */
+.fp-text .fp-side { display: flex; gap: 14px; align-items: flex-start; margin: 12px 0; }
+.fp-text .fp-side .fp-img { flex: 0 1 42%; max-width: 42%; margin: 0; }
+.fp-text .fp-side-text { flex: 1; min-width: 0; }
+.fp-text .fp-side-text p:first-child { margin-top: 0; }
+@media (max-width: 560px) { .fp-text .fp-side { flex-direction: column; } .fp-text .fp-side .fp-img { max-width: 100%; flex-basis: auto; } }

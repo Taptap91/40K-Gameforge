@@ -73,13 +73,40 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
  *  in place between the paragraphs around them. */
 const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi_gamepack-v2/packs/";
 function bodyHTML(text, bundleId, keepCaps) {
-  let html = "", chunk = [];
-  const flush = () => { if (chunk.length) html += richHTML(chunk.join("\n"), { keepCaps, iconBase: bundleId ? IMG_BASE + bundleId + "/" : "" }); chunk = []; };
+  const base = bundleId ? IMG_BASE + bundleId + "/" : "";
+  const rich = lines => richHTML(lines.join("\n"), { keepCaps, iconBase: base });
+  const bare = l => l.replace(/\{c:#[0-9a-fA-F]{6}\||[*}]/g, "").trim();
+  // Q:/A: blocks sit in a quiet box (the colour of the boxes on the left, not clickable): Q: in bold, A: in bold orange
+  const qaHTML = lines => {
+    const segs = [];
+    lines.forEach(l => {
+      const q = /^Q:/.test(bare(l)), head = /^\*\*[^*]+\*\*$/.test(l.trim());
+      const last = segs[segs.length - 1];
+      if (q) segs.push({ qa: true, lines: [l] });
+      else if (last && last.qa && !head) last.lines.push(l);
+      else if (last && !last.qa) last.lines.push(l);
+      else segs.push({ qa: false, lines: [l] });
+    });
+    return segs.map(g => {
+      const h = rich(g.lines);
+      if (!g.qa) return h;
+      const lab = h.replace(/<p>((?:<[^>]+>)*)(Q|A):/g, (_, w, k) => `<p>${w}<span class="rf-lab rf-lab-${k.toLowerCase()}">${k}:</span>`);
+      return `<div class="rf-qa">${lab}</div>`;
+    }).join("");
+  };
+  let html = "", chunk = [], side = null;
+  const flush = () => { if (chunk.length) html += qaHTML(chunk); chunk = []; };
   for (const line of String(text || "").split("\n")) {
-    const m = /^\[image: (.+?)\]\s*$/.exec(line.trim());
-    if (!m) { chunk.push(line); continue; }
+    const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
+    if (sd) { flush(); side = sd[1]; continue; }
+    if (t === "[/side]") {
+      const body = chunk.length ? qaHTML(chunk) : ""; chunk = [];
+      html += `<div class="fp-side">${bundleId && side ? `<img class="fp-img" loading="lazy" alt="" src="${esc(base + side)}">` : ""}<div class="fp-side-text">${body}</div></div>`;
+      side = null; continue;
+    }
+    if (!im) { chunk.push(line); continue; }
     flush();
-    if (bundleId) html += `<img class="fp-img" loading="lazy" alt="" src="${esc(IMG_BASE + bundleId + "/" + m[1])}">`;
+    if (bundleId) html += `<img class="fp-img" loading="lazy" alt="" src="${esc(base + im[1])}">`;
   }
   flush();
   return html;
