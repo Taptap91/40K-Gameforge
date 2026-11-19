@@ -391,7 +391,8 @@ async function exportTagImages(doc, images, pdfjs) {
       const box = { x0: im.x0 + view[0], x1: im.x1 + view[0], y0: view[3] - im.y1, y1: view[3] - im.y0 };
       let best = null, bestScore = 0;
       placed.forEach(p => { const s = iou(p, box); if (s > bestScore) { bestScore = s; best = p; } });
-      const r = best && bestScore > 0.2 ? best : box;
+      // The picture's own bounds and the drawn box are merged: a box drawn bigger than the raster (art or labels around it) is respected
+      const r = best && bestScore > 0.2 ? { x0: Math.min(best.x0, box.x0), x1: Math.max(best.x1, box.x1), y0: Math.min(best.y0, box.y0), y1: Math.max(best.y1, box.y1) } : box;
       // Only this image's area is drawn (a very tall page can't be drawn whole): the scale is lowered if the crop is huge.
       const S = Math.min(3, 5000 / Math.max(r.x1 - r.x0, r.y1 - r.y0, 1));
       const vp = page.getViewport({ scale: S });
