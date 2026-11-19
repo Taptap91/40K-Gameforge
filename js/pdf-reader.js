@@ -45,6 +45,11 @@ async function readPdf(file, onPage) {
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const pages = [], bookIcons = [], tags = [];
   const fontInfo = new Map();   // font id → { b: bold, i: italic }, looked up once per font
+  // A PDF tagged in PDF Studio is the author's own: its text keeps web addresses ("available for free at warhammer-community.com").
+  let tagged = false;
+  for (let n = 1; n <= pdf.numPages && !tagged; n++) {
+    try { tagged = (await (await pdf.getPage(n)).getAnnotations()).some(a => /^RF:/.test(String(a.contentsObj?.str || a.contents || ""))); } catch {}
+  }
   let offset = 0;   // pages are laid end to end, so layouts that cross page breaks still line up
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
@@ -87,7 +92,7 @@ async function readPdf(file, onPage) {
       if (!("str" in item)) continue;
       const y = item.transform[5];
       // Links, site names, print dates/times and page counters are left out (release dates of updates are kept).
-      const str = scrubWeb(item.str);
+      const str = tagged ? item.str.replace(/[ \t]{2,}/g, " ").trim() : scrubWeb(item.str);
       const webJunk = !str || isWebFurniture(str) && (/^\d/.test(str) || /history/i.test(str) || item.transform[4] > pageWidth * 0.7);
       if (item.str.trim() && webJunk) continue;
       if (str) {
@@ -113,6 +118,8 @@ async function readPdf(file, onPage) {
     // A small picture set between two pieces of text on one line (Kill Team's skull inside a team name) is an inline icon:
     // the text after it is marked, and joins the text before it directly when it touches the icon.
     try { await inlineIcons(page, items, pageHeight); } catch {}
+    // Bullets drawn as small filled dots (not text) sit just left of the line they start: those lines are marked it.bu.
+    try { await bulletDots(page, items, pageHeight); } catch {}
     // Detachments: the Force Disposition symbol printed beside "1DP" is a picture; it's recognised by its colour.
     if (items.some(i => /^\d+\s*DP$/i.test(i.t))) { try { await dispositionIcons(page, items, pageHeight); } catch {} }
     // The "Books" table on a faction's first pages has a small icon beside each book's name; keep those icons.
@@ -141,6 +148,33 @@ async function readPdf(file, onPage) {
     if (meta?.info?.Title?.trim()) title = meta.info.Title.trim();
   } catch {}
   return { title, pageCount: pdf.numPages, pages, bookIcons, tags, doc: pdf };
+}
+
+/** Bullet points drawn as small filled shapes: the item that starts right after one gets it.bu = true. */
+async function bulletDots(page, items, pageHeight) {
+  if (!items.length) return;
+  const ops = await page.getOperatorList(), OPS = pdfjs.OPS;
+  const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  const paint = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
+  let m = [1, 0, 0, 1, 0, 0]; const stack = [], dots = [];
+  for (let k = 0; k < ops.fnArray.length; k++) {
+    const fn = ops.fnArray[k], a = ops.argsArray[k];
+    if (fn === OPS.save) stack.push(m);
+    else if (fn === OPS.restore) m = stack.pop() || [1, 0, 0, 1, 0, 0];
+    else if (fn === OPS.transform) m = mul(m, a);
+    else if (fn === OPS.paintFormXObjectBegin) { stack.push(m); if (a && a[0]) m = mul(m, a[0]); }
+    else if (fn === OPS.paintFormXObjectEnd) m = stack.pop() || [1, 0, 0, 1, 0, 0];
+    else if (fn === OPS.constructPath && a[2] && paint.has(a[0])) {
+      const mm = a[2], c = [[mm[0], mm[1]], [mm[2], mm[1]], [mm[0], mm[3]], [mm[2], mm[3]]].map(([u, v]) => [m[0] * u + m[2] * v + m[4], m[1] * u + m[3] * v + m[5]]);
+      const xs = c.map(q => q[0]), ys = c.map(q => q[1]), w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+      if (w >= 2 && w <= 9 && h >= 2 && h <= 9 && w / h > 0.6 && w / h < 1.7) dots.push({ x1: Math.max(...xs), cy: pageHeight - (Math.min(...ys) + Math.max(...ys)) / 2 });
+    }
+  }
+  dots.forEach(d => {
+    let best = null;
+    items.forEach(it => { const gap = it.x - d.x1; if (gap >= 1.5 && gap <= 24 && Math.abs(d.cy - (it.py - it.s * 0.3)) < it.s * 0.6 && (!best || it.x < best.x)) best = it; });
+    if (best && !/^[•◦▪▫■□●○◆◇‣⁃∙·]/.test(best.t)) best.bu = true;
+  });
 }
 
 /** Marks items that sit right after a tiny inline picture on the same line: it.ic = true, and it.icTouch when no space follows the picture. */

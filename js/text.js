@@ -90,7 +90,7 @@ const capWords = s => String(s ?? "").replace(/(^|[\s(\/–-])([a-z])([\w’']*)
 function richHTML(text, opts = {}) {
   const soften = opts.keepCaps ? (t => t) : softenCaps;   // keepCaps: names printed in capitals (Kill Team units and models) stay in capitals
   const icons = h => opts.iconBase ? h.replace(/\[icon: ([^\]]+)\]/g, (_, f) => `<img class="rf-icon" alt="" src="${opts.iconBase + f}">`) : h.replace(/\[icon: [^\]]+\]/g, "");
-  const inline = t => icons(esc(soften(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>").replace(/\{c:(#[0-9a-f]{6})\|([^}]*)\}/gi, (_, c, x) => `<span class="rf-col" style="--rf-c:${c}">${x}</span>`));
+  const inline = t => icons(esc(soften(t).replace(/(\w) +([,.;:)])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>").replace(/\{c:(#[0-9a-f]{6})\|([^}]*)\}/gi, (_, c, x) => `<span class="rf-col" style="--rf-c:${c}">${x}</span>`));
   let html = "", list = false;
   for (const line of String(text || "").split("\n").filter(l => l.trim())) {
     if (line.startsWith("• ")) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(line.slice(2))}</li>`; continue; }

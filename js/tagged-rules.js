@@ -37,7 +37,7 @@ function richOf(runs, noBold) {
 }
 
 function taggedLines(pages, icons = []) {
-  const items = dropPageFurniture(pages.flatMap(p => p.items.map(i => ({ ...i, page: p.number }))));
+  const items = dropPageFurniture(pages.flatMap(p => p.items.map(i => ({ ...i, page: p.number, t: i.bu ? "• " + i.t : i.t }))));   // a bullet drawn as a dot becomes a bullet mark
   const lines = [];
   const iconIndex = png => { let k = icons.indexOf(png); if (k < 0) k = icons.push(png) - 1; return k; };
   items.forEach(it => {
@@ -217,7 +217,7 @@ function taggedRules(pages, tagsIn, title = "") {
     if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size });
     else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, pbox: smallest(paraBoxes, l), para: paraBoxes.some(b => inside(l, b)) });
   });
-  images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0, ix0: im.x0, ix1: im.x1 }));
+  images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0, ix0: im.x0, ix1: im.x1, iy1: im.y1 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
   // Rows read left to right: a number or heading that sits on the same row as its label (a callout "1" beside "Type of operative")
   // comes first when it is the one on the left, even if its text sits a few points lower or higher on the page.
@@ -309,6 +309,10 @@ function taggedRules(pages, tagsIn, title = "") {
   sides.forEach((m, k) => {
     const imgs = m.filter(e => e.kind === "image");
     if (imgs.length !== 1 || m.length < 2 || m.some(e => e.kind === "head")) { sides.delete(k); return; }
+    // Side by side only for a short note: a few lines to the right of the picture and level with it. Long text, or text above or below it, keeps its order.
+    const im = imgs[0], txt = m.filter(e => e.kind !== "image");
+    const level = txt.every(e => e.x0 >= im.ix0 + (im.ix1 - im.ix0) * 0.5 && e.cy >= im.cy - 14 && e.cy <= (im.iy1 || im.cy) + 14);
+    if (!level || txt.length > 8 || txt.reduce((n, e) => n + e.text.length, 0) > 420) { sides.delete(k); return; }
     m.side = { img: imgs[0], first: m[0], last: m[m.length - 1] };
   });
   events.forEach(e => {
@@ -420,7 +424,7 @@ async function exportTagImages(doc, images, pdfjs) {
       const canvas = document.createElement("canvas"); canvas.width = sw; canvas.height = sh;
       const g = canvas.getContext("2d", { willReadFrequently: true });
       g.fillStyle = "#fff"; g.fillRect(0, 0, sw, sh);
-      await page.render({ canvasContext: g, viewport: vp, transform: [1, 0, 0, 1, -sx, -sy] }).promise;
+      await page.render({ canvasContext: g, viewport: vp, transform: [1, 0, 0, 1, -sx, -sy], annotationMode: 0 }).promise;   // annotations off: the tag boxes are not drawn into the picture
       const trimmed = trimBlank(g.getImageData(0, 0, sw, sh), sw, sh);
       // no extra border: the box itself carries the padding
       const PAD = 0;
