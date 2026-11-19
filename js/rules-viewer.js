@@ -80,6 +80,8 @@ function bodyHTML(text, bundleId, keepCaps) {
   const qaHTML = lines => {
     const segs = [];
     lines.forEach(l => {
+      // a Q:/A: line that came through wholly bold (e.g. "**A: Yes.**") is still a Q/A line, not a bold sub-heading
+      if (/^\*\*(?:Q|A):[^*]*\*\*$/.test(l.trim())) l = l.trim().slice(2, -2);
       const q = /^Q:/.test(bare(l)), head = /^\*\*[^*]+\*\*$/.test(l.trim());
       const last = segs[segs.length - 1];
       if (q) segs.push({ qa: true, lines: [l] });
