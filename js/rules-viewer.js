@@ -98,13 +98,24 @@ function bodyHTML(text, bundleId, keepCaps) {
       return `<div class="rf-qa"><div class="rf-q">${mark(rich(g.lines.slice(0, at)))}</div><div class="rf-a">${mark(rich(g.lines.slice(at)))}</div></div>`;
     }).join("");
   };
+  // Line breaks come from the PDF's own column width, so a line that stops mid-sentence is joined to the next one: where text wraps is up to the screen.
+  // Breaks after a finished sentence stay, and so do bullets, numbered lines, Q:/A: labels, bold-only lines and short title lines.
+  const endsSentence = t => /[.!?:;]['"”’)\]]*$/.test(t) && !/\b(?:e\.g|i\.e|etc|vs|approx)\.$/i.test(t);
+  const joinWraps = lines => lines.reduce((out, l) => {
+    const t = bare(l), pv = out.length ? bare(out[out.length - 1]) : "";
+    const keep = !out.length || !t || !pv || /^\*\*[^*]+\*\*$/.test(l.trim()) || /^\*\*[^*]+\*\*$/.test(out[out.length - 1].trim())
+      || /^(?:•|[QA]:|\d+[.)]\s)/.test(t) || endsSentence(pv) || /^\[/.test(l.trim())
+      || !(pv.length >= 40 || /^[a-z]/.test(t));
+    if (keep) out.push(l); else out[out.length - 1] = out[out.length - 1].replace(/\s+$/, "") + " " + l.replace(/^\s+/, "");
+    return out;
+  }, []);
   let html = "", chunk = [], side = null;
-  const flush = () => { if (chunk.length) html += qaHTML(chunk); chunk = []; };
+  const flush = () => { if (chunk.length) html += qaHTML(joinWraps(chunk)); chunk = []; };
   for (const line of String(text || "").split("\n")) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
     if (t === "[/side]") {
-      const body = chunk.length ? qaHTML(chunk) : ""; chunk = [];
+      const body = chunk.length ? qaHTML(joinWraps(chunk)) : ""; chunk = [];
       html += `<div class="fp-side">${bundleId && side ? `<img class="fp-img" loading="lazy" alt="" src="${esc(base + side)}">` : ""}<div class="fp-side-text">${body}</div></div>`;
       side = null; continue;
     }
