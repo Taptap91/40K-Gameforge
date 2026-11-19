@@ -49,7 +49,10 @@ function taggedLines(pages, icons = []) {
       const icon = it.ic && it.icPng ? iconIndex(it.icPng) : undefined;
       same.x1 = Math.max(same.x1, x1);
       same.size = Math.max(same.size, it.s || 0);
-      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it, close: !!(it.ic && it.icTouch), icon, col: it.col });
+      const touch = !!(it.ic && it.icTouch), prev = same.runs[same.runs.length - 1];
+      // letters touching a skull (Agent[skull]s) carry the styling of the word before it
+      const inh = touch && prev && /^[A-Za-z]+$/.test(it.t.trim()) ? { b: prev.b, i: prev.i, col: prev.col } : { b: !!it.b, i: !!it.it, col: it.col };
+      same.chars.push({ n: it.t.length, b: inh.b, i: inh.i }); same.runs.push({ t: it.t, b: inh.b, i: inh.i, close: touch, icon, col: inh.col });
     } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b, i: !!it.it }], runs: [{ t: it.t, b: !!it.b, i: !!it.it, col: it.col }] });
   });
   lines.forEach(l => {
