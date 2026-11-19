@@ -259,9 +259,20 @@ function taggedRules(pages, tagsIn, title = "") {
   // labels and paragraphs never cross its edge, and the smallest box that holds an item is the item's group.
   const groups = tags.filter(t => t.k === "grp" && t.shape === "box").map(b => ({ b, area: (b.x1 - b.x0) * (b.y1 - b.y0) })).sort((a, c) => a.area - c.area);
   if (groups.length) {
+    // An item belongs to a group when any part of it lies inside the box's bounds (not only when it sits wholly inside, or its centre does).
+    // When it touches several, the group that holds the larger share of it wins; a tie goes to the smaller box.
     events.forEach(e => {
-      const cx = e.kind === "image" ? (e.ix0 + e.ix1) / 2 : (e.x0 + e.x1) / 2;
-      const gi = groups.findIndex(g => inside({ page: e.page, cx, cy: e.cy + (e.kind === "image" ? 4 : 0) }, g.b));
+      const ex0 = e.kind === "image" ? e.ix0 : e.x0, ex1 = e.kind === "image" ? e.ix1 : e.x1;
+      const ey0 = e.kind === "image" ? Math.min(e.cy, e.iy1 ?? e.cy) : e.cy - (e.size || 10) / 2, ey1 = e.kind === "image" ? Math.max(e.cy, e.iy1 ?? e.cy) : e.cy + (e.size || 10) / 2;
+      const w = Math.max(ex1 - ex0, 1), h = Math.max(ey1 - ey0, 1);
+      let gi = -1, best = 0;
+      groups.forEach((g, i) => {
+        if (g.b.page !== e.page) return;
+        const ow = Math.min(ex1, g.b.x1) - Math.max(ex0, g.b.x0), oh = Math.min(ey1, g.b.y1) - Math.max(ey0, g.b.y0);
+        if (ow <= 0 || oh <= 0) return;
+        const share = (ow * oh) / (w * h);
+        if (share > best + 1e-6) { best = share; gi = i; }   // groups are sorted smallest first, so a tie keeps the smaller box
+      });
       if (gi >= 0) e.grp = groups[gi].b.link ? "L" + groups[gi].b.link : gi + 1;   // pieces of a box that runs across pages are one group
     });
     // A short heading flag inside a group ("Q:", "1", "Note") is a label for the text beside it, not a heading of its own.
