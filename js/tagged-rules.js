@@ -184,7 +184,7 @@ function taggedRules(pages, tagsIn, title = "") {
   lines.forEach(l => {
     if (skipLines.has(l) || l.ignore) return;
     if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py });
-    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, para: paraBoxes.some(b => inside(l, b)) });
+    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, para: paraBoxes.some(b => inside(l, b)) });
   });
   images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
@@ -216,9 +216,13 @@ function taggedRules(pages, tagsIn, title = "") {
       else (rule || chap || (newChap(""), chap)).lines.push({ t: (clean(e.text).num ? clean(e.text).num + ". " : "") + clean(e.text).title, b: true });
     } else {
       const to = rule || chap || (newChap(""), chap.pre = true, chap);
-      to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, b: false });
+      to.lines.push({ t: e.kind === "image" ? `[image: ${e.name}]` : e.text, b: false, g: e.kind === "image" ? null : e });
     }
   });
+  // The widest line in each column of each page: a line much shorter than that ends its paragraph.
+  const widest = new Map(), colKey = g => g.page + ":" + Math.round(g.x0 / 40);
+  rows.forEach(r => r.lines.forEach(l => { if (l.g) widest.set(colKey(l.g), Math.max(widest.get(colKey(l.g)) || 0, l.g.x1 - l.g.x0)); }));
+  rows.forEach(r => { r.lines = paragraphs(r.lines, widest, colKey); });
   const out = rows
     .map(r => {
       const text = r.lines.map(l => l.t).join("\n");
@@ -227,6 +231,46 @@ function taggedRules(pages, tagsIn, title = "") {
     })
     .filter(r => r.text.trim());
   return { sections: out, battleSizes: [], images, missed: missed.length };
+}
+
+const BULLET = /^[•◦▪▫■□●○◆◇‣⁃∙·]\s*/;
+const ENDS = /[.!?:;)"”’]$/;
+
+/** The PDF's lines become paragraphs: lines are joined while the text runs on, and a new paragraph starts after a short last
+ *  line, a gap, a colon, an indent change or a bullet. Short one-line items after a line ending in ":" become a bullet list. */
+function paragraphs(lines, widest, colKey) {
+  const out = []; let cur = null;
+  const flush = () => { if (cur) { out.push(cur); cur = null; } };
+  const joins = (p, l) => {
+    const a = p.last.g, b = l.g;
+    if (a.page !== b.page) return !ENDS.test(p.t);
+    const gap = b.py - a.py;
+    if (gap < -2) return !ENDS.test(p.t);                          // jumped up: the next column
+    if (gap > 1.7 * Math.max(a.size, b.size)) return false;        // a visible gap
+    if (Math.abs(a.size - b.size) > 1.2) return false;
+    if (b.x0 < p.first.g.x0 - 10) return false;                    // outdent
+    if (/:$/.test(p.t)) return false;
+    const full = a.x1 - a.x0 >= 0.85 * (widest.get(colKey(a)) || 0);
+    if (!full && ENDS.test(p.t)) return false;                    // a short last line ending a sentence
+    return true;
+  };
+  lines.forEach(l => {
+    if (!l.g || l.b) { flush(); out.push(l); return; }
+    const m = BULLET.exec(l.t);
+    if (m) { flush(); cur = { t: "• " + l.t.slice(m[0].length), b: false, last: l, first: l, n: 1, bullet: true }; return; }
+    if (cur && !cur.bullet && joins(cur, l)) { cur.t += (/-$/.test(cur.t) && !/ -$/.test(cur.t) ? "" : " ") + l.t; cur.last = l; cur.n++; return; }
+    if (cur && cur.bullet && l.g.x0 > cur.first.g.x0 + 4 && joins(cur, l)) { cur.t += " " + l.t; cur.last = l; cur.n++; return; }   // a bullet's wrapped line
+    flush(); cur = { t: l.t, b: false, last: l, first: l, n: 1 };
+  });
+  flush();
+  // one-line items right after a line ending in ":" are a list
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i].g && out[i].last && /:$/.test(out[i].t) && !/^(Q|A):/.test(out[i].t)) {
+      let j = i + 1; while (j < out.length && out[j].last && out[j].n <= 3 && out[j].t.length < 130 && !out[j].bullet && !/^(Q|A):/.test(out[j].t)) j++;
+      if (j - i - 1 >= 2) for (let k = i + 1; k < j; k++) out[k].t = "• " + out[k].t;
+    }
+  }
+  return out.map(o => ({ t: o.t, b: o.b }));
 }
 
 /** Crops every image box from the page to the image's real placed bounds, trimmed of blank margins, as PNG. */
