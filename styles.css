@@ -612,7 +612,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-shell { display: grid; grid-template-columns: calc(30% + 30px) minmax(0, 1fr); height: 100%; min-height: 0; }
 .fp-left, .fp-right { overflow-y: auto; min-height: 0; min-width: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .fp-left { border-right: 1px solid var(--border); background: var(--bg); padding: 14px 14px 40px; display: flex; flex-direction: column; gap: 4px; }
-.fp-right { padding: 18px 24px 48px; display: flex; flex-direction: column; gap: 8px; }
+.fp-right { padding: 18px 80px 48px 24px; display: flex; flex-direction: column; gap: 8px; }
 /* The full-width search bar under a screen's banner (Core Rules, a faction, a Game Pack's own
    sections) — standard padding either side, matching the content pane it sits above. */
 .fp-search-wrap { padding: 14px 24px 10px; flex: none; }
