@@ -445,8 +445,8 @@ async function exportTagImages(doc, images, pdfjs) {
       const S = Math.min(3, 5000 / Math.max(r.x1 - r.x0, r.y1 - r.y0, 1));
       const vp = page.getViewport({ scale: S });
       const G = 0;   // the tagged box already carries its own padding
-      const sx = Math.max(0, Math.floor((r.x0 - view[0]) * S) - G), sy = Math.max(0, Math.floor((view[3] - r.y1) * S) - G);
-      const sw = Math.min(Math.ceil(vp.width) - sx, Math.ceil((r.x1 - r.x0) * S) + 2 * G), sh = Math.min(Math.ceil(vp.height) - sy, Math.ceil((r.y1 - r.y0) * S) + 2 * G);
+      const sx = Math.max(0, Math.ceil((r.x0 - view[0]) * S) - G + 1), sy = Math.max(0, Math.ceil((view[3] - r.y1) * S) - G + 1);   // starts inside the first whole pixel: a half-covered pixel at the edge would be a faint line of page colour
+      const sw = Math.min(Math.ceil(vp.width) - sx, Math.floor((r.x1 - r.x0) * S) + 2 * G - 2), sh = Math.min(Math.ceil(vp.height) - sy, Math.floor((r.y1 - r.y0) * S) + 2 * G - 2);
       if (sw < 4 || sh < 4) continue;
       const canvas = document.createElement("canvas"); canvas.width = sw; canvas.height = sh;
       const g = canvas.getContext("2d", { willReadFrequently: true });
