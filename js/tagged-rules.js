@@ -212,6 +212,36 @@ function taggedRules(pages, tagsIn, title = "") {
     if (Math.abs(a.cy - b.cy) < 0.9 * Math.max(sz(a), sz(b)) && b.x0 < a.x0 && b.x1 <= a.x0 + 4 && (short(a) || short(b)) && a.x0 - b.x1 < 150) { events[i] = b; events[i + 1] = a; }
   }
 
+  // A "Q:" / "A:" label that stands alone is joined to the first line of the block of text beside it.
+  events.forEach(L => {
+    if (L.kind !== "body" || !/^[QA]:$/.test(L.text.trim()) || L.gone) return;
+    const near = events.filter(e => e.kind === "body" && !e.gone && e !== L && e.page === L.page && e.x0 >= L.x1 - 2 && e.x0 <= L.x1 + 30 && Math.abs(e.cy - L.cy) < 2.2 * sz(L));
+    if (!near.length) return;
+    let top = near.reduce((a, b) => (Math.abs(b.cy - L.cy) < Math.abs(a.cy - L.cy) ? b : a));
+    for (;;) {   // up to the first line of that block
+      const above = events.filter(e => e.kind === "body" && !e.gone && e.page === L.page && Math.abs(e.x0 - top.x0) < 4 && e.cy < top.cy && top.cy - e.cy < 1.5 * sz(top) && !/^[QA]:/.test(top.text));
+      if (!above.length) break;
+      top = above.reduce((a, b) => (b.cy > a.cy ? b : a));
+    }
+    top.text = `${L.text.trim()} ${top.text}`; if (top.rich) top.rich = `${L.text.trim()} ${top.rich}`;
+    L.gone = true;
+  });
+  for (let i = events.length - 1; i >= 0; i--) if (events[i].gone) events.splice(i, 1);
+
+  // A "Q:" / "A:" label can sit beside the second line of its answer (it is centred on the block). It belongs at the start of
+  // the answer: the label is moved up to the first line of the block of text just above it.
+  events.forEach((e, i) => {
+    const m = e.kind === "body" && /^([QA]):\s+(\S.*)$/.exec(e.text);
+    if (!m || i === 0) return;
+    const k = i - 1, up = events[k];
+    if (up.kind !== "body" || /[.?!:;)]\s*$/.test(up.text) || up.page !== e.page || !(up.x0 > e.x0 + 8) || !(e.cy - up.cy < 1.8 * sz(e))) return;
+    let top = k;
+    while (top > 0 && events[top - 1].kind === "body" && events[top - 1].page === e.page && Math.abs(events[top - 1].x0 - up.x0) < 4 && events[top].cy - events[top - 1].cy < 1.5 * sz(e)) top--;
+    const t = events[top];
+    t.text = `${m[1]}: ${t.text}`; if (t.rich) t.rich = `${m[1]}: ${t.rich}`;
+    e.x0 = up.x0; e.text = m[2]; if (e.rich) e.rich = e.rich.replace(/^\**\s*[QA]:\s*\**\s*/, "");
+  });
+
   // H1 = a section (its own box in the app), H2 = a rule nested under it, H3 = a sub-heading inside the text above.
   // A section's own text is whatever sits between its heading and its first H2. The heading that repeats the document's
   // own title (or text before any heading) is called "Introduction".
