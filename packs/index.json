@@ -204,6 +204,22 @@
           "sizeKB": 55
         }
       ]
+    },
+    {
+      "id": "kill-team-3rd-edition",
+      "title": "Kill Team - 3rd Edition",
+      "game": "Kill Team",
+      "editionTag": "3rd Edition",
+      "components": [
+        {
+          "kind": "core",
+          "title": "Core Rules",
+          "version": "2026-11-19",
+          "description": "",
+          "file": "kill-team-3rd-edition/core-rules.xlsx",
+          "sizeKB": 17
+        }
+      ]
     }
   ]
 }
