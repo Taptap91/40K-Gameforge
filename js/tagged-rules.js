@@ -194,12 +194,14 @@ function taggedRules(pages, tagsIn, title = "") {
 
   // One walk in reading order: headings open sections, body lines and image placeholders go into the open one.
   const events = [];
+  // the smallest paragraph box holding a line (1-based), 0 when none
+  const smallest = (boxes, l) => { let best = 0, area = Infinity; boxes.forEach((b, i) => { const a = (b.x1 - b.x0) * (b.y1 - b.y0); if (inside(l, b) && a < area) { best = i + 1; area = a; } }); return best; };
   // when most of the book's text is set in a bold face, bold says nothing, so it is not marked
   const boldHeavy = lines.length > 0 && lines.filter(l => l.bold).length > lines.length * 0.5;
   lines.forEach(l => {
     if (skipLines.has(l) || l.ignore) return;
     if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size });
-    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, para: paraBoxes.some(b => inside(l, b)) });
+    else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, pbox: smallest(paraBoxes, l), para: paraBoxes.some(b => inside(l, b)) });
   });
   images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0, ix0: im.x0, ix1: im.x1 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
@@ -221,6 +223,8 @@ function taggedRules(pages, tagsIn, title = "") {
       const gi = groups.findIndex(g => inside({ page: e.page, cx, cy: e.cy + (e.kind === "image" ? 4 : 0) }, g.b));
       if (gi >= 0) e.grp = gi + 1;
     });
+    // A short heading flag inside a group ("Q:", "1", "Note") is a label for the text beside it, not a heading of its own.
+    events.forEach(e => { if (e.grp && e.kind === "head" && e.text.trim().length <= 6) { e.kind = "body"; e.glabel = true; e.rich = ""; e.italic = false; } });
     const placed = new Set(), ordered = [];
     events.forEach(e => {
       if (!e.grp) { ordered.push(e); return; }
@@ -234,7 +238,7 @@ function taggedRules(pages, tagsIn, title = "") {
 
   // A "Q:" / "A:" label that stands alone is joined to the first line of the block of text beside it.
   events.forEach(L => {
-    if (L.kind !== "body" || !/^[QA]:$/.test(L.text.trim()) || L.gone) return;
+    if (L.kind !== "body" || !(L.glabel || /^[QA]:$/.test(L.text.trim())) || L.gone) return;
     const near = events.filter(e => e.kind === "body" && !e.gone && e !== L && e.page === L.page && sameGrp(e, L) && e.x0 >= L.x1 - 2 && e.x0 <= L.x1 + 30 && Math.abs(e.cy - L.cy) < 2.2 * sz(L));
     if (!near.length) return;
     let top = near.reduce((a, b) => (Math.abs(b.cy - L.cy) < Math.abs(a.cy - L.cy) ? b : a));
@@ -316,12 +320,13 @@ function paragraphs(lines, widest, colKey) {
   const flush = () => { if (cur) { out.push(cur); cur = null; } };
   const join = (c, l) => {
     const glue = /-$/.test(c.t) && !/ -$/.test(c.t) ? "" : " ";
-    if (c.r || l.r) c.r = ((c.r || c.t) + glue + (l.r || l.t)).replace(/(\*{1,3}) \1(?=\S)/g, " ");   // one run of bold or italic across a line break
+    if (c.r || l.r) c.r = ((c.r || c.t) + glue + (l.r || l.t)).replace(/(?<!\*)(\*{1,3}) \1(?!\*)(?=\S)/g, " ");   // one run of bold or italic across a line break
     c.t += glue + l.t;
   };
   const joins = (p, l) => {
     const a = p.last.g, b = l.g;
     if ((a.grp || 0) !== (b.grp || 0)) return false;               // never across a group box
+    if (a.grp && a.pbox && a.pbox === b.pbox) return true;          // inside a group, one paragraph box is one paragraph
     if (a.page !== b.page) return !ENDS.test(p.t);
     const gap = b.py - a.py;
     if (gap < -2) return !ENDS.test(p.t);                          // jumped up: the next column
