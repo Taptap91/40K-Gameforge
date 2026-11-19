@@ -90,8 +90,10 @@ function bodyHTML(text, bundleId, keepCaps) {
     return segs.map(g => {
       const h = rich(g.lines);
       if (!g.qa) return h;
-      const lab = h.replace(/<p>((?:<[^>]+>)*)(Q|A):/g, (_, w, k) => `<p>${w}<span class="rf-lab rf-lab-${k.toLowerCase()}">${k}:</span>`);
-      return `<div class="rf-qa">${lab}</div>`;
+      const mark = x => x.replace(/<p>((?:<[^>]+>)*)(Q|A):/g, (_, w, k) => `<p>${w}<span class="rf-lab rf-lab-${k.toLowerCase()}">${k}:</span>`);
+      const at = g.lines.findIndex(l => /^A:/.test(bare(l)));   // the question sits on a lighter band, the answer below it
+      if (at < 1) return `<div class="rf-qa"><div class="rf-a">${mark(h)}</div></div>`;
+      return `<div class="rf-qa"><div class="rf-q">${mark(rich(g.lines.slice(0, at)))}</div><div class="rf-a">${mark(rich(g.lines.slice(at)))}</div></div>`;
     }).join("");
   };
   let html = "", chunk = [], side = null;
