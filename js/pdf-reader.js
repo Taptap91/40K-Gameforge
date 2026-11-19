@@ -160,12 +160,26 @@ async function inlineIcons(page, items, pageHeight) {
     else if (fn === OPS.transform) m = mul(m, args);
     else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject) {
       const w = Math.hypot(m[0], m[1]), h = Math.hypot(m[2], m[3]);
-      if (w > 2 && w < 16 && h > 2 && h < 16) tiny.push({ x0: Math.min(m[4], m[4] + m[0]), x1: Math.max(m[4], m[4] + m[0]), mid: pageHeight - (m[5] + m[3] / 2) });
+      if (w > 2 && w < 16 && h > 2 && h < 16) tiny.push({ x0: Math.min(m[4], m[4] + m[0]), x1: Math.max(m[4], m[4] + m[0]), mid: pageHeight - (m[5] + m[3] / 2), id: fn === OPS.paintImageXObject ? args[0] : null });
     }
   }
+  const cache = new Map();
   for (const [a, b] of pairs) {
     const ic = tiny.find(t => t.x0 >= a.x + a.w - 2 && t.x1 <= b.x + 2 && Math.abs(t.mid - (b.py - b.s * 0.3)) < b.s * 0.9);
-    if (ic) { b.ic = true; b.icTouch = b.x - ic.x1 < 1.6; }
+    if (!ic) continue;
+    b.ic = true; b.icTouch = b.x - ic.x1 < 1.6;
+    // the picture itself, so the app can show it in place (decoded once per page, drawn as a small PNG)
+    if (ic.id) {
+      if (!cache.has(ic.id)) {
+        const img = await new Promise(res => {
+          const objs = ic.id.startsWith("g_") ? page.commonObjs : page.objs;
+          try { objs.has(ic.id) ? res(objs.get(ic.id)) : objs.get(ic.id, res); } catch { res(null); }
+          setTimeout(() => res(null), 3000);
+        });
+        cache.set(ic.id, img ? iconToPng(img) : "");
+      }
+      b.icPng = cache.get(ic.id) || "";
+    }
   }
 }
 
@@ -285,4 +299,42 @@ function iconToPng(img) {
   return out.toDataURL("image/png");
 }
 
-export { mostCommonSize, readingLines, readPdf, getPdfJs };
+/** Text colours: each text piece is looked at on a rendering of its page, and a clearly coloured one (orange, red, blue…) gets
+ *  it.col = "#rrggbb". Black, white and grey are the normal text colours and are left alone. Runs only for tagged conversions. */
+async function colourItems(doc, pages) {
+  const S = 1.5, palette = [];   // nearly-equal shades are folded into the first one seen, so one colour is one value
+  for (const p of pages) {
+    if (!p.items || !p.items.length) continue;
+    try {
+      const page = await doc.getPage(p.number), view = page.view, vp = page.getViewport({ scale: S });
+      if (vp.height > 7000 || vp.width > 7000) continue;   // very tall captures are skipped: a canvas that big cannot be drawn whole
+      const c = document.createElement("canvas"); c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: g, viewport: vp, annotationMode: 0 }).promise;   // annotations (PDF Studio's tag boxes) are not drawn
+      for (const it of p.items) {
+        const x0 = Math.max(0, Math.floor((it.x - view[0]) * S)), x1 = Math.min(c.width, Math.ceil((it.x - view[0] + (it.w || 0)) * S));
+        const y0 = Math.max(0, Math.floor((it.py - (it.s || 10) * 0.85) * S)), y1 = Math.min(c.height, Math.ceil((it.py + (it.s || 10) * 0.15) * S));
+        if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+        const d = g.getImageData(x0, y0, x1 - x0, y1 - y0).data, n = d.length / 4;
+        // the background is the commonest colour in the box; ink is what stands well away from it
+        const hist = new Map();
+        for (let i = 0; i < n; i++) { const k = (d[i * 4] >> 4) << 8 | (d[i * 4 + 1] >> 4) << 4 | (d[i * 4 + 2] >> 4); hist.set(k, (hist.get(k) || 0) + 1); }
+        let bk = 0, bn = 0; hist.forEach((v, k) => { if (v > bn) { bn = v; bk = k; } });
+        const br = ((bk >> 8) & 15) * 16 + 8, bg = ((bk >> 4) & 15) * 16 + 8, bb = (bk & 15) * 16 + 8;
+        const ink = [];
+        for (let i = 0; i < n; i++) { const dist = Math.hypot(d[i * 4] - br, d[i * 4 + 1] - bg, d[i * 4 + 2] - bb); if (dist > 90) ink.push([dist, d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]); }
+        if (ink.length < 6) continue;
+        ink.sort((a, b) => b[0] - a[0]);
+        const top = ink.slice(0, Math.max(4, Math.ceil(ink.length * 0.4)));
+        const r = Math.round(top.reduce((a, q) => a + q[1], 0) / top.length), gg = Math.round(top.reduce((a, q) => a + q[2], 0) / top.length), b = Math.round(top.reduce((a, q) => a + q[3], 0) / top.length);
+        if (Math.max(r, gg, b) - Math.min(r, gg, b) < 70) continue;   // black, white or grey
+        let hit = palette.find(q => Math.hypot(q[0] - r, q[1] - gg, q[2] - b) < 48);
+        if (!hit) { hit = [r, gg, b]; palette.push(hit); }
+        it.col = "#" + hit.map(v => v.toString(16).padStart(2, "0")).join("");
+      }
+    } catch {}
+  }
+}
+
+export { mostCommonSize, readingLines, readPdf, getPdfJs, colourItems };

@@ -17,7 +17,7 @@
 // so without this it can hit a "Cannot access 'DATASHEET_GROUPS' before initialization" TDZ error. Importing
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
 import "../js/factions.js?v=8.74";
-import { getPdfJs, readPdf } from "../js/pdf-reader.js?v=8.74";
+import { colourItems, getPdfJs, readPdf } from "../js/pdf-reader.js?v=8.74";
 import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.74";
 import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.74";
 import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.74";
@@ -37,10 +37,13 @@ async function convertPdf(file, { kind = "core", faction = "", section = "" } = 
   if (!pages.length) throw new Error("no selectable text (scanned PDFs need OCR first)");
   // A PDF that PDF Studio has tagged: the tags say where headings, body text and images are, so use them instead of guessing.
   if (tags.length && (kind === "core" || kind === "updates" || section)) {
+    await colourItems(doc, pages);
     const parsed = taggedRules(pages, tags, title);
     if (parsed.sections.length >= 1) {
       const edition = detectEdition(pages.slice(0, 2).map(p => p.text).join("\n"), title, file.name);
       const images = await exportTagImages(doc, parsed.images, await getPdfJs());
+      // small inline pictures (the Kill Team skull) are saved once each and referred to from the text
+      for (const ic of parsed.icons || []) { try { images.push({ name: ic.name, blob: await (await fetch(ic.png)).blob() }); } catch {} }
       if (section) return { kind: "collection", title, section, edition, faction: "", images, blob: await buildXlsx(collectionToSheets({ title, section, edition, structured: parsed })) };
       const k = kind === "updates" ? "updates" : "core";
       return { kind: k, title, edition, faction: "", images, blob: await buildXlsx(rulesToSheets({ kind: k, title, edition, structured: parsed })) };

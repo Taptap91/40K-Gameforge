@@ -74,7 +74,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
 const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi_gamepack-v2/packs/";
 function bodyHTML(text, bundleId, keepCaps) {
   let html = "", chunk = [];
-  const flush = () => { if (chunk.length) html += richHTML(chunk.join("\n"), { keepCaps }); chunk = []; };
+  const flush = () => { if (chunk.length) html += richHTML(chunk.join("\n"), { keepCaps, iconBase: bundleId ? IMG_BASE + bundleId + "/" : "" }); chunk = []; };
   for (const line of String(text || "").split("\n")) {
     const m = /^\[image: (.+?)\]\s*$/.exec(line.trim());
     if (!m) { chunk.push(line); continue; }

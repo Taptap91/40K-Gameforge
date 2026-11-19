@@ -17,31 +17,40 @@ const LEVELS = { h1: 2, h2: 3, h3: 4 };
 const safeName = s => String(s || "rules").replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "rules";
 
 /** Lines of text on each page, top to bottom, in the same coordinates the tags use. */
-/** A line's text with its bold and italic runs marked (**bold**, *italic*), or "" when it has none. */
+/** A line's text with its formatting marked: **bold**, *italic*, {c:#rrggbb|coloured text} and [icon: images/icon-N.png]
+ *  where a small picture sits in the text. "" when the line has none of these. */
 function richOf(runs, noBold) {
   const out = [];
   runs.forEach(r => {
     const t = r.t.trim(); if (!t) return;
-    const b = !noBold && r.b, last = out[out.length - 1];
-    if (last && last.b === b && last.i === r.i) last.t += (r.close ? "" : " ") + t; else out.push({ t, b, i: r.i, close: r.close });
+    const b = !noBold && r.b, mark = r.icon != null ? `[icon: images/icon-${r.icon}.png]` : "";
+    const last = out[out.length - 1];
+    if (last && last.b === b && last.i === r.i && last.col === r.col) last.t += mark + (r.close ? "" : " ") + t;
+    else out.push({ t, b, i: r.i, col: r.col, join: mark + (r.close ? "" : " "), mark });
   });
-  if (!out.some(o => o.b || o.i)) return "";
-  return out.map((o, k) => { const m = o.b && o.i ? "***" : o.b ? "**" : o.i ? "*" : ""; return (k && o.close ? "" : k ? " " : "") + m + o.t + m; }).join("");
+  if (!out.some(o => o.b || o.i || o.col || o.mark || /\[icon: /.test(o.t))) return "";
+  return out.map((o, k) => {
+    const m = o.b && o.i ? "***" : o.b ? "**" : o.i ? "*" : "";
+    const body = o.col ? `{c:${o.col}|${o.t}}` : o.t;
+    return (k ? o.join : "") + m + body + m;
+  }).join("");
 }
 
-function taggedLines(pages) {
+function taggedLines(pages, icons = []) {
   const items = dropPageFurniture(pages.flatMap(p => p.items.map(i => ({ ...i, page: p.number }))));
   const lines = [];
+  const iconIndex = png => { let k = icons.indexOf(png); if (k < 0) k = icons.push(png) - 1; return k; };
   items.forEach(it => {
     if (!it.t || !it.t.trim() || it.x + (it.w || 0) < 0) return;   // text placed outside the page is not content
     const x1 = it.x + (it.w || 0);
     const same = lines.find(l => l.page === it.page && Math.abs(l.py - it.py) < 2 && it.x - l.x1 < Math.max(30, 3 * (it.s || 10)) && it.x >= l.x0 - 2);
     if (same) {
       same.text += (same.text && !/\s$/.test(same.text) && !(it.ic && it.icTouch) ? " " : "") + it.t.trim();   // text touching an inline icon closes up to the word before it
+      const icon = it.ic && it.icPng ? iconIndex(it.icPng) : undefined;
       same.x1 = Math.max(same.x1, x1);
       same.size = Math.max(same.size, it.s || 0);
-      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it, close: !!(it.ic && it.icTouch) });
-    } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b, i: !!it.it }], runs: [{ t: it.t, b: !!it.b, i: !!it.it }] });
+      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it, close: !!(it.ic && it.icTouch), icon, col: it.col });
+    } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b, i: !!it.it }], runs: [{ t: it.t, b: !!it.b, i: !!it.it, col: it.col }] });
   });
   lines.forEach(l => {
     const total = l.chars.reduce((n, c) => n + c.n, 0), bold = l.chars.reduce((n, c) => n + (c.b ? c.n : 0), 0);
@@ -140,7 +149,8 @@ const pageBy0 = (pages, n) => pages.find(p => p.number === n);
 /** Turns tagged pages into rules sections. Returns { sections, battleSizes, images, missed }. */
 function taggedRules(pages, tagsIn, title = "") {
   let tags = tagsIn;
-  const allLines = taggedLines(pages);
+  const icons = [];
+  const allLines = taggedLines(pages, icons);
   // the site's navigation bar across the very top of page 1 is ignored unless something there is tagged as a heading
   const lines = allLines.filter(l => {
     const p = pageBy0(pages, l.page);
@@ -247,7 +257,8 @@ function taggedRules(pages, tagsIn, title = "") {
       if (!above.length) break;
       top = above.reduce((a, b) => (b.cy > a.cy ? b : a));
     }
-    top.text = `${L.text.trim()} ${top.text}`; if (top.rich) top.rich = `${L.text.trim()} ${top.rich}`;
+    if (top.rich || L.rich) top.rich = `${L.rich || L.text.trim()} ${top.rich || top.text}`;
+    top.text = `${L.text.trim()} ${top.text}`;
     L.gone = true;
   });
   for (let i = events.length - 1; i >= 0; i--) if (events[i].gone) events.splice(i, 1);
@@ -262,8 +273,10 @@ function taggedRules(pages, tagsIn, title = "") {
     let top = k;
     while (top > 0 && events[top - 1].kind === "body" && events[top - 1].page === e.page && Math.abs(events[top - 1].x0 - up.x0) < 4 && events[top].cy - events[top - 1].cy < 1.5 * sz(up)) top--;
     const t = events[top];
-    t.text = `${m[1]}: ${t.text}`; if (t.rich) t.rich = `${m[1]}: ${t.rich}`;
-    e.x0 = up.x0; e.text = m[2]; if (e.rich) e.rich = e.rich.replace(/^\**\s*[QA]:\s*\**\s*/, "");
+    // the label keeps its own formatting (colour) when it has any
+    const lab = e.rich && /^(\**)(\{c:#[0-9a-f]{6}\|[QA]:\})\1\s*/.exec(e.rich);
+    t.text = `${m[1]}: ${t.text}`; if (t.rich || lab) t.rich = `${lab ? lab[0].trim() : m[1] + ":"} ${t.rich || t.text.slice(m[1].length + 2)}`;
+    e.x0 = up.x0; e.text = m[2]; if (e.rich) e.rich = lab ? e.rich.slice(lab[0].length) : e.rich.replace(/^\**\s*[QA]:\s*\**\s*/, "");
   });
 
   // H1 = a section (its own box in the app), H2 = a rule nested under it, H3 = a sub-heading inside the text above.
@@ -303,11 +316,13 @@ function taggedRules(pages, tagsIn, title = "") {
   const out = rows
     .map(r => {
       const text = r.lines.map(l => l.t).join("\n");
-      const rich = r.lines.some(l => l.b || l.r) ? r.lines.map(l => (l.b ? `**${l.t}**` : l.r || l.t)).join("\n") : "";
+      // a line whose bold/italic marks do not pair up (a run that crosses a paragraph break) loses them, so no stray asterisk shows
+      const balanced = line => { const open = new Set(); (line.match(/\*{1,3}/g) || []).forEach(t => { if (open.has(t)) open.delete(t); else open.add(t); }); return open.size ? line.replace(/\*+/g, "") : line; };
+      const rich = r.lines.some(l => l.b || l.r) ? r.lines.map(l => balanced(l.b ? `**${l.t}**` : l.r || l.t)).join("\n") : "";
       return { num: r.num, title: r.title, chapter: r.chapter, part: "", cp: "", text, rich };
     })
     .filter(r => r.text.trim());
-  return { sections: out, battleSizes: [], images, missed: missed.length };
+  return { sections: out, battleSizes: [], images, icons: icons.map((png, k) => ({ name: `images/icon-${k}.png`, png })), missed: missed.length };
 }
 
 const BULLET = /^[•◦▪▫■□●○◆◇‣⁃∙·]\s*/;

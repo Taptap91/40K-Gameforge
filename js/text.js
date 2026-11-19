@@ -78,7 +78,7 @@ function itemize(lines) {
   }
   return out;
 }
-const stripRich = s => String(s || "").replace(/\*\*/g, "").replace(/(^|[^*])\*([^*\s][^*\n]*?)\*(?!\*)/g, "$1$2");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
+const stripRich = s => String(s || "").replace(/\[icon: [^\]]+\]/g, "").replace(/\{c:#[0-9a-f]{6}\|([^}]*)\}/gi, "$1").replace(/\*\*/g, "").replace(/(^|[^*])\*([^*\s][^*\n]*?)\*(?!\*)/g, "$1$2");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
 /** Keywords printed in capitals ("DEATH GUARD INFANTRY model only") shown with capital first letters ("Death Guard Infantry"). */
 const KEEP_CAPS = new Set(["CP", "OC", "AP", "WS", "BS", "HQ", "VP", "DP", "FNP", "OK", "II", "III", "IV", "AM", "PM"]);
 const softenCaps = s => fixApostrophes(s).replace(/(?<![\w’'])[A-Z][A-Z’'-]+(?:(?:\s+|\s*\/\s*)[A-Z][A-Z’'-]+)*(?![\w’'])/g,
@@ -89,7 +89,8 @@ const capWords = s => String(s ?? "").replace(/(^|[\s(\/–-])([a-z])([\w’']*)
 
 function richHTML(text, opts = {}) {
   const soften = opts.keepCaps ? (t => t) : softenCaps;   // keepCaps: names printed in capitals (Kill Team units and models) stay in capitals
-  const inline = t => esc(soften(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>");
+  const icons = h => opts.iconBase ? h.replace(/\[icon: ([^\]]+)\]/g, (_, f) => `<img class="rf-icon" alt="" src="${opts.iconBase + f}">`) : h.replace(/\[icon: [^\]]+\]/g, "");
+  const inline = t => icons(esc(soften(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>").replace(/\{c:(#[0-9a-f]{6})\|([^}]*)\}/gi, (_, c, x) => `<span class="rf-col" style="--rf-c:${c}">${x}</span>`));
   let html = "", list = false;
   for (const line of String(text || "").split("\n").filter(l => l.trim())) {
     if (line.startsWith("• ")) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(line.slice(2))}</li>`; continue; }
