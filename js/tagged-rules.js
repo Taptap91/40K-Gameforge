@@ -90,6 +90,11 @@ function headingLines(lines, flags) {
       const s = dy + Math.abs(dx) * 0.2;
       if (s < score && !heads.has(l)) { best = l; score = s; }
     });
+    if (best && /^\d{1,2}$/.test(best.text.trim())) {
+      // a circled number (a numbered callout): the text beside it is the heading, so it comes out bold
+      const near = lines.filter(l => l !== best && l.page === best.page && !heads.has(l) && Math.abs(l.py - best.py) < 0.9 * Math.max(l.size, best.size) && l.x0 > best.x1 - 2 && l.x0 - best.x1 < 70);
+      if (near.length) { near.sort((a, b) => a.x0 - b.x0); const o = near[0]; best.text = best.text.trim() + ". " + o.text; best.x1 = Math.max(best.x1, o.x1); o.ignore = true; }
+    }
     if (best) heads.set(best, level); else missed.push(f);
   });
   return { heads, missed };
@@ -226,6 +231,28 @@ function taggedRules(pages, tagsIn, title = "") {
     const a = events[i], b = events[i + 1];
     if (a.page !== b.page || a.x0 === undefined || b.x0 === undefined || a.kind === "image" || b.kind === "image") continue;
     if (Math.abs(a.cy - b.cy) < 0.9 * Math.max(sz(a), sz(b)) && b.x0 < a.x0 && b.x1 <= a.x0 + 4 && (short(a) || short(b)) && a.x0 - b.x1 < 150) { events[i] = b; events[i + 1] = a; }
+  }
+
+  // Numbered callouts: a lone number (usually in a circle) with its text beside it, numbered 1, 2, 3 in turn, is a bold numbered item.
+  {
+    const cand = [];
+    events.forEach((e, i) => {
+      if (e.kind !== "body" || !/^\d{1,2}$/.test(e.text.trim())) return;
+      const o = events[i + 1];
+      if (!o || o.kind !== "body" || o.page !== e.page || Math.abs(o.cy - e.cy) > 0.9 * Math.max(sz(o), sz(e)) || !(o.x0 > e.x1 - 2) || o.x0 - e.x1 > 70 || /^\d{1,2}$/.test(o.text.trim()) || o.text.trim().length < 2) return;
+      cand.push({ i, n: +e.text.trim() });
+    });
+    const keep = new Set();
+    for (let k = 0; k < cand.length; k++) {
+      if (cand[k + 1] && cand[k + 1].n === cand[k].n + 1 || cand[k - 1] && cand[k - 1].n === cand[k].n - 1) keep.add(cand[k].i);
+    }
+    const drop = new Set();
+    keep.forEach(i => {
+      const e = events[i], o = events[i + 1];
+      e.kind = "head"; e.level = 4; e.text = e.text.trim() + ". " + o.text.trim(); e.x1 = Math.max(e.x1, o.x1); e.rich = "";
+      drop.add(o);
+    });
+    if (drop.size) events.splice(0, events.length, ...events.filter(e => !drop.has(e)));
   }
 
   // Group boxes: whatever sits inside one belongs together. Its text is kept in one run (nothing from outside is read in between),
