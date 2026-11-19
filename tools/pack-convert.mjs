@@ -72,7 +72,9 @@ function parseLocation(pdfPath) {
   const rel = path.relative(INCOMING, pdfPath).split(path.sep);
   if (rel.length !== 4) return null;
   const [game, edition, bucket] = rel;
-  const b = bucket.trim().toLowerCase();
+  // Folder names a game may use instead of the standard ones (e.g. Kill Team: Core Rules / Mission Packs / Expansions / Kill Teams)
+  const ALIAS = { "core rules": "rules", "mission packs": "rules", "expansions": "companions", "kill teams": "factions" };
+  const b = ALIAS[bucket.trim().toLowerCase()] || bucket.trim().toLowerCase();
   if (!["rules", "factions", "companions", "event companions", "collections", "sections"].includes(b)) return null;
   return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : b === "collections" ? "Collections" : b === "sections" ? "Sections" : "Companions" };
 }
