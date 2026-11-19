@@ -1454,3 +1454,6 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .fp-side-text { flex: 1; min-width: 0; }
 .fp-text .fp-side-text p:first-child { margin-top: 0; }
 @media (max-width: 560px) { .fp-text .fp-side { flex-direction: column; } .fp-text .fp-side .fp-img { max-width: 100%; flex-basis: auto; } }
+/* The rules text keeps its right padding even when a long unbroken word or a wide block would otherwise push it to the edge. */
+.fp-right > * { min-width: 0; }
+.fp-text { overflow-wrap: break-word; padding-right: 0; }
