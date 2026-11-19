@@ -17,7 +17,7 @@ const ICONS = {
   book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 };
-const BASE_CSS = `.rf-subnav{margin:6px 18px 24px}.rf-subnav h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}.rf-subnav .list{display:flex;flex-wrap:wrap;gap:8px}.rf-crumbs{padding:6px 18px 0;font-size:13px;opacity:.9;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.rf-crumbs button{background:none;border:0;color:var(--accent,#0a84ff);cursor:pointer;padding:0;font:inherit}
+const BASE_CSS = `.rf-subnav{margin:6px 18px 24px}.rf-subnav h3{margin:0 0 8px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}.rf-subnav .list{display:flex;flex-wrap:wrap;gap:8px}.rf-crumbs{padding:6px 18px 0;font-size:13px;opacity:.9;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.rf-crumbs button{background:none;border:0;color:var(--accent,#0a84ff);cursor:pointer;padding:0;font:inherit}
 .rf-page-body{position:relative;flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .rf-el-row,.rf-el-col{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}.rf-el-col{flex-direction:column}
 .rf-el-text,.rf-el-heading{margin:0}.rf-el-image{max-width:100%;height:auto;border-radius:8px}.rf-el-divider{width:100%;border:0;border-top:1px solid rgba(255,255,255,.15);margin:4px 0}.rf-el-space{height:24px;width:100%}
