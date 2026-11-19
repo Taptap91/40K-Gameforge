@@ -6,7 +6,7 @@ name: Convert volunteer pack PDFs
 # is tagged "[skip pack-convert]" so it doesn't re-trigger itself.
 on:
   push:
-    branches: [game-packs]
+    branches: [game-packs, multi_gamepack-v2]
     paths: ["packs/incoming/**"]
 
 permissions:
