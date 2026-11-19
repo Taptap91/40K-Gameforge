@@ -309,10 +309,10 @@ function taggedRules(pages, tagsIn, title = "") {
   sides.forEach((m, k) => {
     const imgs = m.filter(e => e.kind === "image");
     if (imgs.length !== 1 || m.length < 2 || m.some(e => e.kind === "head")) { sides.delete(k); return; }
-    // Side by side only for a short note: a few lines to the right of the picture and level with it. Long text, or text above or below it, keeps its order.
+    // Side by side only for a short note: up to 4 lines to the right of the picture and level with it. Long text, or text above or below it, keeps its order.
     const im = imgs[0], txt = m.filter(e => e.kind !== "image");
     const level = txt.every(e => e.x0 >= im.ix0 + (im.ix1 - im.ix0) * 0.5 && e.cy >= im.cy - 14 && e.cy <= (im.iy1 || im.cy) + 14);
-    if (!level || txt.length > 8 || txt.reduce((n, e) => n + e.text.length, 0) > 420) { sides.delete(k); return; }
+    if (!level || txt.length > 4 || txt.reduce((n, e) => n + e.text.length, 0) > 420) { sides.delete(k); return; }
     m.side = { img: imgs[0], first: m[0], last: m[m.length - 1] };
   });
   events.forEach(e => {
