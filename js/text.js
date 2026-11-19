@@ -87,8 +87,9 @@ const softenCaps = s => fixApostrophes(s).replace(/(?<![\w’'])[A-Z][A-Z’'-]+
 /** Weapon names with capital first letters: "Plague knife – strike" → "Plague Knife – Strike". */
 const capWords = s => String(s ?? "").replace(/(^|[\s(\/–-])([a-z])([\w’']*)/g, (m, a, c, rest) => a + ((a === " " && SMALL_WORDS.has(c + rest)) ? c : c.toUpperCase()) + rest);
 
-function richHTML(text) {
-  const inline = t => esc(softenCaps(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>");
+function richHTML(text, opts = {}) {
+  const soften = opts.keepCaps ? (t => t) : softenCaps;   // keepCaps: names printed in capitals (Kill Team units and models) stay in capitals
+  const inline = t => esc(soften(t).replace(/(\w) +([,.;:])(?=\s|$)/g, "$1$2")).replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>").replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>");
   let html = "", list = false;
   for (const line of String(text || "").split("\n").filter(l => l.trim())) {
     if (line.startsWith("• ")) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(line.slice(2))}</li>`; continue; }

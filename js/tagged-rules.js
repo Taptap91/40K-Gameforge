@@ -23,10 +23,10 @@ function richOf(runs, noBold) {
   runs.forEach(r => {
     const t = r.t.trim(); if (!t) return;
     const b = !noBold && r.b, last = out[out.length - 1];
-    if (last && last.b === b && last.i === r.i) last.t += " " + t; else out.push({ t, b, i: r.i });
+    if (last && last.b === b && last.i === r.i) last.t += (r.close ? "" : " ") + t; else out.push({ t, b, i: r.i, close: r.close });
   });
   if (!out.some(o => o.b || o.i)) return "";
-  return out.map(o => { const m = o.b && o.i ? "***" : o.b ? "**" : o.i ? "*" : ""; return m + o.t + m; }).join(" ");
+  return out.map((o, k) => { const m = o.b && o.i ? "***" : o.b ? "**" : o.i ? "*" : ""; return (k && o.close ? "" : k ? " " : "") + m + o.t + m; }).join("");
 }
 
 function taggedLines(pages) {
@@ -37,10 +37,10 @@ function taggedLines(pages) {
     const x1 = it.x + (it.w || 0);
     const same = lines.find(l => l.page === it.page && Math.abs(l.py - it.py) < 2 && it.x - l.x1 < Math.max(30, 3 * (it.s || 10)) && it.x >= l.x0 - 2);
     if (same) {
-      same.text += (same.text && !/\s$/.test(same.text) ? " " : "") + it.t.trim();
+      same.text += (same.text && !/\s$/.test(same.text) && !(it.ic && it.icTouch) ? " " : "") + it.t.trim();   // text touching an inline icon closes up to the word before it
       same.x1 = Math.max(same.x1, x1);
       same.size = Math.max(same.size, it.s || 0);
-      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it });
+      same.chars.push({ n: it.t.length, b: !!it.b, i: !!it.it }); same.runs.push({ t: it.t, b: !!it.b, i: !!it.it, close: !!(it.ic && it.icTouch) });
     } else lines.push({ page: it.page, py: it.py, x0: it.x, x1, size: it.s || 0, text: it.t.trim(), chars: [{ n: it.t.length, b: !!it.b, i: !!it.it }], runs: [{ t: it.t, b: !!it.b, i: !!it.it }] });
   });
   lines.forEach(l => {

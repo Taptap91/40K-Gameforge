@@ -72,9 +72,9 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
 /** Text with "[image: images/x.png]" placeholder lines: the pictures sit in the pack's own images folder on GitHub and are shown
  *  in place between the paragraphs around them. */
 const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi_gamepack-v2/packs/";
-function bodyHTML(text, bundleId) {
+function bodyHTML(text, bundleId, keepCaps) {
   let html = "", chunk = [];
-  const flush = () => { if (chunk.length) html += richHTML(chunk.join("\n")); chunk = []; };
+  const flush = () => { if (chunk.length) html += richHTML(chunk.join("\n"), { keepCaps }); chunk = []; };
   for (const line of String(text || "").split("\n")) {
     const m = /^\[image: (.+?)\]\s*$/.exec(line.trim());
     if (!m) { chunk.push(line); continue; }
@@ -88,7 +88,7 @@ function bodyHTML(text, bundleId) {
 function rulesRightHTML(section, doc) {
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
   return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
-    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId)}</div>`;
+    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div>`;
 }
 
 export { ruleKey, sectionsGrouped, rulesBannerHTML, rulesLeftHTML, rulesRightHTML };

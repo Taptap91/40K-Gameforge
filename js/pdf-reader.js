@@ -109,6 +109,9 @@ async function readPdf(file, onPage) {
       if (item.hasEOL) text += "\n";
       lastY = y;
     }
+    // A small picture set between two pieces of text on one line (Kill Team's skull inside a team name) is an inline icon:
+    // the text after it is marked, and joins the text before it directly when it touches the icon.
+    try { await inlineIcons(page, items, pageHeight); } catch {}
     // Detachments: the Force Disposition symbol printed beside "1DP" is a picture; it's recognised by its colour.
     if (items.some(i => /^\d+\s*DP$/i.test(i.t))) { try { await dispositionIcons(page, items, pageHeight); } catch {} }
     // The "Books" table on a faction's first pages has a small icon beside each book's name; keep those icons.
@@ -137,6 +140,33 @@ async function readPdf(file, onPage) {
     if (meta?.info?.Title?.trim()) title = meta.info.Title.trim();
   } catch {}
   return { title, pageCount: pdf.numPages, pages, bookIcons, tags, doc: pdf };
+}
+
+/** Marks items that sit right after a tiny inline picture on the same line: it.ic = true, and it.icTouch when no space follows the picture. */
+async function inlineIcons(page, items, pageHeight) {
+  const pairs = [];
+  for (let i = 1; i < items.length; i++) {
+    const a = items[i - 1], b = items[i], gap = b.x - (a.x + a.w);
+    if (Math.abs(a.y - b.y) < 1.5 && gap > 3.5 && gap < 16) pairs.push([a, b]);
+  }
+  if (!pairs.length) return;
+  const ops = await page.getOperatorList(), OPS = pdfjs.OPS;
+  const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  let m = [1, 0, 0, 1, 0, 0]; const stack = [], tiny = [];
+  for (let k = 0; k < ops.fnArray.length; k++) {
+    const fn = ops.fnArray[k], args = ops.argsArray[k];
+    if (fn === OPS.save) stack.push(m);
+    else if (fn === OPS.restore) m = stack.pop() || [1, 0, 0, 1, 0, 0];
+    else if (fn === OPS.transform) m = mul(m, args);
+    else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject) {
+      const w = Math.hypot(m[0], m[1]), h = Math.hypot(m[2], m[3]);
+      if (w > 2 && w < 16 && h > 2 && h < 16) tiny.push({ x0: Math.min(m[4], m[4] + m[0]), x1: Math.max(m[4], m[4] + m[0]), mid: pageHeight - (m[5] + m[3] / 2) });
+    }
+  }
+  for (const [a, b] of pairs) {
+    const ic = tiny.find(t => t.x0 >= a.x + a.w - 2 && t.x1 <= b.x + 2 && Math.abs(t.mid - (b.py - b.s * 0.3)) < b.s * 0.9);
+    if (ic) { b.ic = true; b.icTouch = b.x - ic.x1 < 1.6; }
+  }
 }
 
 /** Small images in a page's "Books" table, each paired with the name printed to its right: [{ name, image }]. */
