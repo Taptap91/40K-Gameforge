@@ -191,6 +191,7 @@ function taggedRules(pages, tagsIn, title = "") {
   // Section boxes: a section with no heading tag inside takes its top line as the heading, one level under its parent section
   const secs = tags.filter(t => t.k === "sec" && t.shape === "box");
   secs.forEach(sb => {
+    if (sb.link && secs.some(o => o !== sb && o.link === sb.link && o.page < sb.page)) return;   // the piece on a later page continues the section, it does not start one
     const ls = lines.filter(l => inside(l, sb) && !skipLines.has(l));
     if (!ls.length || ls.some(l => heads.has(l))) return;
     const depth = secs.filter(o => o !== sb && o.page === sb.page && o.x0 <= sb.x0 + 2 && o.x1 >= sb.x1 - 2 && o.y0 <= sb.y0 + 2 && o.y1 >= sb.y1 - 2).length;
@@ -208,7 +209,7 @@ function taggedRules(pages, tagsIn, title = "") {
   // One walk in reading order: headings open sections, body lines and image placeholders go into the open one.
   const events = [];
   // the smallest paragraph box holding a line (1-based), 0 when none
-  const smallest = (boxes, l) => { let best = 0, area = Infinity; boxes.forEach((b, i) => { const a = (b.x1 - b.x0) * (b.y1 - b.y0); if (inside(l, b) && a < area) { best = i + 1; area = a; } }); return best; };
+  const smallest = (boxes, l) => { let best = 0, area = Infinity; boxes.forEach((b, i) => { const a = (b.x1 - b.x0) * (b.y1 - b.y0); if (inside(l, b) && a < area) { best = b.link ? "L" + b.link : i + 1; area = a; } }); return best; };
   // when most of the book's text is set in a bold face, bold says nothing, so it is not marked
   const boldHeavy = lines.length > 0 && lines.filter(l => l.bold).length > lines.length * 0.5;
   lines.forEach(l => {
@@ -234,7 +235,7 @@ function taggedRules(pages, tagsIn, title = "") {
     events.forEach(e => {
       const cx = e.kind === "image" ? (e.ix0 + e.ix1) / 2 : (e.x0 + e.x1) / 2;
       const gi = groups.findIndex(g => inside({ page: e.page, cx, cy: e.cy + (e.kind === "image" ? 4 : 0) }, g.b));
-      if (gi >= 0) e.grp = gi + 1;
+      if (gi >= 0) e.grp = groups[gi].b.link ? "L" + groups[gi].b.link : gi + 1;   // pieces of a box that runs across pages are one group
     });
     // A short heading flag inside a group ("Q:", "1", "Note") is a label for the text beside it, not a heading of its own.
     events.forEach(e => { if (e.grp && e.kind === "head" && e.text.trim().length <= 6) { e.kind = "body"; e.glabel = true; e.rich = ""; e.italic = false; } });
@@ -360,6 +361,7 @@ function paragraphs(lines, widest, colKey) {
     const a = p.last.g, b = l.g;
     if ((a.grp || 0) !== (b.grp || 0)) return false;               // never across a group box
     if (a.grp && a.pbox && a.pbox === b.pbox) return true;          // inside a group, one paragraph box is one paragraph
+    if (a.pbox && a.pbox === b.pbox && /^L/.test(String(a.pbox))) return true;   // one paragraph box drawn across a page break is one paragraph
     if (a.page !== b.page) return !ENDS.test(p.t);
     const gap = b.py - a.py;
     if (gap < -2) return !ENDS.test(p.t);                          // jumped up: the next column

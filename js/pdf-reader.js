@@ -58,7 +58,8 @@ async function readPdf(file, onPage) {
         if (!m || !a.rect) continue;
         const [x1, y1, x2, y2] = a.rect, top = page.view[3] - y2, bottom = page.view[3] - y1;
         const shape = a.subtype === "Square" ? "box" : "flag";
-        tags.push({ page: n, k: m[1], shape, x0: x1 - page.view[0], y0: top, x1: x2 - page.view[0], y1: bottom });
+        const lk = /\|link=([\w-]+)/.exec(note);   // a box dragged across pages is saved as one piece per page, all sharing a link
+        tags.push({ page: n, k: m[1], shape, x0: x1 - page.view[0], y0: top, x1: x2 - page.view[0], y1: bottom, link: lk ? lk[1] : "" });
       }
     } catch {}
     const pageHeight = (page.view[3] - page.view[1]) || 792;
