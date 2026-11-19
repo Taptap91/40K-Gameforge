@@ -644,7 +644,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-item { flex-wrap: wrap; row-gap: 4px; }
 .fp-iname { flex: 1 1 9em; min-width: 0; font-size: 14px; font-weight: 600; overflow-wrap: break-word; }
 .fp-imeta { font-size: 15px; color: var(--text-2); white-space: nowrap; }
-.fp-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
+.fp-head { display: flex; flex-direction: column-reverse; gap: 4px; padding-bottom: 6px; }
 .fp-head h2 { margin: 0; font-size: 22px; }
 .fp-sub { font-size: 16px; color: var(--text-2); }
 /* A rule's number, in the left list and the right-hand heading: not bold, with the dash either
