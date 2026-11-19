@@ -127,7 +127,7 @@ async function readPdf(file, onPage) {
         image = c.toDataURL("image/png");
       } catch { image = null; }
     }
-    if (cleaned) pages.push({ number: n, text: cleaned, items, top: offset, ph: pageHeight, image, scale });
+    if (cleaned) pages.push({ number: n, text: cleaned, items, top: offset, ph: pageHeight, pw: pageWidth, image, scale });
     offset += pageHeight + 20;
     onPage(n, pdf.numPages);
   }
