@@ -201,7 +201,7 @@ function taggedRules(pages, tagsIn, title = "") {
     if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size });
     else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, para: paraBoxes.some(b => inside(l, b)) });
   });
-  images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0 }));
+  images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0, ix0: im.x0, ix1: im.x1 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
   // Rows read left to right: a number or heading that sits on the same row as its label (a callout "1" beside "Type of operative")
   // comes first when it is the one on the left, even if its text sits a few points lower or higher on the page.
@@ -212,14 +212,34 @@ function taggedRules(pages, tagsIn, title = "") {
     if (Math.abs(a.cy - b.cy) < 0.9 * Math.max(sz(a), sz(b)) && b.x0 < a.x0 && b.x1 <= a.x0 + 4 && (short(a) || short(b)) && a.x0 - b.x1 < 150) { events[i] = b; events[i + 1] = a; }
   }
 
+  // Group boxes: whatever sits inside one belongs together. Its text is kept in one run (nothing from outside is read in between),
+  // labels and paragraphs never cross its edge, and the smallest box that holds an item is the item's group.
+  const groups = tags.filter(t => t.k === "grp" && t.shape === "box").map(b => ({ b, area: (b.x1 - b.x0) * (b.y1 - b.y0) })).sort((a, c) => a.area - c.area);
+  if (groups.length) {
+    events.forEach(e => {
+      const cx = e.kind === "image" ? (e.ix0 + e.ix1) / 2 : (e.x0 + e.x1) / 2;
+      const gi = groups.findIndex(g => inside({ page: e.page, cx, cy: e.cy + (e.kind === "image" ? 4 : 0) }, g.b));
+      if (gi >= 0) e.grp = gi + 1;
+    });
+    const placed = new Set(), ordered = [];
+    events.forEach(e => {
+      if (!e.grp) { ordered.push(e); return; }
+      if (placed.has(e.grp)) return;
+      placed.add(e.grp);
+      ordered.push(...events.filter(x => x.grp === e.grp));   // already in reading order
+    });
+    events.splice(0, events.length, ...ordered);
+  }
+  const sameGrp = (a, b) => (a.grp || 0) === (b.grp || 0);
+
   // A "Q:" / "A:" label that stands alone is joined to the first line of the block of text beside it.
   events.forEach(L => {
     if (L.kind !== "body" || !/^[QA]:$/.test(L.text.trim()) || L.gone) return;
-    const near = events.filter(e => e.kind === "body" && !e.gone && e !== L && e.page === L.page && e.x0 >= L.x1 - 2 && e.x0 <= L.x1 + 30 && Math.abs(e.cy - L.cy) < 2.2 * sz(L));
+    const near = events.filter(e => e.kind === "body" && !e.gone && e !== L && e.page === L.page && sameGrp(e, L) && e.x0 >= L.x1 - 2 && e.x0 <= L.x1 + 30 && Math.abs(e.cy - L.cy) < 2.2 * sz(L));
     if (!near.length) return;
     let top = near.reduce((a, b) => (Math.abs(b.cy - L.cy) < Math.abs(a.cy - L.cy) ? b : a));
     for (;;) {   // up to the first line of that block
-      const above = events.filter(e => e.kind === "body" && !e.gone && e.page === L.page && Math.abs(e.x0 - top.x0) < 4 && e.cy < top.cy && top.cy - e.cy < 1.5 * sz(top) && !/^[QA]:/.test(top.text));
+      const above = events.filter(e => e.kind === "body" && !e.gone && e.page === L.page && sameGrp(e, L) && Math.abs(e.x0 - top.x0) < 4 && e.cy < top.cy && top.cy - e.cy < 1.5 * sz(top) && !/^[QA]:/.test(top.text));
       if (!above.length) break;
       top = above.reduce((a, b) => (b.cy > a.cy ? b : a));
     }
@@ -234,9 +254,9 @@ function taggedRules(pages, tagsIn, title = "") {
     const m = e.kind === "body" && /^([QA]):\s+(\S.*)$/.exec(e.text);
     if (!m || i === 0) return;
     const k = i - 1, up = events[k];
-    if (up.kind !== "body" || /[.?!:;)]\s*$/.test(up.text) || up.page !== e.page || !(up.x0 > e.x0 + 8) || !(e.cy - up.cy < 1.8 * sz(e))) return;
+    if (up.kind !== "body" || !sameGrp(up, e) || /[.?!:;)]\s*$/.test(up.text) || up.page !== e.page || !(up.x0 > e.x0 + 8) || !(e.cy - up.cy < 1.8 * sz(up))) return;
     let top = k;
-    while (top > 0 && events[top - 1].kind === "body" && events[top - 1].page === e.page && Math.abs(events[top - 1].x0 - up.x0) < 4 && events[top].cy - events[top - 1].cy < 1.5 * sz(e)) top--;
+    while (top > 0 && events[top - 1].kind === "body" && events[top - 1].page === e.page && Math.abs(events[top - 1].x0 - up.x0) < 4 && events[top].cy - events[top - 1].cy < 1.5 * sz(up)) top--;
     const t = events[top];
     t.text = `${m[1]}: ${t.text}`; if (t.rich) t.rich = `${m[1]}: ${t.rich}`;
     e.x0 = up.x0; e.text = m[2]; if (e.rich) e.rich = e.rich.replace(/^\**\s*[QA]:\s*\**\s*/, "");
@@ -301,13 +321,14 @@ function paragraphs(lines, widest, colKey) {
   };
   const joins = (p, l) => {
     const a = p.last.g, b = l.g;
+    if ((a.grp || 0) !== (b.grp || 0)) return false;               // never across a group box
     if (a.page !== b.page) return !ENDS.test(p.t);
     const gap = b.py - a.py;
     if (gap < -2) return !ENDS.test(p.t);                          // jumped up: the next column
     if (gap > 1.7 * Math.max(a.size, b.size)) return false;        // a visible gap
     if (Math.abs(a.size - b.size) > 1.2) return false;
     if (!!a.italic !== !!b.italic) return false;               // an italic note stands apart from what is before it
-    if (b.x0 < p.first.g.x0 - 10) return false;                    // outdent
+    if (b.x0 < p.first.g.x0 - 10 && p.n > 1) return false;       // outdent (the second line of a paragraph may sit left of an indented first line)
     if (/:$/.test(p.t)) return false;
     const full = a.x1 - a.x0 >= 0.85 * (widest.get(colKey(a)) || 0);
     if (!full && ENDS.test(p.t)) return false;                    // a short last line ending a sentence
