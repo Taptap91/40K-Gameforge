@@ -1431,12 +1431,18 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .cm-addbtn svg { flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .cm-stats .cm-kebab { align-self: stretch; width: 44px; min-width: 44px; min-height: 0; padding: 0; justify-content: center; background: var(--control); border-color: var(--border-strong); color: var(--text); }
 
-.fp-text .fp-img { display: block; max-width: 100%; height: auto; margin: 12px 0; border-radius: 8px; }
+/* a picture on its own: centred under the text above it, 8px above and below (no space below when nothing follows it) */
+.fp-text .fp-img { display: block; max-width: 100%; height: auto; margin: 8px auto; border-radius: 8px; }
+.fp-text > .fp-img:last-child, .fp-text > .fp-imgrow:last-child { margin-bottom: 0; }
+.fp-text .fp-imgrow { display: flex; gap: 14px; justify-content: center; align-items: flex-start; margin: 8px 0; }
+.fp-text .fp-imgrow .fp-img { margin: 0; flex: 0 1 auto; min-width: 0; }
 
 .fp-text li { margin: calc(1.5 * 1.45em) 0; }   /* 1.5 line heights above and below each bullet */
 .fp-text ul { margin: 0; }
 .fp-text .rf-note { margin-top: 1.1em; }
 .fp-text .rf-icon { height: 1.05em; width: auto; vertical-align: -0.15em; margin: 0 .04em; }
+/* a numbered point: the number sits in a small circle on the same line as its bold text, in the bold text's colour */
+.fp-text .rf-num { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 1.5em; height: 1.5em; padding: 0 .2em; margin-right: .55em; border: 1.5px solid var(--text); border-radius: 999px; color: var(--text); font-size: .8em; font-weight: 600; line-height: 1; vertical-align: .05em; }
 .fp-text .rf-col { color: color-mix(in srgb, var(--rf-c) 78%, var(--text, currentColor)); }
 
 /* Q:/A: boxes: the colour of the rule boxes on the left, but not clickable */
@@ -1449,10 +1455,11 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .rf-lab-q { color: var(--text); }
 .fp-text .rf-lab-a { color: #f15c23; }
 /* a picture with its text to the right (a group box with an image and text in it) */
-.fp-text .fp-side { display: flex; gap: 14px; align-items: flex-start; margin: 12px 0; }
-.fp-text .fp-side .fp-img { flex: 0 1 42%; max-width: 42%; margin: 0; }
+.fp-text .fp-side { display: flex; gap: 14px; align-items: center; margin: 8px 0; }
+.fp-text .fp-side .fp-img { flex: 0 1 calc(42% * var(--sc, 1)); max-width: calc(42% * var(--sc, 1)); margin: 0; }
 .fp-text .fp-side-text { flex: 1; min-width: 0; }
 .fp-text .fp-side-text p:first-child { margin-top: 0; }
+.fp-text .fp-side-text p:last-child { margin-bottom: 0; }
 @media (max-width: 560px) { .fp-text .fp-side { flex-direction: column; } .fp-text .fp-side .fp-img { max-width: 100%; flex-basis: auto; } }
 /* The rules text keeps its right padding even when a long unbroken word or a wide block would otherwise push it to the edge. */
 .fp-right > * { min-width: 0; }

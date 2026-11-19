@@ -1,0 +1,105 @@
+{
+ "images": {
+  "Core_Rules-p2-1.png": {
+   "scale": 70
+  },
+  "Core_Rules-p3-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p4-1.png": {
+   "scale": 70
+  },
+  "Core_Rules-p4-2.png": {
+   "scale": 40
+  },
+  "Core_Rules-p4-3.png": {
+   "scale": 40
+  },
+  "Core_Rules-p5-1.png": {
+   "scale": 50
+  },
+  "Core_Rules-p8-1.png": {
+   "scale": 50
+  },
+  "Core_Rules-p8-2.png": {
+   "scale": 50
+  },
+  "Core_Rules-p10-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p10-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p13-1.png": {
+   "scale": 50
+  },
+  "Core_Rules-p17-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p17-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p18-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p18-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p19-1.png": {
+   "scale": 70
+  },
+  "Core_Rules-p22-1.png": {
+   "scale": 50
+  },
+  "Core_Rules-p23-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p23-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p24-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p25-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p25-2.png": {
+   "scale": 50
+  },
+  "Core_Rules-p25-3.png": {
+   "scale": 70
+  },
+  "Core_Rules-p26-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p27-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p27-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p28-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p28-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p29-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p30-1.png": {
+   "scale": 60
+  },
+  "Core_Rules-p30-2.png": {
+   "scale": 60
+  },
+  "Core_Rules-p30-3.png": {
+   "scale": 60,
+   "row": "visible"
+  },
+  "Core_Rules-p31-1.png": {
+   "scale": 60,
+   "row": "visible"
+  }
+ }
+}

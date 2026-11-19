@@ -75,6 +75,8 @@ const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi
 function bodyHTML(text, bundleId, keepCaps) {
   const base = bundleId ? IMG_BASE + bundleId + "/" : "";
   const rich = lines => richHTML(lines.join("\n"), { keepCaps, iconBase: base });
+  const imgTag = f => `<img class="fp-img" loading="lazy" alt="" data-b="${esc(bundleId)}" data-img="${esc(f.split("/").pop())}" src="${esc(base + f)}">`;
+  if (bundleId) layoutFor(bundleId);
   const bare = l => l.replace(/\{c:#[0-9a-fA-F]{6}\||[*}]/g, "").trim();
   // Q:/A: blocks sit in a quiet box (the colour of the boxes on the left, not clickable): Q: in bold, A: in bold orange
   const qaHTML = lines => {
@@ -103,28 +105,82 @@ function bodyHTML(text, bundleId, keepCaps) {
   const endsSentence = t => /[.!?:;]['"”’)\]]*$/.test(t) && !/\b(?:e\.g|i\.e|etc|vs|approx)\.$/i.test(t);
   const joinWraps = lines => lines.reduce((out, l) => {
     const t = bare(l), pv = out.length ? bare(out[out.length - 1]) : "";
-    const keep = !out.length || !t || !pv || /^\*\*[^*]+\*\*$/.test(l.trim()) || /^\*\*[^*]+\*\*$/.test(out[out.length - 1].trim())
+    const keep = !out.length || /^\u2063/.test(l.trim()) || !t || !pv || /^\*\*[^*]+\*\*$/.test(l.trim()) || /^\*\*[^*]+\*\*$/.test(out[out.length - 1].trim())
       || /^(?:•|[QA]:|\d+[.)]\s)/.test(t) || endsSentence(pv) || /^\[/.test(l.trim())
       || !(pv.length >= 40 || /^[a-z]/.test(t));
     if (keep) out.push(l); else out[out.length - 1] = out[out.length - 1].replace(/\s+$/, "") + " " + l.replace(/^\s+/, "");
     return out;
   }, []);
+  // A lone number line ("1") with a bold line under it is a numbered point: the number moves onto the bold line, in a small circle.
+  const joinNums = lines => lines.reduce((out, l, i, all) => {
+    if (out.skip === i) return out;
+    const n = /^\d{1,2}$/.exec(bare(l));
+    if (n && i + 1 < all.length && all[i + 1].trim().startsWith("**")) { out.push(`\u2063${n[0]}\u2063 ${all[i + 1].trim()}`); out.skip = i + 1; }
+    else out.push(l);
+    return out;
+  }, []);
   let html = "", chunk = [], side = null;
-  const flush = () => { if (chunk.length) html += qaHTML(joinWraps(chunk)); chunk = []; };
+  const flush = () => { if (chunk.length) html += qaHTML(joinWraps(joinNums(chunk))); chunk = []; };
   for (const line of String(text || "").split("\n")) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
     if (t === "[/side]") {
-      const body = chunk.length ? qaHTML(joinWraps(chunk)) : ""; chunk = [];
-      html += `<div class="fp-side">${bundleId && side ? `<img class="fp-img" loading="lazy" alt="" src="${esc(base + side)}">` : ""}<div class="fp-side-text">${body}</div></div>`;
+      const body = chunk.length ? qaHTML(joinWraps(joinNums(chunk))) : ""; chunk = [];
+      html += `<div class="fp-side">${bundleId && side ? imgTag(side) : ""}<div class="fp-side-text">${body}</div></div>`;
       side = null; continue;
     }
     if (!im) { chunk.push(line); continue; }
     flush();
-    if (bundleId) html += `<img class="fp-img" loading="lazy" alt="" src="${esc(base + im[1])}">`;
+    if (bundleId) html += imgTag(im[1]);
   }
   flush();
-  return html;
+  return html.replace(/\u2063(\d+)\u2063/g, '<span class="rf-num">$1</span>');
+}
+
+/* A pack can carry a layout.json beside its workbook: { "images": { "Core_Rules-p2-1.png": { "scale": 70, "row": "a" } } }.
+ * "scale" is a percentage of the size the picture would otherwise show at; pictures that share a "row" sit side by side.
+ * It is kept apart from the workbook so re-converting the PDF does not lose it. */
+const layouts = {};
+function layoutFor(bundleId) {
+  if (bundleId in layouts) return layouts[bundleId];
+  layouts[bundleId] = null;
+  fetch(IMG_BASE + bundleId + "/layout.json", { cache: "no-cache" }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+    .then(j => { layouts[bundleId] = j || {}; applyLayouts(); });
+  return null;
+}
+function applyLayout(img) {
+  const e = layouts[img.dataset.b]?.images?.[img.dataset.img];
+  const sc = Math.max(5, Math.min(100, +e?.scale || 100)) / 100;
+  if (img.closest(".fp-side")) { img.style.setProperty("--sc", sc); return; }
+  if (!img.naturalWidth) return;
+  const box = img.parentElement.clientWidth || img.naturalWidth;
+  img.style.width = Math.round(Math.min(img.naturalWidth, box) * sc) + "px";
+}
+function applyLayouts(root = document) {
+  const imgs = [...root.querySelectorAll("img.fp-img[data-img]")];
+  const byRow = new Map();
+  imgs.forEach(img => {
+    const row = layouts[img.dataset.b]?.images?.[img.dataset.img]?.row;
+    if (!row || img.closest(".fp-side") || img.closest(".fp-imgrow")) return;
+    const key = img.parentElement;
+    if (!byRow.has(key)) byRow.set(key, new Map());
+    const m = byRow.get(key);
+    if (!m.has(row)) m.set(row, []);
+    m.get(row).push(img);
+  });
+  byRow.forEach(m => m.forEach(list => {
+    if (list.length < 2) return;
+    const wrap = document.createElement("div");
+    wrap.className = "fp-imgrow";
+    list[0].before(wrap);
+    list.forEach(i => wrap.appendChild(i));
+  }));
+  imgs.forEach(img => applyLayout(img));
+}
+if (typeof document !== "undefined") {
+  document.addEventListener("load", ev => { const t = ev.target; if (t && t.matches && t.matches("img.fp-img[data-img]")) { applyLayouts(t.closest(".fp-text") || document); } }, true);
+  let rz = 0;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => applyLayouts(), 120); });
 }
 
 function rulesRightHTML(section, doc) {
