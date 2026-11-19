@@ -396,7 +396,7 @@ async function exportTagImages(doc, images, pdfjs) {
       // Only this image's area is drawn (a very tall page can't be drawn whole): the scale is lowered if the crop is huge.
       const S = Math.min(3, 5000 / Math.max(r.x1 - r.x0, r.y1 - r.y0, 1));
       const vp = page.getViewport({ scale: S });
-      const G = 8;   // the crop reaches 8px past the box on every side
+      const G = 0;   // the tagged box already carries its own padding
       const sx = Math.max(0, Math.floor((r.x0 - view[0]) * S) - G), sy = Math.max(0, Math.floor((view[3] - r.y1) * S) - G);
       const sw = Math.min(Math.ceil(vp.width) - sx, Math.ceil((r.x1 - r.x0) * S) + 2 * G), sh = Math.min(Math.ceil(vp.height) - sy, Math.ceil((r.y1 - r.y0) * S) + 2 * G);
       if (sw < 4 || sh < 4) continue;
@@ -405,8 +405,8 @@ async function exportTagImages(doc, images, pdfjs) {
       g.fillStyle = "#fff"; g.fillRect(0, 0, sw, sh);
       await page.render({ canvasContext: g, viewport: vp, transform: [1, 0, 0, 1, -sx, -sy] }).promise;
       const trimmed = trimBlank(g.getImageData(0, 0, sw, sh), sw, sh);
-      // 8px of white all round, so an edge that sits right on the box is not cut off
-      const PAD = 8;
+      // no extra border: the box itself carries the padding
+      const PAD = 0;
       const c = document.createElement("canvas"); c.width = trimmed.w + PAD * 2; c.height = trimmed.h + PAD * 2;
       const cg = c.getContext("2d"); cg.fillStyle = "#fff"; cg.fillRect(0, 0, c.width, c.height);
       cg.putImageData(trimmed.data, PAD, PAD);
