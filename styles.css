@@ -1464,3 +1464,51 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* The rules text keeps its right padding even when a long unbroken word or a wide block would otherwise push it to the edge. */
 .fp-right > * { min-width: 0; }
 .fp-text { overflow-wrap: break-word; padding-right: 0; }
+
+/* ---------- Rules screens (Kill Team core rules and the like) on tablets and phones ---------- */
+.fp-pager, .fp-readbar { display: none; }
+@media (max-width: 1279px) {
+  /* the desktop's 120px right margin would leave a narrow strip of text here */
+  .fp-right { padding: 20px 32px calc(56px + env(safe-area-inset-bottom, 0px)) 28px; }
+  .fp-text { line-height: 1.6; }
+  .fp-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .fp-pg { display: flex; flex-direction: column; gap: 3px; min-height: 56px; padding: 10px 14px; text-align: left; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+  .fp-pg-prev { grid-column: 1; }
+  .fp-pg-next { grid-column: 2; text-align: right; align-items: flex-end; }
+  .fp-pg:hover, .fp-pg:active { background: var(--panel-2); border-color: var(--border-strong); }
+  .fp-pg-dir { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .fp-pg-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+}
+@media (pointer: coarse) {
+  .fp-item, .fp-grp > summary { min-height: 48px; }
+  .fp-item { align-items: center; }
+}
+@media (max-width: 760px) {
+  /* an open rule takes the whole screen, under a slim bar with the way back to the list */
+  .fp-readbar { display: flex; align-items: center; gap: 8px; flex: none; min-height: 52px; padding: 4px 12px 4px 4px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .fp-readback { min-height: 44px; padding: 0 12px; }
+  .fp-readname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .fp-shell.show-detail .fp-right { padding: 16px 18px calc(48px + env(safe-area-inset-bottom, 0px)); }
+  .fp-head h2 { font-size: 24px; line-height: 1.2; }
+  .fp-left { padding: 12px 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  /* a picture with text beside it stacks, centred above the text, at its own scaled size */
+  .fp-text .fp-side { flex-direction: column; align-items: center; gap: 10px; }
+  .fp-text .fp-side .fp-img { flex: 0 0 auto; width: auto; max-width: max(104px, calc(100% * var(--sc, 1))); }
+  .fp-text .fp-side-text { width: 100%; flex: 0 0 auto; }
+  .fp-text .fp-imgrow { flex-direction: column; align-items: center; }
+  .fp-text .fp-imgrow .fp-img { width: 100%; }
+  .fp-text .rf-qa .rf-q, .fp-text .rf-qa .rf-a { padding: 10px 14px; }
+}
+@media (max-width: 1279px) {
+  /* tablets: the rules banner becomes one slim row so the rules get the screen */
+  .fp-rulesbanner { min-height: 0; padding: 8px 20px 8px max(20px, env(safe-area-inset-left, 0px)); }
+  .fp-rulesbanner .fp-banner-text { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .fp-rulesbanner .fp-banner-name { font-size: 22px; }
+  .fp-rulesbanner .fp-homelink { margin-right: 4px; }
+  .fp-search-wrap { padding: 10px 20px 8px; }
+}
+@media (max-width: 760px) {
+  .fp-rulesbanner .fp-banner-kicker { display: none; }   /* the search box below already says "Search Core Rules" */
+  .fp-rulesbanner .fp-banner-text { flex-wrap: nowrap; }
+  .fp-rulesbanner .fp-banner-name { font-size: 22px; min-width: 0; }
+}

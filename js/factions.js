@@ -381,7 +381,12 @@ function renderFactionsPage() {
     const flat = sectionsGrouped(doc).flatMap(g => g.items);
     if (!fUI.ruleSel || !flat.some(s => ruleKey(s) === fUI.ruleSel)) fUI.ruleSel = flat[0] ? ruleKey(flat[0]) : null;
     const sel = flat.find(s => ruleKey(s) === fUI.ruleSel);
-    host.innerHTML = `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" || doc.kind === "collection" ? doc.title : "Core Rules")}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
+    // On a phone, an open rule gets the whole screen: the big banner and search bar give way to a slim bar with a way back to the list.
+    const phoneRead = fUI.open && isPhone();
+    const top = phoneRead
+      ? `<div class="fp-readbar"><button type="button" class="btn plain fp-readback" data-fp-back>‹ Rules</button><span class="fp-readname">${esc(doc.kind === "companion" || doc.kind === "collection" ? doc.title : (doc.pack?.game || doc.title))}</span></div>`
+      : `${rulesBannerHTML(doc)}${searchBarHTML(doc.kind === "companion" || doc.kind === "collection" ? doc.title : "Core Rules")}`;
+    host.innerHTML = `${top}<div class="fp-shell${fUI.open ? " show-detail" : ""}">
         <div class="fp-left">${rulesLeftHTML(doc, fUI.ruleSel, fUI.chOpen)}</div>
         <div class="fp-right" id="fpRight">${rulesRightHTML(sel, doc)}</div>
       </div>`;

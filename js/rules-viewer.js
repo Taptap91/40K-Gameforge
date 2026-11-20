@@ -48,7 +48,7 @@ function sectionsGrouped(doc) {
 function rulesBannerHTML(doc) {
   const game = doc.kind === "companion" || doc.kind === "collection" ? doc.title : doc.pack?.game || doc.title;   // a companion is named for itself, not the game
   const edition = doc.pack?.game ? doc.pack.editionTag : "";
-  return `<div class="fp-banner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : doc.kind === "companion" ? "Event Companion" : doc.kind === "collection" ? doc.section || "Reference" : "Update"}</div>
+  return `<div class="fp-banner fp-rulesbanner"><div class="fp-banner-text"><button type="button" class="btn plain fp-homelink" data-fp-home>‹ Back</button><div class="fp-banner-kicker">${doc.kind === "core" ? "Core Rules" : doc.kind === "companion" ? "Event Companion" : doc.kind === "collection" ? doc.section || "Reference" : "Update"}</div>
     <div class="fp-banner-name">${esc(game)}</div>${edition ? `<div class="fp-banner-kicker">${esc(edition)}</div>` : ""}</div></div>`;
 }
 
@@ -160,6 +160,7 @@ function applyLayout(img) {
   const sc = Math.max(5, Math.min(100, +e?.scale || 100)) / 100;
   if (img.closest(".fp-side")) { img.style.setProperty("--sc", sc); return; }
   if (!img.naturalWidth) return;
+  if (matchMedia("(max-width: 760px)").matches) { img.style.width = ""; return; }   // phones: a picture on its own fills the line (desktop percentages would make diagrams unreadable)
   const box = img.parentElement.clientWidth || img.naturalWidth;
   img.style.width = Math.round(Math.min(img.naturalWidth, box) * sc) + "px";
 }
@@ -190,10 +191,19 @@ if (typeof document !== "undefined") {
   window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => applyLayouts(), 120); });
 }
 
+/** Previous / Next rule buttons under a rule (shown on phones and tablets, where reading rule after rule means going back to the list otherwise). */
+function pagerHTML(section, doc) {
+  const flat = doc?.structured?.sections ? sectionsGrouped(doc).flatMap(g => g.items) : [];
+  const i = flat.findIndex(x => ruleKey(x) === ruleKey(section));
+  if (i < 0 || flat.length < 2) return "";
+  const btn = (x, dir) => x ? `<button type="button" class="fp-pg fp-pg-${dir}" data-fp-rule="${esc(ruleKey(x))}" data-fp-chapter="${esc(x.chapter || "")}"><span class="fp-pg-dir">${dir === "prev" ? "‹ Previous" : "Next ›"}</span><span class="fp-pg-name">${ruleLabelHTML(x)}</span></button>` : `<span></span>`;
+  return `<nav class="fp-pager" aria-label="Rule navigation">${btn(flat[i - 1], "prev")}${btn(flat[i + 1], "next")}</nav>`;
+}
+
 function rulesRightHTML(section, doc) {
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
   return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
-    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div>`;
+    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div>${pagerHTML(section, doc)}`;
 }
 
 export { ruleKey, sectionsGrouped, rulesBannerHTML, rulesLeftHTML, rulesRightHTML };
