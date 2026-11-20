@@ -1275,6 +1275,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 @container bsec (max-width: 600px) {
   .bs-cols, .fp-faccards { grid-template-columns: minmax(0, 1fr); }
 }
+/* Kill Team's top row is four columns (Core Rules, Updates, FAQs, Expansions): four across, then two, then one as the space narrows. */
+.bs-cols.bs-kt { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container bsec (max-width: 900px) { .bs-cols.bs-kt { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container bsec (max-width: 600px) { .bs-cols.bs-kt { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- Battle maps: every map, deployment or terrain, in the same frame, cropped to the board (js/map-crop.js) ---------- */
 .map-frame { width: 100%; max-width: 520px; margin: 0 auto; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 8px; background: #fff; }

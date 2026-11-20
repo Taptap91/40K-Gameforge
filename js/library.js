@@ -14,14 +14,14 @@ import { packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?
  *  this, since a pack is exactly the same .xlsx workbook this app's own data round-trips through.
  *  `meta.pack`, if given, is stamped onto the resulting doc so the Library can show where it came from and
  *  check for updates later. Returns the doc that was saved (a rules doc or a faction doc). */
-async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = null, title: titleOverride = "" } = {}) {
+async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = null, group = "", title: titleOverride = "" } = {}) {
   const book = await readXlsx(buffer);
   const niceName = titleOverride || fileName.replace(/\.xlsx$/i, "").replace(/[_]+/g, " ").trim();
   // A mission pack workbook, rather than rules or faction data.
   const missionPack = missionPackFromWorkbook(book);
   if (missionPack) {
     const doc = { id: uid(), title: titleOverride || missionPack.name, kind: "missions", faction: "", pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", structured: { missionPack }, chunks: missionChunks(missionPack), points: [] };
-    if (pack) doc.pack = pack;
+    if (pack) doc.pack = pack; if (group) doc.group = group;
     await replaceMissionPack(doc, fileName);
     return doc;
   }
@@ -29,7 +29,7 @@ async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = nul
   const collection = collectionFromWorkbook(book);
   if (collection) {
     const doc = { id: uid(), title: collection.title || niceName, kind: "collection", section: collection.section, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: collection.edition, structured: collection.structured, chunks: sectionChunks(collection.structured.sections) };
-    if (pack) doc.pack = pack;
+    if (pack) doc.pack = pack; if (group) doc.group = group;
     await replaceRulesDoc(doc, fileName);
     return doc;
   }
@@ -38,7 +38,7 @@ async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = nul
   if (rules) {
     const title = rules.title || niceName;
     const doc = { id: uid(), title, kind: rules.kind, pageCount: 0, importedAt: Date.now(), format: "structured", source: "excel", edition: rules.edition, structured: rules.structured, chunks: sectionChunks(rules.structured.sections) };
-    if (pack) doc.pack = pack;
+    if (pack) doc.pack = pack; if (group) doc.group = group;
     await replaceRulesDoc(doc, fileName);
     return doc;
   }
@@ -53,7 +53,7 @@ async function importWorkbookBuffer(buffer, fileName, { faction = "", pack = nul
   const worked = await packTheme(docFaction, doc.icon);
   // A faction that isn't built in and has no coloured symbol keeps the colours its workbook was made with.
   doc.theme = { rules: 1, ...(worked.from === "name" && theme?.c1 ? { c1: theme.c1, c2: theme.c2 || worked.c2, from: "workbook" } : worked) };
-  if (pack) doc.pack = pack;
+  if (pack) doc.pack = pack; if (group) doc.group = group;
   await replaceFaction(doc, fileName);
   return doc;
 }

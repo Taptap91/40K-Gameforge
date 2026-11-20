@@ -45,6 +45,7 @@ import { createReadStream, existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const GROUPS = ["Imperium", "Chaos", "Xenos"];
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const INCOMING = path.join(ROOT, "packs", "incoming");
 const PACKS_DIR = path.join(ROOT, "packs");
@@ -162,7 +163,8 @@ async function main() {
         await mkdir(bundleDir, { recursive: true });
         const fileName = `${slugify(what.kind === "faction" ? (meta.faction || what.faction || title) : title)}.xlsx`;
         await writeFile(path.join(bundleDir, fileName), bytes);
-        const entry = { kind: what.kind, title, faction: what.kind === "faction" ? (meta.faction || what.faction || title) : undefined, version: meta.version || new Date().toISOString().slice(0, 10), description: meta.description || "", file: `${bundle.id}/${fileName}`, sizeKB: Math.round(bytes.length / 1024) };
+        const group = GROUPS.includes(meta.group) ? meta.group : undefined;
+        const entry = { kind: what.kind, group, title, faction: what.kind === "faction" ? (meta.faction || what.faction || title) : undefined, version: meta.version || new Date().toISOString().slice(0, 10), description: meta.description || "", file: `${bundle.id}/${fileName}`, sizeKB: Math.round(bytes.length / 1024) };
         Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
         const key = componentKey(entry), i = bundle.components.findIndex(c => componentKey(c) === key);
         if (i >= 0) bundle.components[i] = entry; else bundle.components.push(entry);
@@ -191,8 +193,11 @@ async function main() {
         await writeFile(path.join(bundleDir, im.name), Buffer.from(im.base64, "base64"));
       }
 
+      // "group" in the sidecar (Imperium, Chaos or Xenos) is kept as given, so the app does not guess it from the name.
+      const group = GROUPS.includes(meta.group) ? meta.group : undefined;
       const entry = {
         kind: result.kind,
+        group,
         title,
         faction: result.kind === "faction" ? (meta.faction || result.faction || title) : undefined,
         section: result.kind === "collection" ? (result.section || section || undefined) : undefined,

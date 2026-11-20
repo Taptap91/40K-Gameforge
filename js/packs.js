@@ -158,6 +158,7 @@ async function downloadPack(bundle, row, body, mode = "update") {
       chip.textContent = `Installing ${i + 1} of ${total}…`;
       await importWorkbookBuffer(buffer, c.file.split("/").pop(), {
         title: c.title,
+        group: c.group || "",
         faction: c.kind === "faction" ? (c.faction || c.title) : "",
         pack: { bundleId: bundle.id, bundleTitle: bundle.title, componentKey: componentKey(c), version: c.version || "", game: bundle.game || "", editionTag: bundle.editionTag || "" },
       });

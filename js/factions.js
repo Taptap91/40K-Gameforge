@@ -153,6 +153,15 @@ const FACTION_GROUPS = [
   ["Chaos", ["Chaos Daemons", "Chaos Knights", "Chaos Space Marines", "Death Guard", "Emperor's Children", "Thousand Sons", "World Eaters"]],
   ["Xenos", null],
 ];
+/** Kill Team's teams, grouped the same way. A team not listed here falls into Xenos until it is added. */
+const KILL_TEAM_GROUPS = [
+  ["Imperium", []],
+  ["Chaos", ["Nemesis Claw"]],
+  ["Xenos", null],
+];
+/** The group a faction or team is in: the one its pack gave (Imperium, Chaos or Xenos) when there is one, otherwise worked out from its name. */
+const GROUP_NAMES = ["Imperium", "Chaos", "Xenos"];
+const groupOfDoc = (d, groups) => GROUP_NAMES.includes(d.group) ? d.group : (groups.find(([, list]) => list && list.some(x => normName(x) === normName(d.faction || d.title))) || groups[groups.length - 1])[0];
 const groupOf = f => (FACTION_GROUPS.find(([, list]) => list && list.some(x => normName(x) === normName(f))) || FACTION_GROUPS[2])[0];
 
 /** The Game Pack's sections screen: Core Rules at the top (its own section, boxed like a faction/codex),
@@ -161,6 +170,9 @@ const groupOf = f => (FACTION_GROUPS.find(([, list]) => list && list.some(x => n
 function bundleSectionsHTML(bundleId) {
   const docs = bundleDocs(bundleId);
   const title = docs[0]?.pack?.bundleTitle || bundleId;
+  const isKT = /kill\s*team/i.test(title);
+  const groups = isKT ? KILL_TEAM_GROUPS : FACTION_GROUPS;
+  const groupFor = d => groupOfDoc(d, groups);
   const core = docs.find(d => d.kind === "core");
   const updates = docs.filter(d => d.kind === "updates").sort((a, b) => a.title.localeCompare(b.title));
   const missions = docs.filter(d => d.kind === "missions").sort((a, b) => a.title.localeCompare(b.title));
@@ -173,8 +185,10 @@ function bundleSectionsHTML(bundleId) {
   const collections = new Map();
   for (const d of docs.filter(x => x.kind === "collection").sort((a, b) => a.title.localeCompare(b.title))) collections.set(d.section || "Reference", [...(collections.get(d.section || "Reference") || []), d]);
   const allFacs = docs.filter(d => d.kind === "faction").sort((a, b) => String(a.faction || a.title).localeCompare(String(b.faction || b.title)));
-  const facGroup = allFacs.some(d => groupOf(d.faction || d.title) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
-  const facs = facGroup === "All" ? allFacs : allFacs.filter(d => groupOf(d.faction || d.title) === facGroup);
+  // Kill Team: its teams are the faction-style files plus any Sections file named "Kill Teams".
+  const teamList = isKT ? [...allFacs, ...(collections.get("Kill Teams") || [])] : allFacs;
+  const facGroup = teamList.some(d => groupFor(d) === fUI.facGroup) || fUI.facGroup === "All" ? fUI.facGroup : "All";
+  const facs = facGroup === "All" ? teamList : teamList.filter(d => groupFor(d) === facGroup);
 
   // Each card's data-search covers that whole component's own content (every rule, stratagem, unit…),
   // not just its name — so a search here can find a term buried inside any of a Game Pack's sections.
@@ -200,9 +214,25 @@ function bundleSectionsHTML(bundleId) {
   // One titled column of boxes. Wide screens lay the columns side by side (see .bs-cols in styles.css).
   const column = (cls, label, cards) => cards ? `<div class="fp-sgrp bs-col ${cls}"><div class="group-title">${esc(label)}</div><div class="lib-cards">${cards}</div></div>` : "";
   const facToggle = `<div class="set-tabs fp-facgroup-tabs" role="tablist" aria-label="Faction group">
-      ${["All", ...FACTION_GROUPS.map(([g]) => g)].map(g => `<button type="button" role="tab" class="set-tab${facGroup === g ? " on" : ""}" aria-selected="${facGroup === g}" data-fp-facgroup="${esc(g)}">${esc(g)}</button>`).join("")}
+      ${["All", ...groups.map(([g]) => g)].map(g => `<button type="button" role="tab" class="set-tab${facGroup === g ? " on" : ""}" aria-selected="${facGroup === g}" data-fp-facgroup="${esc(g)}">${esc(g)}</button>`).join("")}
     </div>`;
 
+  const teamCard = d => companionCard(d, "users");
+  if (isKT) {
+    const faqs = updates.filter(d => /faq/i.test(d.title)), others = updates.filter(d => !/faq/i.test(d.title));
+    const expansions = [...missions.map(missionCard), ...comps.map(d => companionCard(d))].join("");
+    return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>${searchBarHTML("this Game Pack")}
+    <div class="fp-bundle-sections">
+      <div class="bs-cols bs-kt">
+        ${column("bs-core", "Core Rules", core ? coreCard(core) : "")}
+        ${column("bs-upd", "Updates", others.map(updateCard).join(""))}
+        ${column("bs-faq", "FAQs", faqs.map(updateCard).join(""))}
+        ${column("bs-mis", "Expansions", expansions)}
+      </div>
+      ${teamList.length ? `<div class="fp-sgrp"><div class="group-title">Kill Teams</div>${facToggle}<div class="lib-cards fp-faccards">${facs.length ? facs.map(teamCard).join("") : `<p class="fp-empty">No Kill Teams in ${esc(facGroup)}.</p>`}</div></div>` : ""}
+      <p class="fp-empty fp-search-none" hidden>Nothing in this Game Pack matches your search.</p>
+    </div>`;
+  }
   return `<div class="fp-banner"><div class="fp-banner-text">${HOME_LINK}<div class="fp-banner-kicker">Game Pack</div><div class="fp-banner-name">${esc(title)}</div></div></div>${searchBarHTML("this Game Pack")}
     <div class="fp-bundle-sections">
       <div class="bs-cols">
