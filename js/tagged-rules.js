@@ -10,7 +10,7 @@
  *   sub-heading (H3), by the entry's size, boldness or indent in the contents. Flags always win over the contents.
  * Output has the same shape as parseRulesPdfAuto, so rulesToSheets can write it as a normal rules workbook. */
 import { dropPageFurniture } from "./faction-parser.js";
-import { cardLine, cardPlain } from "./text.js?v=8.80";
+import { cardLine, cardPlain } from "./text.js?v=8.81";
 
 // H1 = a section, H2 = a rule inside it, H3 = a sub-heading inside the text. The PDF title comes from file metadata, so it is never a heading.
 // Internal depths start at 2 so the section logic below is unchanged.
@@ -175,7 +175,7 @@ function buildCards(pages, lines, roleTags) {
     const by = role => mine.filter(t => t.role === role).sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
     const one = role => by(role)[0];
     const txt = b => (b ? textOf(itemsIn(tt.page, b)) : "");
-    const card = { name: textOf(itemsIn(tt.page, tt)), type: by("type").map(txt).filter(Boolean).join(" · "), flavour: txt(one("flavour")), stats: [], weapons: [], abilities: [], keywords: "", hot: "", base: "" };
+    const card = { tpl: "killteam", name: textOf(itemsIn(tt.page, tt)), type: by("type").map(txt).filter(Boolean).join(" · "), flavour: txt(one("flavour")), stats: [], weapons: [], abilities: [], keywords: "", hot: "", base: "" };
     // stats: each label with the value under it
     const vals = by("stat-value");
     by("stat-label").sort((a, b) => a.x0 - b.x0).forEach(l => {
