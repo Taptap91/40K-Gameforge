@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.78";
-import { cardOf, richHTML, softenCaps } from "./text.js?v=8.78";
+import { esc } from "./core.js?v=8.79";
+import { cardOf, richHTML, softenCaps } from "./text.js?v=8.79";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -89,7 +89,7 @@ function datacardHTML(c) {
     `<div class="rf-dc-wr"><span class="rf-dc-wn">${esc(w.n)}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.d)}</span><span class="rf-dc-wrs">${wr(w.w)}</span></div>`).join("")}</div>` : "";
   const abil = (c.abilities || []).map(a => `<p class="rf-dc-ab">${a.n ? `<b>${esc(a.n)}:</b> ` : ""}${esc(a.t)}</p>`).join("");
   const kws = String(c.keywords || "").split(/\s*,\s*/).filter(Boolean).map(k => c.hot && k.toLowerCase() === c.hot.toLowerCase() ? `<span class="rf-dc-hot">${esc(k)}</span>` : esc(k)).join(", ");
-  const foot = kws || c.base ? `<div class="rf-dc-foot"><span class="rf-dc-kw">${kws}</span><span class="rf-dc-base">${baseHTML(c.base)}</span></div>` : "";
+  const foot = kws ? `<div class="rf-dc-foot"><span class="rf-dc-kw">${kws}</span></div>` : "";   // the base size is read into the card but not shown
   return `<div class="rf-dc"><div class="rf-dc-bar"><span class="rf-dc-name">${esc(c.name)}</span><span class="rf-dc-type">${esc(c.type || "")}</span></div>${c.flavour ? `<p class="rf-dc-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-dc-stats">${stats}</div>${weapons}${abil}${foot}</div>`;
 }
 
