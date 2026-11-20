@@ -160,7 +160,8 @@ function applyLayout(img) {
   const sc = Math.max(5, Math.min(100, +e?.scale || 100)) / 100;
   if (img.closest(".fp-side")) { img.style.setProperty("--sc", sc); return; }
   if (!img.naturalWidth) return;
-  if (matchMedia("(max-width: 760px)").matches) { img.style.width = ""; return; }   // phones: a picture on its own fills the line (desktop percentages would make diagrams unreadable)
+  // phones: a large picture on its own fills the line (the desktop percentages would make diagrams unreadable), but a small one (a screenshot-sized picture) keeps its percentage
+  if (matchMedia("(max-width: 760px)").matches && img.naturalWidth > 520) { img.style.width = ""; return; }
   const box = img.parentElement.clientWidth || img.naturalWidth;
   img.style.width = Math.round(Math.min(img.naturalWidth, box) * sc) + "px";
 }
