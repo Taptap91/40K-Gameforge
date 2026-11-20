@@ -218,6 +218,15 @@
           "description": "",
           "file": "kill-team-3rd-edition/core-rules.xlsx",
           "sizeKB": 22
+        },
+        {
+          "kind": "collection",
+          "title": "Nemesis Claw",
+          "section": "Kill Teams",
+          "version": "2026-11-20",
+          "description": "",
+          "file": "kill-team-3rd-edition/nemesis-claw.xlsx",
+          "sizeKB": 5
         }
       ]
     }
