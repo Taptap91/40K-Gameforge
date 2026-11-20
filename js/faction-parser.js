@@ -1,8 +1,8 @@
 /* RulesForge · faction-parser.js
  * Turns faction pack text into datasheets, detachments, army rules and points. Two readers: normal letter/A4 pages, and very tall single-page exports.
  */
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.77";
-import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.77";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.78";
+import { cleanGlyphs, isStatValue, isUpperText, joinParagraphs, letterCount, normName, stripRich, titleCase, upperKeywords } from "./text.js?v=8.78";
 
 /**
  * Reads points by position on the page, for datasheet-style PDFs (e.g. Wahapedia exports) where
