@@ -16,14 +16,14 @@
 // own entry point (js/main.js) happens to unwind that cycle safely; this harness isn't that entry point,
 // so without this it can hit a "Cannot access 'DATASHEET_GROUPS' before initialization" TDZ error. Importing
 // factions.js first forces datasheets.js to finish initializing before anything here needs it.
-import "../js/factions.js?v=8.74.1";
-import { colourItems, getPdfJs, readPdf } from "../js/pdf-reader.js?v=8.74.1";
-import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.74.1";
-import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.74.1";
-import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.74.1";
-import { taggedRules, exportTagImages } from "../js/tagged-rules.js?v=8.74.1";
-import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.74.1";
-import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.74.1";
+import "../js/factions.js?v=8.75";
+import { colourItems, getPdfJs, readPdf } from "../js/pdf-reader.js?v=8.75";
+import { looksLikeMissionPack, missionPackFromWorkbook, missionPackToSheets, parseMissionPack } from "../js/mission-parser.js?v=8.75";
+import { dropPageFurniture, factionRichness, parseFactionPdf, parsePrintedFactionPdf, armyRulesFromLayout, groupArmyRules, mergeArmyRules } from "../js/faction-parser.js?v=8.75";
+import { collectionFromWorkbook, collectionToSheets, detectEdition, parseRulesPdfAuto, rulesFromWorkbook, rulesToSheets } from "../js/rules-doc.js?v=8.75";
+import { taggedRules, exportTagImages } from "../js/tagged-rules.js?v=8.75";
+import { buildXlsx, readXlsx, structuredFromWorkbook, structuredToSheets } from "../js/excel.js?v=8.75";
+import { packFaction, sortDatasheetAbilities } from "../js/pack-rules.js?v=8.75";
 
 const PACK_MIN_DATASHEETS = 5;
 
