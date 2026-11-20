@@ -1512,3 +1512,10 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
   .fp-rulesbanner .fp-banner-text { flex-wrap: nowrap; }
   .fp-rulesbanner .fp-banner-name { font-size: 22px; min-width: 0; }
 }
+/* tablets and phones: the token / icon pictures that sit beside text are 40% smaller */
+@media (max-width: 1279px) {
+  .fp-text .fp-side .fp-img { flex-basis: calc(42% * var(--sc, 1) * 0.6); max-width: calc(42% * var(--sc, 1) * 0.6); }
+}
+@media (max-width: 760px) {
+  .fp-text .fp-side .fp-img { flex: 0 0 auto; width: auto; max-width: max(64px, calc(100% * var(--sc, 1) * 0.6)); }
+}
