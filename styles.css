@@ -1547,5 +1547,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .rf-ploy-bar { display: flex; justify-content: space-between; align-items: center; background: #0b0b0b; color: #fff;
   padding: 6px 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; font-size: .95em; }
 .fp-text .rf-ploy-bar .rf-act-ap { letter-spacing: .18em; }
-.fp-text .rf-ploy-body { padding: 10px 14px 14px; }
+.fp-text .rf-ploy-body { padding: 4px 14px 14px; }
 .fp-text .rf-ploy-body p { margin: 6px 0; }
+.fp-text .rf-ploy-body p:first-child { margin-top: 0; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,.3); }
+.fp-text .rf-ploy-body p:first-child + p { margin-top: 10px; }
