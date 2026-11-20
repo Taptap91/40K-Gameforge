@@ -3,9 +3,9 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.82";
-import { cardOf, richHTML, softenCaps } from "./text.js?v=8.82";
-import { renderCard } from "./card-templates.js?v=8.82";
+import { esc } from "./core.js?v=8.83";
+import { cardOf, richHTML, softenCaps } from "./text.js?v=8.83";
+import { renderCard } from "./card-templates.js?v=8.83";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
