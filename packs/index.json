@@ -226,7 +226,8 @@
           "version": "2026-11-20",
           "description": "",
           "file": "kill-team-3rd-edition/nemesis-claw.xlsx",
-          "sizeKB": 5
+          "sizeKB": 5,
+          "group": "Chaos"
         }
       ]
     }
