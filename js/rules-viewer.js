@@ -141,14 +141,22 @@ function bodyHTML(text, bundleId, keepCaps, title) {
     html += `<div class="rf-act"><div class="rf-act-bar"><span class="rf-act-name">${esc(title)}</span><span class="rf-act-ap">${esc(ap[1])}AP</span></div><div class="rf-act-body">${rows}</div></div>`;
     lines = lines.slice(k);
   }
-  // A ploy ("**Name**" followed by an italic "*... Ploy*" line) gets a dark bar with its name and CP cost, like the rulebook's.
-  lines = lines.map((l, i) => /^\*\*[^*]+\*\*$/.test(l.trim()) && /^\*[^*]*\bPloy\*$/i.test((lines[i + 1] || "").trim()) ? `[ploy: ${l.trim().slice(2, -2)}]` : l);
+  // A ploy ("**Name**" followed by an italic "*... Ploy*" line) is a card: a dark bar with its name and CP cost, and the ploy's own lines inside the border.
+  const ployCards = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!(/^\*\*[^*]+\*\*$/.test(lines[i].trim()) && /^\*[^*]*\bPloy\*$/i.test((lines[i + 1] || "").trim()))) continue;
+    let j = i + 1;
+    while (j < lines.length && lines[j].trim() && !/^(?:Q:|\[|\*\*|\u2063)/.test(lines[j].trim())) j++;
+    const name = lines[i].trim().slice(2, -2);
+    ployCards.push(`<div class="rf-ploy"><div class="rf-ploy-bar"><span class="rf-act-name">${esc(name)}</span><span class="rf-act-ap">1CP</span></div><div class="rf-ploy-body">${richHTML(lines.slice(i + 1, j).join("\n"), { keepCaps, iconBase: base })}</div></div>`);
+    lines.splice(i, j - i, `[ployhtml: ${ployCards.length - 1}]`);
+  }
   const flush = () => { if (chunk.length) html += qaHTML(joinWraps(joinNums(chunk))); chunk = []; };
   for (const line of lines) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
-    const pl = /^\[ploy: (.+?)\]$/.exec(t);
-    if (pl) { flush(); html += `<div class="rf-ploy"><span class="rf-act-name">${esc(pl[1])}</span><span class="rf-act-ap">1CP</span></div>`; continue; }
+    const pl = /^\[ployhtml: (\d+)\]$/.exec(t);
+    if (pl) { flush(); html += ployCards[+pl[1]]; continue; }
     if (t === "[/side]") {
       const body = chunk.length ? qaHTML(joinWraps(joinNums(chunk))) : ""; chunk = [];
       html += `<div class="fp-side">${bundleId && side ? imgTag(side) : ""}<div class="fp-side-text">${body}</div></div>`;
