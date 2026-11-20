@@ -1,22 +1,22 @@
 /* RulesForge · main.js
  * Start-up, page switching and event wiring.
  */
-import "./map-crop.js?v=8.84";
-import "./custom.js?v=8.84";
-import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.84";
-import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.84";
-import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.84";
-import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.84";
-import { renderCollections, wireCollections } from "./collections.js?v=8.84";
-import * as core from "./core.js?v=8.84";
-import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.84";
-import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.84";
-import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.84";
-import { buildIndex } from "./search.js?v=8.84";
-import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.84";
-import { fixApostrophes } from "./text.js?v=8.84";
-import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.84";
-import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.84";
+import "./map-crop.js?v=8.85";
+import "./custom.js?v=8.85";
+import { AI, openAISheet, renderAIStatus } from "./ai.js?v=8.85";
+import { $, $$, confirmSheet, DB, esc, KNOWN_FACTIONS, state, store, toast } from "./core.js?v=8.85";
+import { factionsInLibrary, openLibraryMenu } from "./library.js?v=8.85";
+import { checkBundle, openPacksSheet, refreshBundle } from "./packs.js?v=8.85";
+import { renderCollections, wireCollections } from "./collections.js?v=8.85";
+import * as core from "./core.js?v=8.85";
+import { goHome, openStyleSheet, renderFactionsPage, wireFactionsPage } from "./factions.js?v=8.85";
+import { renderListsPage, renderSaved, wireListBuilder } from "./list-editor.js?v=8.85";
+import { ask, renderChat, renderScope, updateSendButton } from "./rules-chat.js?v=8.85";
+import { buildIndex } from "./search.js?v=8.85";
+import { askForAccountOnce, openPlayerSheet, renderBattlePage, wireBattlePage } from "../battle/battle.js?v=8.85";
+import { fixApostrophes } from "./text.js?v=8.85";
+import { groupArmyRules, tidyApostrophes } from "./faction-parser.js?v=8.85";
+import { PACK_RULES_VERSION, loadFactionKit, packFaction, packTheme, sortDatasheetAbilities } from "./pack-rules.js?v=8.85";
 
 function renderAll() {
   renderScope();

@@ -6,8 +6,8 @@
  *   3. Here: add a function that returns the card's HTML and register it in CARD_TEMPLATES, then add its CSS to styles.css.
  * Warhammer 40,000 has no entry: its datasheets are read by the app's own parser (datasheets.js), not as cards.
  */
-import { esc } from "./core.js?v=8.84";
-import { richHTML } from "./text.js?v=8.84";
+import { esc } from "./core.js?v=8.85";
+import { richHTML } from "./text.js?v=8.85";
 
 /** A Kill Team datacard: title bar (name, type), italic flavour, stat tiles in a row, weapons table, abilities, then the keywords (the base size is read but not shown). */
 function killTeamCard(c) {
@@ -35,6 +35,15 @@ function aosAbility(c) {
   return `<div class="rf-ab" style="--ph:${phaseColour(c.phase)}"><div class="rf-ab-bar"><span>${esc(c.phase || "")}</span>${cp ? `<span class="rf-ab-cp">${esc(/^\d+$/.test(cp) ? cp + " CP" : cp)}</span>` : ""}</div><div class="rf-ab-body">${parts.join('<hr class="rf-ab-sep">')}</div>${kws ? `<div class="rf-ab-kw"><span class="rf-ab-kl">Keywords</span><span class="rf-ab-kv">${esc(kws)}</span></div>` : ""}</div>`;
 }
 
+/** Lifts a faction's panel colour (dark, as printed) to one that reads as a border on a dark page: same hue, softer, lighter. "" when it is not a colour. */
+function accentOf(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex || "")); if (!m) return "";
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0; if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const l = (mx + mn) / 2, s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  return `hsl(${Math.round(h * 60)}, ${Math.round(Math.min(s, 0.5) * 100)}%, 40%)`;
+}
+
 /** An Age of Sigmar warscroll: kicker and name, flavour, stat tiles in a row (Move, Health, Save, Control), weapons table, battle profile, abilities, keywords. */
 function aosWarscroll(c) {
   const wr = n => n ? `<button type="button" class="rf-wr" data-wr="${esc(String(n).replace(/\s*\(.*$/, ""))}">${esc(n)}</button>` : "";
@@ -45,7 +54,7 @@ function aosWarscroll(c) {
     wt += `<div class="rf-aw-wr"><span class="rf-aw-wn">${esc(w.n)}${w.note ? `<small>${wr(w.note)}</small>` : ""}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.w)}</span><span>${esc(w.r)}</span><span>${esc(w.d)}</span></div>`; });
   const prof = (c.profile || []).length ? `<div class="rf-aw-prof"><b>Battle profile</b>${c.profile.map(([k, v]) => `<span><b>${esc(k)}:</b> ${esc(v)}</span>`).join("")}</div>` : "";
   const kws = (c.keywords || []).map(k => `<span class="rf-aw-kv">${esc(k)}</span>`).join("");
-  return `<div class="rf-aw">${c.kicker ? `<div class="rf-aw-kick">${esc(c.kicker)}</div>` : ""}<div class="rf-aw-bar">${esc(c.name)}</div>${c.flavour ? `<p class="rf-aw-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-aw-stats">${stats}</div>${wt ? `<div class="rf-aw-wt">${wt}</div>` : ""}${(c.abilities || []).map(aosAbility).join("")}${kws ? `<div class="rf-aw-kw"><span class="rf-ab-kl">Keywords</span><div>${kws}</div></div>` : ""}${prof}</div>`;
+  return `<div class="rf-aw"${accentOf(c.colour) ? ` style="--aos:${accentOf(c.colour)}"` : ""}>${c.kicker ? `<div class="rf-aw-kick">${esc(c.kicker)}</div>` : ""}<div class="rf-aw-bar">${esc(c.name)}</div>${c.flavour ? `<p class="rf-aw-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-aw-stats">${stats}</div>${wt ? `<div class="rf-aw-wt">${wt}</div>` : ""}${(c.abilities || []).map(aosAbility).join("")}${kws ? `<div class="rf-aw-kw"><span class="rf-ab-kl">Keywords</span><div>${kws}</div></div>` : ""}${prof}</div>`;
 }
 
 const CARD_TEMPLATES = { killteam: killTeamCard, aos: aosWarscroll, "aos-ability": aosAbility };

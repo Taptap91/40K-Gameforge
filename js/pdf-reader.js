@@ -1,7 +1,7 @@
 /* RulesForge · pdf-reader.js
  * Reads a PDF's text with positions, using pdf.js (loaded only when a PDF is added).
  */
-import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.84";
+import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.85";
 
 const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
@@ -119,6 +119,8 @@ async function readPdf(file, onPage) {
     // A small picture set between two pieces of text on one line (Kill Team's skull inside a team name) is an inline icon:
     // the text after it is marked, and joins the text before it directly when it touches the icon.
     try { await inlineIcons(page, items, pageHeight); } catch {}
+    let fills = [];
+    if (tagged) { try { fills = await fillRects(page, pageHeight); } catch {} }   // panel colours, for a card that takes its colour from its faction
     // Bullets drawn as small filled dots (not text) sit just left of the line they start: those lines are marked it.bu.
     try { await bulletDots(page, items, pageHeight); } catch {}
     // Detachments: the Force Disposition symbol printed beside "1DP" is a picture; it's recognised by its colour.
@@ -139,7 +141,7 @@ async function readPdf(file, onPage) {
         image = c.toDataURL("image/png");
       } catch { image = null; }
     }
-    if (cleaned) pages.push({ number: n, text: cleaned, items, top: offset, ph: pageHeight, pw: pageWidth, image, scale });
+    if (cleaned) pages.push({ number: n, text: cleaned, items, fills, top: offset, ph: pageHeight, pw: pageWidth, image, scale });
     offset += pageHeight + 20;
     onPage(n, pdf.numPages);
   }
@@ -149,6 +151,31 @@ async function readPdf(file, onPage) {
     if (meta?.info?.Title?.trim()) title = meta.info.Title.trim();
   } catch {}
   return { title, pageCount: pdf.numPages, pages, bookIcons, tags, doc: pdf };
+}
+
+/** Filled rectangles with their colour, for a tagged conversion: a warscroll's faction colour is the colour of its big filled panels.
+ *  Each is { x0, x1, y0, y1 (top down, from the top of its page), col: "#rrggbb" }; tiny shapes are left out. */
+async function fillRects(page, pageHeight) {
+  const ops = await page.getOperatorList(), OPS = pdfjs.OPS;
+  const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+  const paint = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
+  const hex = c => "#" + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  let m = [1, 0, 0, 1, 0, 0], col = "#000000"; const stack = [], out = [];
+  for (let k = 0; k < ops.fnArray.length; k++) {
+    const fn = ops.fnArray[k], a = ops.argsArray[k];
+    if (fn === OPS.save) stack.push([m, col]);
+    else if (fn === OPS.restore) { const t = stack.pop(); if (t) [m, col] = t; else m = [1, 0, 0, 1, 0, 0]; }
+    else if (fn === OPS.transform) m = mul(m, a);
+    else if (fn === OPS.paintFormXObjectBegin) { stack.push([m, col]); if (a && a[0]) m = mul(m, a[0]); }
+    else if (fn === OPS.paintFormXObjectEnd) { const t = stack.pop(); if (t) [m, col] = t; }
+    else if (fn === OPS.setFillRGBColor) col = typeof a[0] === "string" ? a[0] : hex([a[0], a[1], a[2]]);   // this pdf.js gives "#rrggbb"; older ones gave r, g, b
+    else if (fn === OPS.constructPath && a[2] && paint.has(a[0])) {
+      const mm = a[2], c = [[mm[0], mm[1]], [mm[2], mm[1]], [mm[0], mm[3]], [mm[2], mm[3]]].map(([u, v]) => [m[0] * u + m[2] * v + m[4], m[1] * u + m[3] * v + m[5]]);
+      const xs = c.map(q => q[0]), ys = c.map(q => q[1]), w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+      if (w >= 12 && h >= 6) out.push({ x0: Math.min(...xs), x1: Math.max(...xs), y0: pageHeight - Math.max(...ys), y1: pageHeight - Math.min(...ys), col });
+    }
+  }
+  return out;
 }
 
 /** Bullet points drawn as small filled shapes: the item that starts right after one gets it.bu = true. */

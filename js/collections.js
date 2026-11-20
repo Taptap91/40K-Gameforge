@@ -4,8 +4,8 @@
  * the page swipes between games. Picking a collection opens it on the right: add units from that faction, and track
  * each unit's models as Sprue, Assembled and Painted. Collections are saved on this device only.
  */
-import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.84";
-import { factionStyle } from "./factions.js?v=8.84";
+import { $, confirmSheet, esc, openPopMenu, openSheet, state, store, toast } from "./core.js?v=8.85";
+import { factionStyle } from "./factions.js?v=8.85";
 
 const KEY = "rf.collections";
 let selectedId = null;

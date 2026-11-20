@@ -10,7 +10,7 @@
  *   sub-heading (H3), by the entry's size, boldness or indent in the contents. Flags always win over the contents.
  * Output has the same shape as parseRulesPdfAuto, so rulesToSheets can write it as a normal rules workbook. */
 import { dropPageFurniture } from "./faction-parser.js";
-import { cardLine, cardPlain } from "./text.js?v=8.84";
+import { cardLine, cardPlain } from "./text.js?v=8.85";
 
 // H1 = a section, H2 = a rule inside it, H3 = a sub-heading inside the text. The PDF title comes from file metadata, so it is never a heading.
 // Internal depths start at 2 so the section logic below is unchanged.
@@ -153,6 +153,21 @@ function imageBoxes(tags, title) {
   });
 }
 
+
+/** The faction colour of a card: the colour that covers the most area among the saturated filled panels inside its box (greys, black and white are ignored).
+ *  Returns "#rrggbb", or "" when the card has none. Tested only on rebuilt pages; a real PDF may paint its panels another way. */
+function factionColour(page, box) {
+  const tot = new Map();
+  for (const f of page?.fills || []) {
+    const cx = (f.x0 + f.x1) / 2, cy = (f.y0 + f.y1) / 2;
+    if (cx < box.x0 || cx > box.x1 || cy < box.y0 || cy > box.y1) continue;
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(f.col.slice(i, i + 2), 16));
+    if (Math.max(r, g, b) - Math.min(r, g, b) < 28 || Math.max(r, g, b) > 235) continue;
+    const key = [r, g, b].map(v => v >> 4).join(","), e = tot.get(key) || { n: 0, col: f.col };
+    e.n += (f.x1 - f.x0) * (f.y1 - f.y0); tot.set(key, e);
+  }
+  return [...tot.values()].sort((a, b) => b.n - a.n)[0]?.col || "";
+}
 
 /** Kill Team datacards. PDF Studio's Kill Team style tags each part of a card as a box with a role (title, flavour, stat-label, stat-value,
  *  head-atk…, weapon, weapon-wr, ability, ability-name, keywords, base). Each card becomes one rule: its name is the heading and its
@@ -641,4 +656,4 @@ function trimBlank(img, w, h) {
   return { w: cw, h: ch, data: cropped };
 }
 
-export { taggedRules, exportTagImages };
+export { taggedRules, exportTagImages, factionColour };
