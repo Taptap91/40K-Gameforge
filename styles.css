@@ -650,7 +650,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-imeta { font-size: 15px; color: var(--text-2); white-space: nowrap; }
 .fp-head { display: flex; flex-direction: column-reverse; gap: 4px; padding-bottom: 6px; }
 .fp-head h2 { margin: 0; font-size: 22px; }
-.fp-sub { font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--accent); }
+.fp-sub { font-size: 16px; font-weight: 600; letter-spacing: .02em; color: var(--accent); }
 /* A rule's number, in the left list and the right-hand heading: not bold, with the dash either
    side of it given a little extra breathing room. */
 .fp-rulenum { font-weight: 400; }
