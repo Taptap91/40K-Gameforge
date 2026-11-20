@@ -546,59 +546,6 @@ function onSwipeRight(el, where, cb) {
     if (!wFired && wx < -60 && Math.abs(wy) < Math.abs(wx) * 0.6) { wFired = true; cb(); }
   }, { passive: true });
 }
-/** Like onSwipeRight, for a swipe either way: `left` runs on a swipe to the left (finger, or a trackpad's two-finger swipe), `right` on a swipe to the right. */
-function onSwipeBoth(el, where, left, right) {
-  let x0 = null, y0 = 0;
-  el.addEventListener("touchstart", e => { const t = e.touches[0]; x0 = where(e) ? t.clientX : null; y0 = t.clientY; }, { passive: true });
-  el.addEventListener("touchend", e => {
-    if (x0 == null) return;
-    const t = e.changedTouches[0], dx = t.clientX - x0, dy = Math.abs(t.clientY - y0); x0 = null;
-    if (Math.abs(dx) > 70 && dy < Math.abs(dx) * 0.6) (dx < 0 ? left : right)();
-  }, { passive: true });
-  let wx = 0, wy = 0, wTimer = null, wFired = false;
-  el.addEventListener("wheel", e => {
-    if (e.ctrlKey || !where(e)) return;
-    wx += e.deltaX; wy += e.deltaY;
-    clearTimeout(wTimer);
-    wTimer = setTimeout(() => { wx = 0; wy = 0; wFired = false; }, 220);
-    if (!wFired && Math.abs(wx) > 60 && Math.abs(wy) < Math.abs(wx) * 0.6) { wFired = true; (wx > 0 ? left : right)(); }
-  }, { passive: true });
-}
-/** The rule before / after the open one in a rules document, or null. */
-function ruleNeighbor(dir) {
-  if (!fUI.rulesDoc) return null;
-  const doc = state.docs.find(d => d.id === fUI.rulesDoc);
-  if (!doc?.structured?.sections) return null;
-  const flat = sectionsGrouped(doc).flatMap(g => g.items), i = flat.findIndex(s => ruleKey(s) === fUI.ruleSel);
-  return i < 0 ? null : flat[i + dir] || null;
-}
-/** Moves to the next (dir 1) or previous (dir -1) rule: the screen slides out the way the finger went and the new rule slides in. */
-function goRule(dir) {
-  const n = ruleNeighbor(dir);
-  if (!n) return;
-  const host = document.getElementById("factionsHost");
-  const change = () => {
-    if (!fUI.chOpen) fUI.chOpen = new Set();
-    if (n.chapter) fUI.chOpen.add(n.chapter);
-    fUI.ruleSel = ruleKey(n);
-    fUI.open = isPhone();
-    const left = host?.querySelector(".fp-left"), keep = left?.scrollTop;
-    renderFactionsPage();
-    const l2 = document.querySelector("#factionsHost .fp-left"); if (l2 && keep != null) l2.scrollTop = keep;
-    const r = document.querySelector("#factionsHost .fp-right"); if (r) r.scrollTop = 0;
-    document.querySelector("#factionsHost .fp-left .fp-item.on, #factionsHost .fp-left .fp-grp-click.on")?.scrollIntoView({ block: "nearest" });
-  };
-  if (!host || prefersReducedMotion()) { change(); return; }
-  host.classList.add(dir > 0 ? "fp-leaving-l" : "fp-leaving");
-  setTimeout(() => {
-    change();
-    const h = document.getElementById("factionsHost");
-    if (!h) return;
-    h.classList.remove("fp-leaving-l", "fp-leaving");
-    h.classList.add(dir > 0 ? "fp-entering-r" : "fp-entering");
-    h.addEventListener("animationend", () => h.classList.remove("fp-entering-r", "fp-entering"), { once: true });
-  }, 150);
-}
 /** Animates the current screen sliding out to the right before `mutate` changes what's shown, then
  *  slides the new screen in from the left — the "swipe/tap back" transition used throughout the app. */
 function animateBack(mutate) {
@@ -668,14 +615,10 @@ function wireFactionsPage() {
     if (grp) { fUI.facGroup = grp.dataset.fpFacgroup; renderFactionsPage(); }
   });
   // Phones and tablets: swipe right (finger or trackpad) on the datasheet to go back to the list.
-  // In a rules document the reading pane swipes between rules: left for the next one, right for the previous one
-  // (swiping right on the first rule keeps its old job of going back).
-  const readSwipe = e => !!fUI.rulesDoc && isTouchLayout() && !!e.target.closest(".fp-right");
-  onSwipeBoth(view, readSwipe, () => goRule(1), () => { if (ruleNeighbor(-1)) goRule(-1); });
-  onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right") && !(readSwipe(e) && ruleNeighbor(-1)), () => { if (fUI.open) animateBack(() => { fUI.open = false; renderFactionsPage(); }); });
+  onSwipeRight(view, e => !!e.target.closest(".fp-shell.show-detail .fp-right"), () => { if (fUI.open) animateBack(() => { fUI.open = false; renderFactionsPage(); }); });
   // Anywhere else in a faction, mission pack, rules document or Game Pack's own sections screen:
   // swipe right (finger or trackpad) to go back one level (to the Game Pack it came from, or Home).
-  onSwipeRight(view, e => !fUI.home && !fUI.open && !!e.target.closest(".fp-left, .fp-right, .fp-bundle-sections") && !(readSwipe(e) && ruleNeighbor(-1)), () => animateBack(goBack));
+  onSwipeRight(view, e => !fUI.home && !fUI.open && !!e.target.closest(".fp-left, .fp-right, .fp-bundle-sections"), () => animateBack(goBack));
   // Keyboard: Enter or Space on a faction's, mission pack's, Game Pack's or rules box in the library opens it.
   view.addEventListener("keydown", e => {
     if (e.key !== "Enter" && e.key !== " ") return;
