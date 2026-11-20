@@ -141,10 +141,14 @@ function bodyHTML(text, bundleId, keepCaps, title) {
     html += `<div class="rf-act"><div class="rf-act-bar"><span class="rf-act-name">${esc(title)}</span><span class="rf-act-ap">${esc(ap[1])}AP</span></div><div class="rf-act-body">${rows}</div></div>`;
     lines = lines.slice(k);
   }
+  // A ploy ("**Name**" followed by an italic "*... Ploy*" line) gets a dark bar with its name and CP cost, like the rulebook's.
+  lines = lines.map((l, i) => /^\*\*[^*]+\*\*$/.test(l.trim()) && /^\*[^*]*\bPloy\*$/i.test((lines[i + 1] || "").trim()) ? `[ploy: ${l.trim().slice(2, -2)}]` : l);
   const flush = () => { if (chunk.length) html += qaHTML(joinWraps(joinNums(chunk))); chunk = []; };
   for (const line of lines) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
+    const pl = /^\[ploy: (.+?)\]$/.exec(t);
+    if (pl) { flush(); html += `<div class="rf-ploy"><span class="rf-act-name">${esc(pl[1])}</span><span class="rf-act-ap">1CP</span></div>`; continue; }
     if (t === "[/side]") {
       const body = chunk.length ? qaHTML(joinWraps(joinNums(chunk))) : ""; chunk = [];
       html += `<div class="fp-side">${bundleId && side ? imgTag(side) : ""}<div class="fp-side-text">${body}</div></div>`;

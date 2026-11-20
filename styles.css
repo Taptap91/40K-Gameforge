@@ -1541,3 +1541,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .rf-act-go .rf-act-mark { background: #1fa34a; clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .fp-text .rf-act-stop .rf-act-mark { background: #e23b2e; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .fp-head-act h2 { display: none; }
+
+/* Ploy bar (Command Re-roll): dark bar with the name and CP cost */
+.fp-text .rf-ploy { display: flex; justify-content: space-between; align-items: center; background: #0b0b0b; color: #fff; border: 2px solid rgba(255,255,255,.4);
+  padding: 6px 12px; margin: 14px 0 6px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; font-size: .95em; }
+.fp-text .rf-ploy .rf-act-ap { letter-spacing: .18em; }
