@@ -79,7 +79,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
 /** Text with "[image: images/x.png]" placeholder lines: the pictures sit in the pack's own images folder on GitHub and are shown
  *  in place between the paragraphs around them. */
 const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi_gamepack-v2/packs/";
-function bodyHTML(text, bundleId, keepCaps) {
+function bodyHTML(text, bundleId, keepCaps, title) {
   const base = bundleId ? IMG_BASE + bundleId + "/" : "";
   const rich = lines => richHTML(lines.join("\n"), { keepCaps, iconBase: base });
   const imgTag = f => `<img class="fp-img" loading="lazy" alt="" data-b="${esc(bundleId)}" data-img="${esc(f.split("/").pop())}" src="${esc(base + f)}">`;
@@ -127,8 +127,22 @@ function bodyHTML(text, bundleId, keepCaps) {
     return out;
   }, []);
   let html = "", chunk = [], side = null;
+  // An action ("1AP" on the first line) opens with an orange card like the rulebook's: the action's name and AP cost on a bar,
+  // then its lines, a green arrow for what it does and a red diamond for when it can't be done.
+  let lines = String(text || "").split("\n");
+  const ap = /^(\d+|X)\s*AP$/i.exec((lines[0] || "").trim());
+  if (ap && title) {
+    let k = 1;
+    while (k < lines.length && lines[k].trim() && !/^(?:\*|Q:|\[|•|\u2063)/.test(lines[k].trim())) k++;
+    const rows = lines.slice(1, k).map(l => {
+      const stop = /\bcannot perform this action\b|^(?:An operative )?cannot\b/i.test(bare(l));
+      return `<div class="rf-act-row rf-act-${stop ? "stop" : "go"}"><span class="rf-act-mark" aria-hidden="true"></span><div>${richHTML(l, { keepCaps, iconBase: base })}</div></div>`;
+    }).join("");
+    html += `<div class="rf-act"><div class="rf-act-bar"><span class="rf-act-name">${esc(title)}</span><span class="rf-act-ap">${esc(ap[1])}AP</span></div><div class="rf-act-body">${rows}</div></div>`;
+    lines = lines.slice(k);
+  }
   const flush = () => { if (chunk.length) html += qaHTML(joinWraps(joinNums(chunk))); chunk = []; };
-  for (const line of String(text || "").split("\n")) {
+  for (const line of lines) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
     if (t === "[/side]") {
@@ -210,8 +224,9 @@ function rulesRightHTML(section, doc) {
   if (head && kids.length && kids[0] === section && String(head.rich || head.text || "").trim()) {
     intro = `<div class="fp-intro"><h3 class="fp-intro-title">${esc(head.chapter)}</h3><div class="fv-rich fp-text">${bodyHTML(head.rich || head.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div></div>`;
   }
-  return `${intro}<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
-    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div>${pagerHTML(section, doc)}`;
+  const isAct = /^(\d+|X)\s*AP\s*(\n|$)/i.test(String(section.rich || section.text || "").trim());
+  return `${intro}<div class="fp-head${isAct ? " fp-head-act" : ""}"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
+    <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game), displayTitle(section))}</div>${pagerHTML(section, doc)}`;
 }
 
 export { ruleKey, sectionsGrouped, rulesBannerHTML, rulesLeftHTML, rulesRightHTML };

@@ -1527,3 +1527,17 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 /* Section intro shown at the top of a section's first rule */
 .fp-intro { padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border-strong, rgba(255,255,255,.2)); }
 .fp-intro-title { margin: 0 0 8px; font-size: 1.15em; font-weight: 600; }
+
+/* Action card (Shoot, Fight, ...): orange bar with the name and AP cost, then a bordered box with a cut corner, as in the rulebook */
+.fp-text .rf-act { --act: #f15c23; border: 2px solid var(--act); margin: 4px 0 16px; background: rgba(241,92,35,.06);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.fp-text .rf-act-bar { display: flex; justify-content: space-between; align-items: center; background: var(--act); color: #fff; padding: 6px 12px;
+  font-weight: 600; letter-spacing: .22em; text-transform: uppercase; font-size: .95em; }
+.fp-text .rf-act-ap { letter-spacing: .18em; }
+.fp-text .rf-act-body { padding: 10px 14px 14px; }
+.fp-text .rf-act-row { display: flex; gap: 12px; align-items: flex-start; margin: 10px 0; }
+.fp-text .rf-act-row p { margin: 0; }
+.fp-text .rf-act-mark { flex: 0 0 auto; width: 16px; height: 16px; margin-top: .3em; }
+.fp-text .rf-act-go .rf-act-mark { background: #1fa34a; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.fp-text .rf-act-stop .rf-act-mark { background: #e23b2e; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.fp-head-act h2 { display: none; }
