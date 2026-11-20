@@ -439,7 +439,7 @@ function leftHTML(c) {
   const item = (t, k, name, meta = "", search = "") => `<button type="button" class="fp-item${fUI.sel?.t === t && fUI.sel.k === k ? " on" : ""}" data-fp="${t}" data-k="${esc(k)}" data-name="${esc(normName(name))}" data-search="${esc(searchBlob(name, search))}">
       <span class="fp-iname">${esc(softenCaps(name))}</span>${meta ? `<span class="fp-imeta">${esc(meta)}</span>` : ""}</button>`;
   const group = (id, title, items) => items.length ? `<details class="fp-grp" data-grp="${esc(id)}" ${fUI.collapsed.has(id) ? "" : "open"}>
-      <summary><span class="lb-grp-title">${esc(title)} · ${items.length}</span></summary><div class="fp-items">${items.join("")}</div></details>` : "";
+      <summary><span class="lb-grp-title">${esc(title)}</span></summary><div class="fp-items">${items.join("")}</div></details>` : "";
   const groups = DATASHEET_GROUPS.map(([title]) => ({ title, items: [] }));
   for (const ds of c.datasheets) {
     const kws = keywordList(ds.keywords).map(k => k.toUpperCase());
