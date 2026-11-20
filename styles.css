@@ -1562,8 +1562,8 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .rf-dc-stat { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 2px; }
 .rf-dc-sl { color: #fff; font-weight: 700; font-size: .9em; letter-spacing: .04em; }
 .rf-dc-sv { color: #fff; font-style: italic; font-weight: 700; font-size: 1.3em; }
-.rf-dc-wt { padding: 6px 12px 2px; }
-.rf-dc-wr { display: grid; grid-template-columns: 38% 9% 10% 12% 1fr; align-items: baseline; padding: 4px 0; text-align: center; }
+.rf-dc-wt { padding: 6px 0 4px; }
+.rf-dc-wr { display: grid; grid-template-columns: 38% 9% 10% 12% 1fr; align-items: baseline; padding: 5px 12px; text-align: center; }
 .rf-dc-wr > span:first-child, .rf-dc-wr > .rf-dc-wrs { text-align: left; }
 .rf-dc-wh { font-weight: 700; font-size: .8em; border-bottom: 1px solid rgba(255,255,255,.35); }
 .rf-dc-wn { font-weight: 700; }
@@ -1580,3 +1580,4 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .rf-dc-wr > span:last-child { text-align: left; }
 .rf-dia { width: 1.05em; height: 1.05em; vertical-align: -.15em; margin-right: 2px; }
 .rf-dc-base { text-transform: none; }
+.rf-dc-wr:not(.rf-dc-wh):nth-child(even) { background: rgba(255,255,255,.07); }

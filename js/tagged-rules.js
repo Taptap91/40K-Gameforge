@@ -10,7 +10,7 @@
  *   sub-heading (H3), by the entry's size, boldness or indent in the contents. Flags always win over the contents.
  * Output has the same shape as parseRulesPdfAuto, so rulesToSheets can write it as a normal rules workbook. */
 import { dropPageFurniture } from "./faction-parser.js";
-import { cardLine, cardPlain } from "./text.js?v=8.79";
+import { cardLine, cardPlain } from "./text.js?v=8.80";
 
 // H1 = a section, H2 = a rule inside it, H3 = a sub-heading inside the text. The PDF title comes from file metadata, so it is never a heading.
 // Internal depths start at 2 so the section logic below is unchanged.
