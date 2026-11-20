@@ -82,6 +82,13 @@ def main(path):
         return f'<c r="{ref}"{attrs}><is><t xml:space="preserve">{html.escape(line, quote=False)}</t></is></c>'
 
     xml = re.sub(r'<c r="([A-Z]+\d+)"( t="inlineStr"[^>]*)><is>(.*?)</is></c>', fix_cell, xml, flags=re.S)
+    # the operatives get their own chapter, "Operatives" (a header box in the app), away from the Introduction
+    def to_operatives(m):
+        row = m.group(0)
+        if "[datacard: " not in row:
+            return row
+        return re.sub(r'(<c r="A\d+"[^>]*><is><t xml:space="preserve">)Introduction(</t>)', r"\1Operatives\2", row)
+    xml = re.sub(r'<row [^>]*>.*?</row>', to_operatives, xml, flags=re.S)
     # the Visionary's row is named "Datacards" in the workbook; give it the operative's name
     xml = re.sub(r'(<c r="B3"[^>]*><is><t xml:space="preserve">)Datacards(</t>)', r"\1Night Lord Visionary\2", xml)
 
