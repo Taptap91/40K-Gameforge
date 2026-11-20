@@ -68,7 +68,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
     if (!g.chapter) return `<div class="fp-items">${g.items.map(item).join("")}</div>`;
     if (head && !kids.length) return `<div class="fp-items">${item(head)}</div>`;
     const open = openCh ? openCh.has(g.chapter) : g.items.some(s => ruleKey(s) === selKey);
-    const title = `<span class="lb-grp-title">${esc(softenCaps(g.chapter))} · ${kids.length}</span>`;
+    const title = `<span class="lb-grp-title">${esc(softenCaps(g.chapter))}</span>`;
     const summary = head
       ? `<summary class="fp-grp-click" data-fp-sect="${esc(g.chapter)}" data-search="${esc(ruleSearchText(head))}">${title}</summary>`
       : `<summary>${title}</summary>`;
