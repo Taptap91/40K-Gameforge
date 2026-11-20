@@ -13,7 +13,7 @@ import { richHTML } from "./text.js?v=8.85";
 function killTeamCard(c) {
   const wr = t => String(t || "").split(/\s*,\s*/).filter(Boolean).map(r => `<button type="button" class="rf-wr" data-wr="${esc(r)}">${esc(r)}</button>`).join(", ");
   const stats = (c.stats || []).map(([l, v]) => `<div class="rf-dc-stat"><span class="rf-dc-sl">${esc(l)}</span><span class="rf-dc-sv">${esc(v)}</span></div>`).join("");
-  const weapons = (c.weapons || []).length ? `<div class="rf-dc-wt"><div class="rf-dc-wr rf-dc-wh"><span>Name</span><span>ATK</span><span>HIT</span><span>DMG</span><span>WR</span></div>${c.weapons.map(w =>
+  const weapons = (c.weapons || []).length ? `<div class="rf-dc-wt"><div class="rf-dc-wr rf-dc-wh"><span>Name</span><span>ATK</span><span>HIT</span><span>DMG</span><span class="rf-dc-wrs">WR</span></div>${c.weapons.map(w =>
     `<div class="rf-dc-wr"><span class="rf-dc-wn">${esc(w.n)}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.d)}</span><span class="rf-dc-wrs">${wr(w.w)}</span></div>`).join("")}</div>` : "";
   const abil = (c.abilities || []).map(a => `<p class="rf-dc-ab">${a.n ? `<b>${esc(a.n)}:</b> ` : ""}${esc(a.t)}</p>`).join("");
   const kws = String(c.keywords || "").split(/\s*,\s*/).filter(Boolean).map(k => c.hot && k.toLowerCase() === c.hot.toLowerCase() ? `<span class="rf-dc-hot">${esc(k)}</span>` : esc(k)).join(", ");
