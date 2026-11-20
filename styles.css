@@ -1551,3 +1551,29 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 .fp-text .rf-ploy-body p { margin: 6px 0; }
 .fp-text .rf-ploy-body p:first-child { margin-top: 0; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,.3); }
 .fp-text .rf-ploy-body p:first-child + p { margin-top: 10px; }
+
+/* Kill Team datacard */
+.fp-text .rf-dc { border: 2px solid #e8571c; margin: 14px 0 18px; background: rgba(255,255,255,.03); max-width: 640px; }
+.rf-dc-bar { display: flex; justify-content: space-between; align-items: center; background: #0b0b0b; padding: 8px 12px; text-transform: uppercase; }
+.rf-dc-name { color: #fff; font-size: 1.35em; font-weight: 700; letter-spacing: .02em; }
+.rf-dc-type { color: #e8571c; font-size: 1.2em; font-weight: 700; }
+.fp-text .rf-dc-fl { font-style: italic; margin: 0; padding: 8px 12px; }
+.rf-dc-stats { display: flex; background: #0b0b0b; }
+.rf-dc-stat { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 2px; }
+.rf-dc-sl { color: #fff; font-weight: 700; font-size: .9em; letter-spacing: .04em; }
+.rf-dc-sv { color: #fff; font-style: italic; font-weight: 700; font-size: 1.3em; }
+.rf-dc-wt { padding: 6px 12px 2px; }
+.rf-dc-wr { display: grid; grid-template-columns: 38% 9% 10% 12% 1fr; align-items: baseline; padding: 4px 0; text-align: center; }
+.rf-dc-wr > span:first-child, .rf-dc-wr > .rf-dc-wrs { text-align: left; }
+.rf-dc-wh { font-weight: 700; font-size: .8em; border-bottom: 1px solid rgba(255,255,255,.35); }
+.rf-dc-wn { font-weight: 700; }
+.rf-wr { all: unset; font-weight: 700; cursor: pointer; border-bottom: 1px dotted currentColor; }
+.rf-wr:hover { color: var(--accent, #e8571c); }
+.fp-text .rf-dc-ab { margin: 6px 12px; }
+.rf-dc-foot { display: flex; justify-content: space-between; gap: 12px; border-top: 2px solid #e8571c; margin-top: 10px; padding: 8px 12px; text-transform: uppercase; font-weight: 700; font-size: .85em; }
+.rf-dc-hot { color: #e8571c; }
+.rf-dc-base { white-space: nowrap; }
+@media (max-width: 520px) { .rf-dc-wr { grid-template-columns: 36% 10% 11% 13% 1fr; font-size: .92em; } .rf-dc-foot { font-size: .75em; } }
+.rf-wr-pop { margin: 0; padding: 8px 12px; border-top: 1px dashed #e8571c; font-size: .92em; }
+.rf-wr-pop b { color: #e8571c; display: block; margin-bottom: 2px; }
+.rf-dc-wr > span:last-child { text-align: left; }

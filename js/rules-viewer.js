@@ -3,8 +3,8 @@
  * grouped by chapter on the left, the selected one's full text on the right — the same left-list/
  * right-detail shell a faction or mission pack uses (factions.js calls into this).
  */
-import { esc } from "./core.js?v=8.75";
-import { richHTML, softenCaps } from "./text.js?v=8.75";
+import { esc } from "./core.js?v=8.76";
+import { cardOf, richHTML, softenCaps } from "./text.js?v=8.76";
 
 /** A section has no stable id of its own, so its number (or, when unnumbered, its title) stands in for one. */
 const ruleKey = s => `${s.num || ""}|${s.title}`;
@@ -79,6 +79,18 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
 /** Text with "[image: images/x.png]" placeholder lines: the pictures sit in the pack's own images folder on GitHub and are shown
  *  in place between the paragraphs around them. */
 const IMG_BASE = "https://raw.githubusercontent.com/Taptap91/40K-Gameforge/multi_gamepack-v2/packs/";
+/** A Kill Team datacard: title bar (name, type), italic flavour, stat tiles in a row, weapons table, abilities, then keywords and base size. */
+function datacardHTML(c) {
+  const wr = t => String(t || "").split(/\s*,\s*/).filter(Boolean).map(r => `<button type="button" class="rf-wr" data-wr="${esc(r)}">${esc(r)}</button>`).join(", ");
+  const stats = (c.stats || []).map(([l, v]) => `<div class="rf-dc-stat"><span class="rf-dc-sl">${esc(l)}</span><span class="rf-dc-sv">${esc(v)}</span></div>`).join("");
+  const weapons = (c.weapons || []).length ? `<div class="rf-dc-wt"><div class="rf-dc-wr rf-dc-wh"><span>Name</span><span>ATK</span><span>HIT</span><span>DMG</span><span>WR</span></div>${c.weapons.map(w =>
+    `<div class="rf-dc-wr"><span class="rf-dc-wn">${esc(w.n)}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.d)}</span><span class="rf-dc-wrs">${wr(w.w)}</span></div>`).join("")}</div>` : "";
+  const abil = (c.abilities || []).map(a => `<p class="rf-dc-ab">${a.n ? `<b>${esc(a.n)}:</b> ` : ""}${esc(a.t)}</p>`).join("");
+  const kws = String(c.keywords || "").split(/\s*,\s*/).filter(Boolean).map(k => c.hot && k.toLowerCase() === c.hot.toLowerCase() ? `<span class="rf-dc-hot">${esc(k)}</span>` : esc(k)).join(", ");
+  const foot = kws || c.base ? `<div class="rf-dc-foot"><span class="rf-dc-kw">${kws}</span><span class="rf-dc-base">${esc(c.base || "")}</span></div>` : "";
+  return `<div class="rf-dc"><div class="rf-dc-bar"><span class="rf-dc-name">${esc(c.name)}</span><span class="rf-dc-type">${esc(c.type || "")}</span></div>${c.flavour ? `<p class="rf-dc-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-dc-stats">${stats}</div>${weapons}${abil}${foot}</div>`;
+}
+
 function bodyHTML(text, bundleId, keepCaps, title) {
   const base = bundleId ? IMG_BASE + bundleId + "/" : "";
   const rich = lines => richHTML(lines.join("\n"), { keepCaps, iconBase: base });
@@ -155,6 +167,8 @@ function bodyHTML(text, bundleId, keepCaps, title) {
   for (const line of lines) {
     const t = line.trim(), im = /^\[image: (.+?)\]$/.exec(t), sd = /^\[side: (.+?)\]$/.exec(t);
     if (sd) { flush(); side = sd[1]; continue; }
+    const dc = cardOf(t);
+    if (dc) { flush(); html += datacardHTML(dc); continue; }
     const pl = /^\[ployhtml: (\d+)\]$/.exec(t);
     if (pl) { flush(); html += ployCards[+pl[1]]; continue; }
     if (t === "[/side]") {
@@ -236,7 +250,7 @@ function rulesRightHTML(section, doc) {
   if (head && kids.length && kids[0] === section && String(head.rich || head.text || "").trim()) {
     intro = `<div class="fp-intro"><h3 class="fp-intro-title">${esc(head.chapter)}</h3><div class="fv-rich fp-text">${bodyHTML(head.rich || head.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div></div>`;
   }
-  const isAct = /^(\d+|X)\s*AP\s*(\n|$)/i.test(String(section.rich || section.text || "").trim());
+  const isAct = /^(\d+|X)\s*AP\s*(\n|$)/i.test(String(section.rich || section.text || "").trim()) || /^\[datacard: /.test(String(section.rich || section.text || "").trim());
   return `${intro}<div class="fp-head${isAct ? " fp-head-act" : ""}"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
     <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game), displayTitle(section))}</div>${pagerHTML(section, doc)}`;
 }

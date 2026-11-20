@@ -2,10 +2,10 @@
  * Core Rules and rules updates (FAQs, errata, Balance Dataslates) as numbered rule sections,
  * their Excel workbook, which version is newest, and the rules currently in force.
  */
-import { state } from "./core.js?v=8.75";
-import { dropPageFurniture } from "./faction-parser.js?v=8.75";
-import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.75";
-import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.75";
+import { state } from "./core.js?v=8.76";
+import { dropPageFurniture } from "./faction-parser.js?v=8.76";
+import { mostCommonSize, readingLines } from "./pdf-reader.js?v=8.76";
+import { cleanGlyphs, normName, stripRich, titleCase } from "./text.js?v=8.76";
 
 const SECTION_NUM = /^\d{2}\.\d{2}(?:\.\d{2})?$/;
 /** Used until a Core Rules file says otherwise (Core Rules 25.03). */
@@ -384,7 +384,7 @@ function rulesFromWorkbook(book) {
   const about = Object.fromEntries(sheet("About").map(r => [String(r.field || "").toLowerCase(), r.value]));
   const num = s => { const n = parseFloat(String(s).replace(/[^\d.]/g, "")); return isFinite(n) ? n : 0; };
   const sections = rows.filter(r => r.rule || r.number).map(r => {
-    const rich = r.formatted && stripRich(r.formatted).replace(/\s+/g, " ") === String(r.rules).replace(/\s+/g, " ") ? r.formatted : r.rules || "";
+    const rich = r.formatted && (/\[datacard: /.test(r.formatted) || stripRich(r.formatted).replace(/\s+/g, " ") === String(r.rules).replace(/\s+/g, " ")) ? r.formatted : r.rules || "";
     return { num: r.number || "", title: r.rule || "", chapter: r.chapter || "", part: r.part || "", ...(r.cp ? { cp: r.cp } : {}), text: r.rules || "", rich };
   });
   const battleSizes = sheet("Battle sizes").filter(b => b["battle size"]).map(b => ({ name: b["battle size"], points: num(b.points), dp: num(b["detachment points"]), enh: num(b["enhancement limit"]), units: num(b["unit limit"]) }));

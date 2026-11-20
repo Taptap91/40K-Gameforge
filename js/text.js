@@ -1,7 +1,7 @@
 /* RulesForge · text.js
  * Text clean-up and formatting: titles, keywords, rich text (**bold**) and simple Markdown.
  */
-import { esc } from "./core.js?v=8.75";
+import { esc } from "./core.js?v=8.76";
 
 function normalize(raw) {
   return raw
@@ -78,6 +78,14 @@ function itemize(lines) {
   }
   return out;
 }
+
+/** Kill Team datacards: a card read from a PDF Studio tagged datacard travels through the workbook as one line, "[datacard: <url-encoded JSON>]".
+ *  A card is { name, type, flavour, stats: [[label, value]], weapons: [{ n, a, h, d, w }], abilities: [{ n, t }], keywords, hot, base }. */
+const cardLine = card => `[datacard: ${encodeURIComponent(JSON.stringify(card)).replace(/\*/g, "%2A")}]`;
+const cardOf = line => { const m = /^\[datacard: ([^\]]+)\]$/.exec(String(line || "").trim()); if (!m) return null; try { return JSON.parse(decodeURIComponent(m[1])); } catch { return null; } };
+/** The same card as plain text (what the Rules column holds, and what a search reads). */
+const cardPlain = c => [c.name, c.type, c.flavour, (c.stats || []).map(([l, v]) => `${l} ${v}`).join("  "),
+  ...(c.weapons || []).map(w => [w.n, w.a, w.h, w.d, w.w].filter(Boolean).join(" ")), ...(c.abilities || []).map(a => `${a.n}: ${a.t}`), c.keywords, c.base].filter(Boolean).join("\n");
 const stripRich = s => String(s || "").replace(/\[icon: [^\]]+\]/g, "").replace(/\{c:#[0-9a-f]{6}\|([^}]*)\}/gi, "$1").replace(/\*\*/g, "").replace(/(^|[^*])\*([^*\s][^*\n]*?)\*(?!\*)/g, "$1$2");/** Rich text (**bold**, "• " bullets, \n paragraphs) → HTML. */
 /** Keywords printed in capitals ("DEATH GUARD INFANTRY model only") shown with capital first letters ("Death Guard Infantry"). */
 const KEEP_CAPS = new Set(["CP", "OC", "AP", "WS", "BS", "HQ", "VP", "DP", "FNP", "OK", "II", "III", "IV", "AM", "PM"]);
@@ -163,4 +171,4 @@ function scrubWeb(s) {
 /** True for a line that is only website furniture: a page counter ("12/92") or a web page's "Show History" button. */
 const isWebFurniture = s => /^(\d+\s*\/\s*\d+|show history|show|hide)$/i.test(String(s || "").trim());
 
-export { fixApostrophes, scrubWeb, isWebFurniture, capWords, cleanGlyphs, softenCaps, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };
+export { cardLine, cardOf, cardPlain, fixApostrophes, scrubWeb, isWebFurniture, capWords, cleanGlyphs, softenCaps, isStatValue, isUpperText, itemize, joinParagraphs, keywordList, letterCount, md, niceKeywords, normalize, normName, richHTML, stripRich, titleCase, tokens, upperKeywords };

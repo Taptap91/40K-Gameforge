@@ -10,6 +10,7 @@
  *   sub-heading (H3), by the entry's size, boldness or indent in the contents. Flags always win over the contents.
  * Output has the same shape as parseRulesPdfAuto, so rulesToSheets can write it as a normal rules workbook. */
 import { dropPageFurniture } from "./faction-parser.js";
+import { cardLine, cardPlain } from "./text.js?v=8.76";
 
 // H1 = a section, H2 = a rule inside it, H3 = a sub-heading inside the text. The PDF title comes from file metadata, so it is never a heading.
 // Internal depths start at 2 so the section logic below is unchanged.
@@ -152,11 +153,77 @@ function imageBoxes(tags, title) {
   });
 }
 
+
+/** Kill Team datacards. PDF Studio's Kill Team style tags each part of a card as a box with a role (title, flavour, stat-label, stat-value,
+ *  head-atk…, weapon, weapon-wr, ability, ability-name, keywords, base). Each card becomes one rule: its name is the heading and its
+ *  body is one "[datacard: …]" line the app draws as a card. */
+function buildCards(pages, lines, roleTags) {
+  const boxes = roleTags.filter(t => t.shape === "box");
+  const titles = boxes.filter(t => t.role === "title").sort((a, b) => a.page - b.page || a.y0 - b.y0);
+  const page = n => pages.find(p => p.number === n);
+  const itemsIn = (n, b) => (page(n)?.items || []).filter(it => it.t && it.t.trim() && inside({ page: n, cx: it.x + (it.w || 0) / 2, cy: it.py - (it.s || 0) * 0.3 }, b));
+  const textOf = its => {
+    const rows = [];
+    its.slice().sort((a, b) => a.py - b.py || a.x - b.x).forEach(it => { const r = rows.find(r => Math.abs(r.py - it.py) < 2.5); if (r) r.its.push(it); else rows.push({ py: it.py, its: [it] }); });
+    return rows.map(r => r.its.sort((a, b) => a.x - b.x).map(i => i.t.trim()).join(" ")).join(" ").replace(/\s+([,.;:)])/g, "$1").replace(/\(\s+/g, "(").replace(/\s+/g, " ").trim();
+  };
+  const cx = b => (b.x0 + b.x1) / 2, cy = b => (b.y0 + b.y1) / 2;
+  const out = [];
+  titles.forEach((tt, i) => {
+    const next = titles.slice(i + 1).find(o => o.page === tt.page);
+    const mine = boxes.filter(t => t.page === tt.page && t.y0 >= tt.y0 - 40 && (!next || t.y0 < next.y0 - 40) && t !== tt);
+    const by = role => mine.filter(t => t.role === role).sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    const one = role => by(role)[0];
+    const txt = b => (b ? textOf(itemsIn(tt.page, b)) : "");
+    const card = { name: textOf(itemsIn(tt.page, tt)), type: by("type").map(txt).filter(Boolean).join(" · "), flavour: txt(one("flavour")), stats: [], weapons: [], abilities: [], keywords: "", hot: "", base: "" };
+    // stats: each label with the value under it
+    const vals = by("stat-value");
+    by("stat-label").sort((a, b) => a.x0 - b.x0).forEach(l => {
+      const v = vals.filter(v => Math.abs(cx(v) - cx(l)) < 50 && v.y0 >= l.y0).sort((a, b) => a.y0 - b.y0)[0];
+      card.stats.push([txt(l), txt(v) || "-"]);
+    });
+    // weapons: name, ATK, HIT, DMG from the row box by column; special rules from the WR box beside it
+    const hd = k => one("head-" + k), atkH = hd("atk");
+    const wrs = by("weapon-wr");
+    by("weapon").forEach(w => {
+      const wrBox = wrs.find(x => x.y1 >= w.y0 - 4 && x.y0 <= w.y1 + 4);
+      const its = itemsIn(tt.page, w).filter(it => !(wrBox && inside({ page: tt.page, cx: it.x + (it.w || 0) / 2, cy: it.py - (it.s || 0) * 0.3 }, wrBox)));
+      const cols = { n: [], a: [], h: [], d: [] }, heads = ["a", "h", "d"].map(k => [k, hd({ a: "atk", h: "hit", d: "dmg" }[k])]).filter(([, h]) => h);
+      its.forEach(it => {
+        const c = it.x + (it.w || 0) / 2;
+        if (!heads.length || it.x + (it.w || 0) < heads[0][1].x0 - 6) { cols.n.push(it); return; }
+        const near = heads.reduce((m, h) => (Math.abs(cx(h[1]) - c) < Math.abs(cx(m[1]) - c) ? h : m));
+        cols[near[0]].push(it);
+      });
+      const n = textOf(cols.n);
+      if (n) card.weapons.push({ n, a: textOf(cols.a), h: textOf(cols.h), d: textOf(cols.d), w: wrBox ? txt(wrBox) : "" });
+    });
+    // abilities: "Name: rule text"
+    const names = by("ability-name");
+    by("ability").forEach(ab => {
+      const nb = names.find(n => cx(n) >= ab.x0 && cx(n) <= ab.x1 && cy(n) >= ab.y0 && cy(n) <= ab.y1);
+      const its = itemsIn(tt.page, ab).filter(it => !(nb && inside({ page: tt.page, cx: it.x + (it.w || 0) / 2, cy: it.py - (it.s || 0) * 0.3 }, nb)));
+      const name = nb ? txt(nb).replace(/:\s*$/, "") : "";
+      card.abilities.push({ n: name, t: textOf(its).replace(/^:\s*/, "") });
+    });
+    const kw = one("keywords");
+    if (kw) {
+      card.keywords = txt(kw);
+      const hot = lines.filter(l => l.page === tt.page && inside(l, kw)).map(l => richOf(l.runs, true)).join(" ").match(/\{c:#[0-9a-fA-F]{6}\|([^}]*)\}/);
+      if (hot) card.hot = hot[1].replace(/[\s,]+$/, "").trim();
+    }
+    card.base = txt(one("base"));
+    out.push({ card, tt, boxes: mine.concat(tt) });
+  });
+  return out;
+}
+
 const pageBy0 = (pages, n) => pages.find(p => p.number === n);
 
 /** Turns tagged pages into rules sections. Returns { sections, battleSizes, images, missed }. */
 function taggedRules(pages, tagsIn, title = "") {
-  let tags = tagsIn;
+  const roleTags = tagsIn.filter(t => t.role);   // the parts of Kill Team datacards: read apart from the ordinary tags
+  let tags = tagsIn.filter(t => !t.role);
   const icons = [];
   const allLines = taggedLines(pages, icons);
   // the site's navigation bar across the very top of page 1 is ignored unless something there is tagged as a heading
@@ -171,6 +238,13 @@ function taggedRules(pages, tagsIn, title = "") {
     if (t.k !== "img" || t.shape !== "box" || !p || !p.pw) return true;
     return !((t.x1 - t.x0) < p.pw * 0.12 && (t.y1 - t.y0) < p.ph * 0.1 && t.x0 > p.pw * 0.78 && t.y0 > p.ph * 0.75);
   });
+  // datacards: their text is read into the card, so those lines are not body text
+  const cards = roleTags.length ? buildCards(pages, lines, roleTags) : [];
+  if (cards.length) lines.forEach(l => { if (cards.some(c => c.boxes.some(b => inside(l, b)) || (() => {   // a line across a title and its type sits in neither box: it counts when it lies within the card's extent
+    const bs = c.boxes.filter(b => b.page === l.page); if (!bs.length) return false;
+    const x0 = Math.min(...bs.map(b => b.x0)) - 6, x1 = Math.max(...bs.map(b => b.x1)) + 6, y0 = Math.min(...bs.map(b => b.y0)) - 2, y1 = Math.max(...bs.map(b => b.y1)) + 2;
+    return l.x0 >= x0 && l.x1 <= x1 && l.py >= y0 && l.py <= y1;
+  })())) l.ignore = true; });
   const flags = tags.filter(t => t.shape === "flag");
   const paraBoxes = tags.filter(t => t.k === "para" && t.shape === "box");
   const skipBoxes = tags.filter(t => (t.k === "toc" || t.k === "img") && t.shape === "box");
@@ -221,6 +295,11 @@ function taggedRules(pages, tagsIn, title = "") {
     if (skipLines.has(l) || l.ignore) return;
     if (heads.has(l)) events.push({ kind: "head", level: heads.get(l), text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size });
     else if (!skipBoxes.some(b => inside(l, b))) events.push({ kind: "body", text: l.text, page: l.page, cy: l.py, x0: l.x0, x1: l.x1, size: l.size, rich: richOf(l.runs, boldHeavy), italic: l.italic, pbox: smallest(paraBoxes, l), para: paraBoxes.some(b => inside(l, b)) });
+  });
+  cards.forEach(({ card, tt }) => {
+    if (!card.name) return;
+    events.push({ kind: "head", level: 3, text: card.name, page: tt.page, cy: tt.y0, x0: tt.x0, x1: tt.x1, size: 14 });
+    events.push({ kind: "body", card: true, text: cardPlain(card), rich: cardLine(card), page: tt.page, cy: tt.y0 + 0.5, x0: tt.x0, x1: tt.x1, size: 10, italic: false, pbox: 0 });
   });
   images.forEach(im => events.push({ kind: "image", name: im.name, page: im.page, cy: im.y0, ix0: im.x0, ix1: im.x1, iy1: im.y1 }));
   events.sort((a, b) => a.page - b.page || a.cy - b.cy || (a.kind === "head" ? -1 : 0));
@@ -417,7 +496,7 @@ function paragraphs(lines, widest, colKey) {
     return true;
   };
   lines.forEach(l => {
-    if (!l.g || l.b) { flush(); out.push(l); return; }
+    if (!l.g || l.b || l.g.card) { flush(); out.push(l); return; }
     const m = BULLET.exec(l.t);
     if (m) { flush(); cur = { t: "• " + l.t.slice(m[0].length), r: l.r ? "• " + l.r.replace(/^\**\s*[•◦▪▫■□●○◆◇‣⁃∙·]\s*/, "") : "", b: false, last: l, first: l, n: 1, bullet: true }; return; }
     if (cur && !cur.bullet && joins(cur, l)) { join(cur, l); cur.last = l; cur.n++; return; }

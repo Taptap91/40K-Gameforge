@@ -1,7 +1,7 @@
 /* RulesForge · pdf-reader.js
  * Reads a PDF's text with positions, using pdf.js (loaded only when a PDF is added).
  */
-import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.75";
+import { cleanGlyphs, isWebFurniture, normalize, scrubWeb } from "./text.js?v=8.76";
 
 const PDFJS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
 const PDFJS_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
@@ -64,7 +64,8 @@ async function readPdf(file, onPage) {
         const [x1, y1, x2, y2] = a.rect, top = page.view[3] - y2, bottom = page.view[3] - y1;
         const shape = a.subtype === "Square" ? "box" : "flag";
         const lk = /\|link=([\w-]+)/.exec(note);   // a box dragged across pages is saved as one piece per page, all sharing a link
-        tags.push({ page: n, k: m[1], shape, x0: x1 - page.view[0], y0: top, x1: x2 - page.view[0], y1: bottom, link: lk ? lk[1] : "" });
+        const rl = /\|role=([\w-]+)/.exec(note);   // a part of a datacard (title, stat, weapon...): see taggedRules
+        tags.push({ page: n, k: m[1], shape, x0: x1 - page.view[0], y0: top, x1: x2 - page.view[0], y1: bottom, link: lk ? lk[1] : "", role: rl ? rl[1] : "" });
       }
     } catch {}
     const pageHeight = (page.view[3] - page.view[1]) || 792;
@@ -93,7 +94,7 @@ async function readPdf(file, onPage) {
       const y = item.transform[5];
       // Links, site names, print dates/times and page counters are left out (release dates of updates are kept).
       const str = tagged ? item.str.replace(/[ \t]{2,}/g, " ").trim() : scrubWeb(item.str);
-      const webJunk = !str || isWebFurniture(str) && (/^\d/.test(str) || /history/i.test(str) || item.transform[4] > pageWidth * 0.7);
+      const webJunk = !str || !tagged && isWebFurniture(str) && (/^\d/.test(str) || /history/i.test(str) || item.transform[4] > pageWidth * 0.7);
       if (item.str.trim() && webJunk) continue;
       if (str) {
         const x = item.transform[4], w = item.width || 0, s = Math.hypot(item.transform[2], item.transform[3]) || item.height || 0;
@@ -126,7 +127,7 @@ async function readPdf(file, onPage) {
     if (n <= 3 && items.some(i => /^books$/i.test(i.t))) {
       try { bookIcons.push(...await bookTableIcons(page, items, pageHeight)); } catch {}
     }
-    const cleaned = normalize(text.split("\n").map(l => scrubWeb(l)).filter(l => !isWebFurniture(l)).join("\n"));
+    const cleaned = normalize(text.split("\n").map(l => scrubWeb(l)).filter(l => tagged || !isWebFurniture(l)).join("\n"));
     // Mission packs: pages with a Deployment card are also kept as a picture (the card is a map), for the import only.
     let image = null, scale = 0;
     if (/^DEPLOYMENT CARD$/m.test(cleaned)) {

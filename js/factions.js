@@ -1,15 +1,15 @@
 /* RulesForge · factions.js
  * Factions page: a faction's army rules, detachments and units on the left (30%), the selected one in full on the right (70%).
  */
-import { $, DB, esc, icon, isPhone, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.75";
-import { armyData } from "./army.js?v=8.75";
-import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.75";
-import { factionMatches } from "./search.js?v=8.75";
-import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.75";
-import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.75";
-import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.75";
-import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.75";
-import { libraryHTML } from "./library.js?v=8.75";
+import { $, DB, esc, icon, isPhone, openSheet, state, store, toast, settingsTabsHTML } from "./core.js?v=8.76";
+import { armyData } from "./army.js?v=8.76";
+import { DATASHEET_GROUPS, datasheetDetailsHTML, detUnique, panelHTML, statsHTML, tidyDatasheet, wargearOptionsHTML, armyRuleParts, pluralKind, weaponPanelsHTML } from "./datasheets.js?v=8.76";
+import { factionMatches } from "./search.js?v=8.76";
+import { defaultColours, kitPending, kitSymbol } from "./pack-rules.js?v=8.76";
+import { keywordList, normName, richHTML, softenCaps } from "./text.js?v=8.76";
+import { sectionCount, TABS as MISSION_TABS, tabHTML as missionTabHTML } from "./mission-viewer.js?v=8.76";
+import { ruleKey, rulesBannerHTML, rulesLeftHTML, rulesRightHTML, sectionsGrouped } from "./rules-viewer.js?v=8.76";
+import { libraryHTML } from "./library.js?v=8.76";
 
 /** The back button to the Game Packs home screen (the Library), shown inside every banner — a faction's, a
  *  mission pack's, a rules document's, and a Game Pack's own sections screen. */
@@ -591,6 +591,23 @@ function wireFactionsPage() {
       renderFactionsPage();
       if (left) view.querySelector(".fp-left").scrollTop = keep;
       view.querySelector(".fp-right").scrollTop = 0;
+      return;
+    }
+    const wrEl = e.target.closest("[data-wr]");
+    if (wrEl) {
+      // A weapon rule on a datacard (Piercing 1, Ceaseless...) explains itself: its text is looked up among the loaded rules by name.
+      e.preventDefault();
+      view.querySelectorAll(".rf-wr-pop").forEach(x => x.remove());
+      const raw = wrEl.dataset.wr, base = raw.replace(/\s*(\d+\+?|X)\W*$/i, "").replace(/\s*\d+["”]?\s*$/, "").trim().toLowerCase();
+      let found = null;
+      for (const d of state.docs) for (const sec of d.structured?.sections || []) {
+        const t = String(sec.title || "").replace(/^\d+(\.\d+)*\.?\s*/, "").trim().toLowerCase();
+        if (t && (t === base || t === raw.toLowerCase())) { found = sec; break; }
+      }
+      const pop = document.createElement("div");
+      pop.className = "rf-wr-pop";
+      pop.innerHTML = `<b>${esc(raw)}</b><div>${found ? richHTML(found.rich || found.text || "") : "No explanation for this weapon rule is in the loaded rules yet."}</div>`;
+      wrEl.closest(".rf-dc")?.appendChild(pop);
       return;
     }
     const sect = e.target.closest("[data-fp-sect]");
