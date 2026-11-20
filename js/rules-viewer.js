@@ -62,7 +62,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
   // data-search covers the rule's full text, not just its title, so a search finds a word buried in
   // the body even when the heading itself doesn't mention it.
   const item = s => `<button type="button" class="fp-item${ruleKey(s) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(s))}" data-fp-chapter="${esc(s.chapter || "")}" data-search="${esc(ruleSearchText(s))}">
-    <span class="fp-iname">${ruleLabelHTML(s)}</span></button>`;
+    <span class="fp-iname">${esc(softenCaps(displayTitle(s)))}</span></button>`;
   return groups.map(g => {
     const head = g.items.find(isChapterRow), kids = g.items.filter(s => s !== head);
     if (!g.chapter) return `<div class="fp-items">${g.items.map(item).join("")}</div>`;
@@ -70,7 +70,7 @@ function rulesLeftHTML(doc, selKey, openCh = null) {
     const open = openCh ? openCh.has(g.chapter) : g.items.some(s => ruleKey(s) === selKey);
     const title = `<span class="lb-grp-title">${esc(softenCaps(g.chapter))} · ${kids.length}</span>`;
     const summary = head
-      ? `<summary class="fp-grp-click${ruleKey(head) === selKey ? " on" : ""}" data-fp-rule="${esc(ruleKey(head))}" data-fp-chapter="${esc(g.chapter)}" data-fp-head data-search="${esc(ruleSearchText(head))}">${title}</summary>`
+      ? `<summary class="fp-grp-click" data-fp-sect="${esc(g.chapter)}" data-search="${esc(ruleSearchText(head))}">${title}</summary>`
       : `<summary>${title}</summary>`;
     return `<details class="fp-grp"${open ? " open" : ""}>${summary}<div class="fp-items">${kids.map(item).join("")}</div></details>`;
   }).join("") + `<div class="fp-empty fp-search-none" hidden>Nothing matches your search.</div>`;
@@ -194,7 +194,7 @@ if (typeof document !== "undefined") {
 
 /** Previous / Next rule buttons under a rule (shown on phones and tablets, where reading rule after rule means going back to the list otherwise). */
 function pagerHTML(section, doc) {
-  const flat = doc?.structured?.sections ? sectionsGrouped(doc).flatMap(g => g.items) : [];
+  const flat = doc?.structured?.sections ? sectionsGrouped(doc).flatMap(g => g.items.filter(x => !(isChapterRow(x) && g.items.length > 1))) : [];
   const i = flat.findIndex(x => ruleKey(x) === ruleKey(section));
   if (i < 0 || flat.length < 2) return "";
   const btn = (x, dir) => x ? `<button type="button" class="fp-pg fp-pg-${dir}" data-fp-rule="${esc(ruleKey(x))}" data-fp-chapter="${esc(x.chapter || "")}"><span class="fp-pg-dir">${dir === "prev" ? "‹ Previous" : "Next ›"}</span><span class="fp-pg-name">${ruleLabelHTML(x)}</span></button>` : `<span></span>`;
@@ -203,7 +203,14 @@ function pagerHTML(section, doc) {
 
 function rulesRightHTML(section, doc) {
   if (!section) return `<div class="fp-empty">Choose a rule on the left.</div>`;
-  return `<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
+  // The first rule of a section opens with the section's own text (its intro), above the rule itself.
+  let intro = "";
+  const grp = doc?.structured?.sections ? sectionsGrouped(doc).find(g => g.chapter && g.chapter === section.chapter) : null;
+  const head = grp && grp.items.find(isChapterRow), kids = grp ? grp.items.filter(x => x !== head) : [];
+  if (head && kids.length && kids[0] === section && String(head.rich || head.text || "").trim()) {
+    intro = `<div class="fp-intro"><h3 class="fp-intro-title">${esc(head.chapter)}</h3><div class="fv-rich fp-text">${bodyHTML(head.rich || head.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div></div>`;
+  }
+  return `${intro}<div class="fp-head"><h2>${ruleLabelHTML(section)}</h2>${section.chapter && !isChapterRow(section) ? `<div class="fp-sub">${esc(section.chapter)}</div>` : ""}</div>
     <div class="fv-rich fp-text">${bodyHTML(section.rich || section.text, doc?.pack?.bundleId, !!doc?.pack?.game && !/warhammer 40/i.test(doc.pack.game))}</div>${pagerHTML(section, doc)}`;
 }
 

@@ -1523,3 +1523,7 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
 @media (max-width: 760px) {
   .fp-text .fp-side .fp-img { flex: 0 0 auto; width: auto; max-width: max(64px, calc(100% * var(--sc, 1) * 0.6)); }
 }
+
+/* Section intro shown at the top of a section's first rule */
+.fp-intro { padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border-strong, rgba(255,255,255,.2)); }
+.fp-intro-title { margin: 0 0 8px; font-size: 1.15em; font-weight: 600; }
