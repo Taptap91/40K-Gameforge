@@ -6,7 +6,8 @@
  *   3. Here: add a function that returns the card's HTML and register it in CARD_TEMPLATES, then add its CSS to styles.css.
  * Warhammer 40,000 has no entry: its datasheets are read by the app's own parser (datasheets.js), not as cards.
  */
-import { esc } from "./core.js?v=8.81";
+import { esc } from "./core.js?v=8.82";
+import { richHTML } from "./text.js?v=8.82";
 
 /** A Kill Team datacard: title bar (name, type), italic flavour, stat tiles in a row, weapons table, abilities, then the keywords (the base size is read but not shown). */
 function killTeamCard(c) {
@@ -20,7 +21,27 @@ function killTeamCard(c) {
   return `<div class="rf-dc"><div class="rf-dc-bar"><span class="rf-dc-name">${esc(c.name)}</span><span class="rf-dc-type">${esc(c.type || "")}</span></div>${c.flavour ? `<p class="rf-dc-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-dc-stats">${stats}</div>${weapons}${abil}${foot}</div>`;
 }
 
-const CARD_TEMPLATES = { killteam: killTeamCard };
+/** An Age of Sigmar ability (a rules ability, or one on a warscroll): phase bar, name and italic flavour, Declare / Effect lines, keywords. Shares its look with the warscroll. */
+function aosAbility(c) {
+  const lines = (c.lines || []).map(([k, v]) => `<p class="rf-ab-ln"><b>${esc(k)}:</b> ${richHTML(String(v || ""), {}).replace(/^<p>|<\/p>$/g, "")}</p>`).join("");
+  const kws = String(c.keywords || "").split(/\s*,\s*/).filter(Boolean).join(", ");
+  return `<div class="rf-ab"><div class="rf-ab-bar">${esc(c.phase || "")}</div><div class="rf-ab-body"><p class="rf-ab-nm"><b>${esc(c.name || "")}:</b> ${c.flavour ? `<i>${esc(c.flavour)}</i>` : ""}</p>${lines}</div>${kws ? `<div class="rf-ab-kw"><span class="rf-ab-kl">Keywords</span><span class="rf-ab-kv">${esc(kws)}</span></div>` : ""}</div>`;
+}
+
+/** An Age of Sigmar warscroll: kicker and name, flavour, stat tiles in a row (Move, Health, Save, Control), weapons table, battle profile, abilities, keywords. */
+function aosWarscroll(c) {
+  const wr = n => n ? `<button type="button" class="rf-wr" data-wr="${esc(String(n).replace(/\s*\(.*$/, ""))}">${esc(n)}</button>` : "";
+  const stats = (c.stats || []).map(([l, v]) => `<div class="rf-aw-stat"><span class="rf-aw-sl">${esc(l)}</span><span class="rf-aw-sv">${esc(v)}</span></div>`).join("");
+  const head = g => `<div class="rf-aw-wr rf-aw-wh"><span>${esc(g || "Weapons")}</span><span>ATK</span><span>HIT</span><span>WND</span><span>RND</span><span>DMG</span></div>`;
+  let last = null, wt = "";
+  (c.weapons || []).forEach(w => { if (w.group !== last) { wt += head(w.group); last = w.group; }
+    wt += `<div class="rf-aw-wr"><span class="rf-aw-wn">${esc(w.n)}${w.note ? `<small>${wr(w.note)}</small>` : ""}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.w)}</span><span>${esc(w.r)}</span><span>${esc(w.d)}</span></div>`; });
+  const prof = (c.profile || []).length ? `<div class="rf-aw-prof"><b>Battle profile</b>${c.profile.map(([k, v]) => `<span><b>${esc(k)}:</b> ${esc(v)}</span>`).join("")}</div>` : "";
+  const kws = (c.keywords || []).map(k => `<span class="rf-aw-kv">${esc(k)}</span>`).join("");
+  return `<div class="rf-aw">${c.kicker ? `<div class="rf-aw-kick">${esc(c.kicker)}</div>` : ""}<div class="rf-aw-bar">${esc(c.name)}</div>${c.flavour ? `<p class="rf-aw-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-aw-stats">${stats}</div>${wt ? `<div class="rf-aw-wt">${wt}</div>` : ""}${prof}${(c.abilities || []).map(aosAbility).join("")}${kws ? `<div class="rf-aw-kw"><span class="rf-ab-kl">Keywords</span><div>${kws}</div></div>` : ""}</div>`;
+}
+
+const CARD_TEMPLATES = { killteam: killTeamCard, aos: aosWarscroll, "aos-ability": aosAbility };
 /** Draws a card with the template its "tpl" names (Kill Team when it names none). */
 const renderCard = c => (CARD_TEMPLATES[c.tpl || "killteam"] || killTeamCard)(c);
 
