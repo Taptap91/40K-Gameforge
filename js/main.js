@@ -45,7 +45,11 @@ function showView(name) {
   if (name === "rules") setTimeout(() => $("#question").focus(), 0);
 }function wireEvents() {
   wireCollections();
-  $$(".nav-item[data-view]").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+  $$(".nav-item[data-view]").forEach(b => b.addEventListener("click", () => {
+    // Game Packs always lands on its main screen, wherever the person was inside it
+    if (b.dataset.view === "factions") { showView("factions"); goHome(); return; }
+    showView(b.dataset.view);
+  }));
   $("#aiStatusBtn").addEventListener("click", openAISheet);
   // Phones and tablets: the gear in the bottom bar opens settings, starting on the faction colours when there's a faction.
   $("#settingsBtn").addEventListener("click", () => openStyleSheet() || openAISheet());
