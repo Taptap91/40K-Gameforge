@@ -543,6 +543,21 @@ function trimBlank(img, w, h) {
       c[k * 4 + 3] = 0;
       if (x > 0) push(x - 1, y); if (x < cw - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < ch - 1) push(x, y + 1);
     }
+    // The anti-aliased fringe along the icon's edge is a blend of the page colour and the icon: two pixels are peeled off so no pale outline is left.
+    for (let pass = 0; pass < 2; pass++) {
+      const kill = [];
+      for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+        if (c[(y * cw + x) * 4 + 3] === 0) continue;
+        let edge = false;
+        for (let dy = -1; dy <= 1 && !edge; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= cw || ny >= ch || c[(ny * cw + nx) * 4 + 3] === 0) { edge = true; break; }
+        }
+        if (edge) kill.push((y * cw + x) * 4 + 3);
+      }
+      kill.forEach(i => { c[i] = 0; });
+    }
   }
   return { w: cw, h: ch, data: cropped };
 }
