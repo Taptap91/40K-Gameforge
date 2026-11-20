@@ -604,10 +604,14 @@ table.points input[type=checkbox] { accent-color: var(--accent); }
    right, the new one slides in from the left — the same transition iOS uses for back navigation. */
 .fp-host.fp-leaving { animation: fpSlideOut .15s ease-in forwards; }
 .fp-host.fp-entering { animation: fpSlideIn .18s ease-out; }
+.fp-host.fp-leaving-l { animation: fpSlideOutL .15s ease-in forwards; }
+.fp-host.fp-entering-r { animation: fpSlideInR .18s ease-out; }
 @keyframes fpSlideOut { to { transform: translateX(32px); opacity: 0; } }
+@keyframes fpSlideOutL { to { transform: translateX(-32px); opacity: 0; } }
+@keyframes fpSlideInR { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes fpSlideIn { from { transform: translateX(-28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .fp-host.fp-leaving, .fp-host.fp-entering { animation: none; }
+  .fp-host.fp-leaving, .fp-host.fp-entering, .fp-host.fp-leaving-l, .fp-host.fp-entering-r { animation: none; }
 }
 .fp-shell { display: grid; grid-template-columns: calc(30% + 30px) minmax(0, 1fr); height: 100%; min-height: 0; }
 .fp-left, .fp-right { overflow-y: auto; min-height: 0; min-width: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
