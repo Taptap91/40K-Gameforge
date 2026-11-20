@@ -1,8 +1,8 @@
 // Plain-English explanations of the core abilities and weapon keywords, shown in the keyword popup on a datasheet.
 // These are short summaries in our own words (the full Core Rules text stays one tap away in the popup);
 // the number or value on the datasheet ("Cleave 1", "Anti-Vehicle 4+", "Feel No Pain 5+") is filled in and bolded.
-import { esc } from "./core.js?v=8.83";
-import { normName } from "./text.js?v=8.83";
+import { esc } from "./core.js?v=8.84";
+import { normName } from "./text.js?v=8.84";
 
 const b = v => `<strong>${esc(String(v))}</strong>`;
 

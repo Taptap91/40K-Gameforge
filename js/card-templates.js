@@ -6,8 +6,8 @@
  *   3. Here: add a function that returns the card's HTML and register it in CARD_TEMPLATES, then add its CSS to styles.css.
  * Warhammer 40,000 has no entry: its datasheets are read by the app's own parser (datasheets.js), not as cards.
  */
-import { esc } from "./core.js?v=8.83";
-import { richHTML } from "./text.js?v=8.83";
+import { esc } from "./core.js?v=8.84";
+import { richHTML } from "./text.js?v=8.84";
 
 /** A Kill Team datacard: title bar (name, type), italic flavour, stat tiles in a row, weapons table, abilities, then the keywords (the base size is read but not shown). */
 function killTeamCard(c) {
@@ -23,7 +23,7 @@ function killTeamCard(c) {
 
 /** The dusty colour an Age of Sigmar ability takes from the phase it works in. */
 const PHASE_COLOURS = [[/hero/i, "#9a8444"], [/movement/i, "#6f7173"], [/shoot/i, "#4f7394"], [/charge/i, "#a86d3b"], [/combat|fight/i, "#8c3b3b"], [/end/i, "#705c8a"]];
-const phaseColour = phase => (PHASE_COLOURS.find(([re]) => re.test(String(phase || ""))) || [0, "#a8843a"])[1];
+const phaseColour = phase => (PHASE_COLOURS.find(([re]) => re.test(String(phase || ""))) || [0, "#5f8050"])[1];
 
 /** An Age of Sigmar ability (a rules ability, or one on a warscroll): phase bar with the command point cost at the right, name and italic flavour, Declare / Effect lines
  *  split by a short rule, keywords. The bar and border take the colour of the phase. */
@@ -45,7 +45,7 @@ function aosWarscroll(c) {
     wt += `<div class="rf-aw-wr"><span class="rf-aw-wn">${esc(w.n)}${w.note ? `<small>${wr(w.note)}</small>` : ""}</span><span>${esc(w.a)}</span><span>${esc(w.h)}</span><span>${esc(w.w)}</span><span>${esc(w.r)}</span><span>${esc(w.d)}</span></div>`; });
   const prof = (c.profile || []).length ? `<div class="rf-aw-prof"><b>Battle profile</b>${c.profile.map(([k, v]) => `<span><b>${esc(k)}:</b> ${esc(v)}</span>`).join("")}</div>` : "";
   const kws = (c.keywords || []).map(k => `<span class="rf-aw-kv">${esc(k)}</span>`).join("");
-  return `<div class="rf-aw">${c.kicker ? `<div class="rf-aw-kick">${esc(c.kicker)}</div>` : ""}<div class="rf-aw-bar">${esc(c.name)}</div>${c.flavour ? `<p class="rf-aw-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-aw-stats">${stats}</div>${wt ? `<div class="rf-aw-wt">${wt}</div>` : ""}${prof}${(c.abilities || []).map(aosAbility).join("")}${kws ? `<div class="rf-aw-kw"><span class="rf-ab-kl">Keywords</span><div>${kws}</div></div>` : ""}</div>`;
+  return `<div class="rf-aw">${c.kicker ? `<div class="rf-aw-kick">${esc(c.kicker)}</div>` : ""}<div class="rf-aw-bar">${esc(c.name)}</div>${c.flavour ? `<p class="rf-aw-fl">${esc(c.flavour)}</p>` : ""}<div class="rf-aw-stats">${stats}</div>${wt ? `<div class="rf-aw-wt">${wt}</div>` : ""}${(c.abilities || []).map(aosAbility).join("")}${kws ? `<div class="rf-aw-kw"><span class="rf-ab-kl">Keywords</span><div>${kws}</div></div>` : ""}${prof}</div>`;
 }
 
 const CARD_TEMPLATES = { killteam: killTeamCard, aos: aosWarscroll, "aos-ability": aosAbility };
