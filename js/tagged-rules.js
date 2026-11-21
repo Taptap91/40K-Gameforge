@@ -195,7 +195,9 @@ function buildCards(pages, lines, roleTags) {
     const vals = by("stat-value");
     by("stat-label").sort((a, b) => a.x0 - b.x0).forEach(l => {
       const v = vals.filter(v => Math.abs(cx(v) - cx(l)) < 50 && v.y0 >= l.y0).sort((a, b) => a.y0 - b.y0)[0];
-      card.stats.push([txt(l), txt(v) || "-"]);
+      // a save is printed "+ 3" in the PDF and shown as "3+", the way the rest of the card reads it
+      const sv = txt(v) || "-", lab = txt(l);
+      card.stats.push([lab, /^save$/i.test(lab) ? sv.replace(/^\+\s*(\d+)$/, "$1+") : sv]);
     });
     // weapons: name, ATK, HIT, DMG from the row box by column; special rules from the WR box beside it
     const hd = k => one("head-" + k), atkH = hd("atk");

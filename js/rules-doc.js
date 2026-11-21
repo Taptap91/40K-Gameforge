@@ -348,7 +348,8 @@ function collectionToSheets(doc) {
   const ed = doc.edition || {};
   return [
     { name: "Entries", columns: [W("Category", 24), W("Name", 34), W("Tags", 24), W("Stats", 30), W("Text", 100)],
-      rows: doc.structured.sections.map(s => [s.chapter || "General", s.title, "", "", s.text || ""]) },
+      // A Kill Team datacard keeps its "[datacard: …]" line (the app draws the card from it); other entries keep plain text.
+      rows: doc.structured.sections.map(s => [s.chapter || "General", s.title, "", "", /\[datacard: /.test(s.rich || "") ? s.rich : (s.text || "")]) },
     { name: "About", columns: [W("Field", 20), W("Value", 90)],
       rows: [["Kind", "Collection"], ["Title", doc.title], ["Section", doc.section], ["Version", ed.version || ""],
         ["Date", ed.date != null ? new Date(ed.date).toISOString().slice(0, 10) : ""], ["Made with", "RulesForge"]] },
