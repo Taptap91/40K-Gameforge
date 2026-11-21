@@ -16,6 +16,8 @@
  *   packs/incoming/<Game>/<Edition>/Factions/<name>.pdf    → a faction in the "<Game> - <Edition>" bundle
  *   packs/incoming/<Game>/<Edition>/Companions/<name>.pdf  → an Event Companion (Doubles, Teams, Dominatus, …)
  *                                                             in the "<Game> - <Edition>" bundle
+ *   packs/incoming/<Game>/<Edition>/Kill Teams/[<Team>/]<name>.pdf → a kill team in the "Kill Teams" section of the
+ *                                                             Game Pack (directly or in a team subfolder), never a faction
  *   packs/incoming/<Game>/<Edition>/Collections/<name>.xlsx → a filled-in Collection template: any game's
  *                                                             reference entries (see packs/templates/README.md).
  *                                                             A ready-made .xlsx of any RulesForge kind is
@@ -71,10 +73,15 @@ async function findPdfs(dir) {
  *  isn't nested that way. */
 function parseLocation(pdfPath) {
   const rel = path.relative(INCOMING, pdfPath).split(path.sep);
-  if (rel.length !== 4) return null;
   const [game, edition, bucket] = rel;
-  // Folder names a game may use instead of the standard ones (e.g. Kill Team: Core Rules / Mission Packs / Expansions / Kill Teams)
-  const ALIAS = { "core rules": "rules", "mission packs": "rules", "expansions": "companions", "kill teams": "factions" };
+  // Kill Team: a PDF in Kill Teams/ (or in one of its team subfolders, Kill Teams/<Team>/file.pdf) is a kill team
+  // in the "Kill Teams" section, never a 40K-style faction. A sidecar "section" can still name a different section.
+  if (rel.length >= 4 && bucket.trim().toLowerCase() === "kill teams" && rel.length <= 5) {
+    return { game, edition, bucket: "Sections", defaultSection: "Kill Teams" };
+  }
+  if (rel.length !== 4) return null;
+  // Folder names a game may use instead of the standard ones (e.g. Kill Team: Core Rules / Mission Packs / Expansions)
+  const ALIAS = { "core rules": "rules", "mission packs": "rules", "expansions": "companions" };
   const b = ALIAS[bucket.trim().toLowerCase()] || bucket.trim().toLowerCase();
   if (!["rules", "factions", "companions", "event companions", "collections", "sections"].includes(b)) return null;
   return { game, edition, bucket: b === "rules" ? "Rules" : b === "factions" ? "Factions" : b === "collections" ? "Collections" : b === "sections" ? "Sections" : "Companions" };
@@ -175,7 +182,7 @@ async function main() {
         continue;
       }
       // A Sections file is named by its sidecar's "section" (e.g. "Kill Team"); that name is the column it shows under.
-      const section = loc.bucket === "Sections" ? (meta.section || "").trim() : "";
+      const section = loc.bucket === "Sections" ? (meta.section || loc.defaultSection || "").trim() : "";
       if (loc.bucket === "Sections" && !section) throw new Error('a Sections file needs "section" in its .json, the name its column gets in the Game Pack');
       const opts = { kind: loc.bucket === "Factions" ? "faction" : loc.bucket === "Companions" ? "companion" : (meta.kind === "updates" ? "updates" : "core"), faction: loc.bucket === "Factions" ? (meta.faction || "") : "", section };
       const result = await page.evaluate(([b64, name, o]) => window.__convertPdf(b64, name, o), [base64, path.basename(pdfPath), opts]);
