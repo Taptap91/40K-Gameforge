@@ -18,6 +18,8 @@
  *                                                             in the "<Game> - <Edition>" bundle
  *   packs/incoming/<Game>/<Edition>/Kill Teams/[<Team>/]<name>.pdf → a kill team in the "Kill Teams" section of the
  *                                                             Game Pack (directly or in a team subfolder), never a faction
+ *   packs/incoming/<Game>/<Edition>/<name>.pdf            → also a kill team in the "Kill Teams" section (no category
+ *                                                             folder needed, e.g. Kill Team/3rd_Edition/Angels_of_Death.pdf)
  *   packs/incoming/<Game>/<Edition>/Collections/<name>.xlsx → a filled-in Collection template: any game's
  *                                                             reference entries (see packs/templates/README.md).
  *                                                             A ready-made .xlsx of any RulesForge kind is
@@ -74,6 +76,10 @@ async function findPdfs(dir) {
 function parseLocation(pdfPath) {
   const rel = path.relative(INCOMING, pdfPath).split(path.sep);
   const [game, edition, bucket] = rel;
+  // A PDF placed straight in <Game>/<Edition>/ (no category folder) is a kill team book: it goes in the "Kill Teams" section.
+  if (rel.length === 3 && game && edition) {
+    return { game, edition, bucket: "Sections", defaultSection: "Kill Teams" };
+  }
   // Kill Team: a PDF in Kill Teams/ (or in one of its team subfolders, Kill Teams/<Team>/file.pdf) is a kill team
   // in the "Kill Teams" section, never a 40K-style faction. A sidecar "section" can still name a different section.
   if (rel.length >= 4 && bucket.trim().toLowerCase() === "kill teams" && rel.length <= 5) {
